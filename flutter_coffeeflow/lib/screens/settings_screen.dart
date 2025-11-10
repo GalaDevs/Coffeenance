@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/transaction_provider.dart';
+import '../providers/theme_provider.dart';
 
 /// Settings Page Screen - Matches settings-page.tsx
 /// Shows app settings and preferences
@@ -13,34 +13,11 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _isDarkMode = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadThemePreference();
-  }
-
-  Future<void> _loadThemePreference() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _isDarkMode = prefs.getBool('isDarkMode') ?? false;
-    });
-  }
-
-  Future<void> _toggleTheme(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isDarkMode', value);
-    setState(() {
-      _isDarkMode = value;
-    });
-    // Note: In a complete implementation, this would update the app theme
-    // using a ThemeProvider or similar state management
-  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final themeProvider = Provider.of<ThemeProvider>(context);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.only(
@@ -72,10 +49,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 SwitchListTile(
                   title: const Text('Dark Mode'),
                   subtitle: const Text('Use dark color theme'),
-                  value: _isDarkMode,
-                  onChanged: _toggleTheme,
+                  value: themeProvider.isDarkMode,
+                  onChanged: (value) => themeProvider.toggleTheme(value),
                   secondary: Icon(
-                    _isDarkMode ? Icons.dark_mode : Icons.light_mode,
+                    themeProvider.isDarkMode ? Icons.dark_mode : Icons.light_mode,
                     color: theme.colorScheme.primary,
                   ),
                 ),

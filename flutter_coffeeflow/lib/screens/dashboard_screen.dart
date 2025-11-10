@@ -4,6 +4,7 @@ import '../providers/transaction_provider.dart';
 import '../widgets/balance_card.dart';
 import '../widgets/sales_breakdown.dart';
 import '../widgets/recent_transactions.dart';
+import '../widgets/modals/monthly_pl_modal.dart';
 
 /// Dashboard Screen - Matches dashboard.tsx
 /// Shows balance, sales breakdown, and recent transactions
@@ -98,12 +99,19 @@ class DashboardScreen extends StatelessWidget {
                           ),
                         ],
                         onSelected: (value) {
-                          // TODO: Implement advanced reports
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('$value feature coming soon'),
-                            ),
-                          );
+                          if (value == 'monthly_pl') {
+                            showDialog(
+                              context: context,
+                              builder: (context) => const MonthlyPLModal(),
+                            );
+                          } else {
+                            // TODO: Implement other advanced reports
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('$value feature coming soon'),
+                              ),
+                            );
+                          }
                         },
                       ),
                     ],
