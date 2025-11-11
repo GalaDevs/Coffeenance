@@ -5,6 +5,11 @@ import '../widgets/balance_card.dart';
 import '../widgets/sales_breakdown.dart';
 import '../widgets/recent_transactions.dart';
 import '../widgets/modals/monthly_pl_modal.dart';
+import '../widgets/modals/revenue_trends_modal.dart';
+import '../widgets/modals/inventory_modal.dart';
+import '../widgets/modals/payroll_modal.dart';
+import '../widgets/sales_monitoring_card.dart';
+import '../widgets/expense_breakdown_card.dart';
 
 /// Dashboard Screen - Matches dashboard.tsx
 /// Shows balance, sales breakdown, and recent transactions
@@ -39,8 +44,10 @@ class DashboardScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'CoffeeFlow',
-                        style: theme.textTheme.displayMedium,
+                        'Dashboard',
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -104,6 +111,21 @@ class DashboardScreen extends StatelessWidget {
                               context: context,
                               builder: (context) => const MonthlyPLModal(),
                             );
+                          } else if (value == 'revenue_trends') {
+                            showDialog(
+                              context: context,
+                              builder: (context) => const RevenueTrendsModal(),
+                            );
+                          } else if (value == 'inventory') {
+                            showDialog(
+                              context: context,
+                              builder: (context) => const InventoryModal(),
+                            );
+                          } else if (value == 'payroll') {
+                            showDialog(
+                              context: context,
+                              builder: (context) => const PayrollModal(),
+                            );
                           } else {
                             // TODO: Implement other advanced reports
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -137,7 +159,7 @@ class DashboardScreen extends StatelessWidget {
               const SizedBox(height: 24),
 
               // Sales Monitoring
-              _SalesMonitoringCard(
+              SalesMonitoringCard(
                 transactions: provider.transactions,
               ),
               const SizedBox(height: 24),
@@ -150,7 +172,7 @@ class DashboardScreen extends StatelessWidget {
               const SizedBox(height: 24),
 
               // Expense Breakdown
-              _ExpenseBreakdownCard(
+              ExpenseBreakdownCard(
                 expensesByCategory: provider.expensesByCategory,
                 totalExpenses: provider.totalExpense,
               ),
@@ -185,7 +207,7 @@ class DashboardScreen extends StatelessWidget {
   }
 }
 
-/// Tax Summary Card (Collapsible)
+/// Tax Summary Card (Collapsible) - Matches tax-summary.tsx
 class _TaxSummaryCard extends StatefulWidget {
   final double totalIncome;
   final double expenses;
@@ -205,8 +227,15 @@ class _TaxSummaryCardState extends State<_TaxSummaryCard> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final taxableIncome = widget.totalIncome - widget.expenses;
-    final estimatedTax = taxableIncome * 0.08; // 8% tax rate
+    
+    // Tax calculations matching Next.js
+    const vatRate = 0.12;
+    const withholdingTax = 0.02;
+    final grossSales = widget.totalIncome;
+    final vatTax = grossSales * vatRate;
+    final withholdingTaxAmount = grossSales * withholdingTax;
+    final totalTaxes = vatTax + withholdingTaxAmount;
+    final netSales = grossSales - totalTaxes;
 
     return Card(
       child: Column(
@@ -221,14 +250,11 @@ class _TaxSummaryCardState extends State<_TaxSummaryCard> {
                 children: [
                   Row(
                     children: [
-                      Icon(
-                        Icons.receipt_long,
-                        color: theme.colorScheme.primary,
-                      ),
+                      const Text('📋', style: TextStyle(fontSize: 20)),
                       const SizedBox(width: 12),
                       Text(
                         'Tax Summary',
-                        style: theme.textTheme.bodyLarge?.copyWith(
+                        style: theme.textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -238,42 +264,73 @@ class _TaxSummaryCardState extends State<_TaxSummaryCard> {
                     _isExpanded
                         ? Icons.keyboard_arrow_up
                         : Icons.keyboard_arrow_down,
+                    size: 16,
+                    color: theme.textTheme.bodySmall?.color,
                   ),
                 ],
               ),
             ),
           ),
           if (_isExpanded)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            Container(
+              margin: const EdgeInsets.fromLTRB(0, 8, 0, 0),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.secondary.withOpacity(0.5),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(12),
+                  bottomRight: Radius.circular(12),
+                ),
+              ),
               child: Column(
                 children: [
-                  const Divider(),
-                  const SizedBox(height: 8),
                   _buildTaxRow(
-                    'Gross Income',
-                    widget.totalIncome,
+                    'Gross Sales',
+                    grossSales,
                     theme,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
+                  const Divider(height: 1),
+                  const SizedBox(height: 12),
                   _buildTaxRow(
-                    'Deductible Expenses',
-                    widget.expenses,
+                    'VAT (12%)',
+                    vatTax,
                     theme,
+                    isNegative: true,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   _buildTaxRow(
-                    'Taxable Income',
-                    taxableIncome,
+                    'Withholding Tax (2%)',
+                    withholdingTaxAmount,
+                    theme,
+                    isNegative: true,
+                  ),
+                  const SizedBox(height: 12),
+                  const Divider(height: 1),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.error.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: _buildTaxRow(
+                      'Total Taxes',
+                      totalTaxes,
+                      theme,
+                      isBold: true,
+                      isNegative: true,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Divider(height: 1),
+                  const SizedBox(height: 12),
+                  _buildTaxRow(
+                    'Net Sales',
+                    netSales,
                     theme,
                     isBold: true,
-                  ),
-                  const SizedBox(height: 8),
-                  _buildTaxRow(
-                    'Estimated Tax (8%)',
-                    estimatedTax,
-                    theme,
-                    isHighlight: true,
+                    isPrimary: true,
                   ),
                 ],
               ),
@@ -288,22 +345,28 @@ class _TaxSummaryCardState extends State<_TaxSummaryCard> {
     double amount,
     ThemeData theme, {
     bool isBold = false,
-    bool isHighlight = false,
+    bool isNegative = false,
+    bool isPrimary = false,
   }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           label,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
+            color: isBold && isPrimary ? theme.colorScheme.primary : null,
           ),
         ),
         Text(
-          '₱${amount.toStringAsFixed(2)}',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: isBold || isHighlight ? FontWeight.bold : FontWeight.normal,
-            color: isHighlight ? theme.colorScheme.primary : null,
+          '${isNegative ? "-" : ""}₱${amount.toStringAsFixed(2)}',
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+            color: isPrimary
+                ? theme.colorScheme.primary
+                : isNegative
+                    ? theme.colorScheme.error
+                    : null,
           ),
         ),
       ],
@@ -311,162 +374,4 @@ class _TaxSummaryCardState extends State<_TaxSummaryCard> {
   }
 }
 
-/// Sales Monitoring Card
-class _SalesMonitoringCard extends StatelessWidget {
-  final List transactions;
 
-  const _SalesMonitoringCard({required this.transactions});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    // Simplified sales monitoring - can be expanded with charts
-    final todayTransactions = transactions.where((t) {
-      final today = DateTime.now().toIso8601String().split('T')[0];
-      return t.date == today;
-    }).toList();
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Sales Monitoring',
-              style: theme.textTheme.headlineMedium?.copyWith(fontSize: 16),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildMetric(
-                  'Transactions',
-                  todayTransactions.length.toString(),
-                  Icons.receipt,
-                  theme,
-                ),
-                _buildMetric(
-                  'Avg Value',
-                  todayTransactions.isEmpty
-                      ? '₱0'
-                      : '₱${(todayTransactions.fold(0.0, (sum, t) => sum + t.amount) / todayTransactions.length).toStringAsFixed(0)}',
-                  Icons.trending_up,
-                  theme,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMetric(String label, String value, IconData icon, ThemeData theme) {
-    return Column(
-      children: [
-        Icon(icon, color: theme.colorScheme.primary, size: 32),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: theme.textTheme.headlineMedium,
-        ),
-        Text(
-          label,
-          style: theme.textTheme.bodySmall,
-        ),
-      ],
-    );
-  }
-}
-
-/// Expense Breakdown Card
-class _ExpenseBreakdownCard extends StatelessWidget {
-  final Map<String, double> expensesByCategory;
-  final double totalExpenses;
-
-  const _ExpenseBreakdownCard({
-    required this.expensesByCategory,
-    required this.totalExpenses,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
-    // Get top 3 expense categories
-    final topExpenses = expensesByCategory.entries
-        .where((e) => e.value > 0)
-        .toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Top Expenses',
-              style: theme.textTheme.headlineMedium?.copyWith(fontSize: 16),
-            ),
-            const SizedBox(height: 12),
-            if (topExpenses.isEmpty)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text('No expenses recorded'),
-                ),
-              )
-            else
-              ...topExpenses.take(3).map((entry) {
-                final percentage = totalExpenses > 0
-                    ? ((entry.value / totalExpenses) * 100).round()
-                    : 0;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              entry.key,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: LinearProgressIndicator(
-                                value: percentage / 100,
-                                minHeight: 6,
-                                backgroundColor: theme.colorScheme.secondary,
-                                valueColor: const AlwaysStoppedAnimation<Color>(
-                                  Colors.red,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        '₱${entry.value.toStringAsFixed(0)}',
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.red,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-          ],
-        ),
-      ),
-    );
-  }
-}

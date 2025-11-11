@@ -32,7 +32,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // Header
           Text(
             'Settings',
-            style: theme.textTheme.displayMedium,
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 4),
           Text(

@@ -12,11 +12,6 @@ class SalesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final numberFormat = NumberFormat.currency(
-      locale: 'en_PH',
-      symbol: '₱',
-      decimalDigits: 0,
-    );
 
     return Consumer<TransactionProvider>(
       builder: (context, provider, child) {
@@ -41,71 +36,78 @@ class SalesScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              // Header - matches Next.js
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Sales Report',
-                    style: theme.textTheme.displayMedium,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Payment method breakdown',
-                    style: theme.textTheme.bodySmall,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Sales Report',
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Payment method breakdown',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
                   ),
                 ],
               ),
               const SizedBox(height: 24),
 
-              // Total Sales Card
+              // Total Sales Card - matches Next.js exactly
               Container(
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Color(0xFFD97706), // Amber-600
-                      Color(0xFFB45309), // Amber-700
+                      Color(0xFFD97706), // from-amber-600
+                      Color(0xFFB45309), // to-amber-700
                     ],
                   ),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(16), // rounded-2xl
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFD97706).withOpacity(0.3),
-                      blurRadius: 12,
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 20,
                       offset: const Offset(0, 4),
                     ),
                   ],
                 ),
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(24), // p-6
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Total Sales',
                       style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
+                        fontSize: 14, // text-sm
+                        fontWeight: FontWeight.w500, // font-medium
+                        color: Colors.white.withOpacity(0.9), // opacity-90
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 8), // mt-2
                     Text(
-                      numberFormat.format(provider.totalIncome),
+                      '₱${provider.totalIncome.toStringAsFixed(0)}',
                       style: const TextStyle(
-                        fontSize: 36,
+                        fontSize: 28, // Reduced from 36
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
-                        letterSpacing: -0.5,
+                        letterSpacing: -1,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12), // mt-3
                     Text(
                       '${provider.incomeTransactions.length} transactions',
                       style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.white.withOpacity(0.75),
+                        fontSize: 12, // text-xs
+                        color: Colors.white.withOpacity(0.75), // opacity-75
                       ),
                     ),
                   ],
@@ -113,20 +115,33 @@ class SalesScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
 
-              // Sales by Method
+              // Sales by Method - matches Next.js
               Text(
                 'Sales by Method',
-                style: theme.textTheme.headlineMedium,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontSize: 18, // text-lg
+                  fontWeight: FontWeight.bold, // font-bold
+                ),
               ),
               const SizedBox(height: 12),
+
               if (salesData.isEmpty)
-                Center(
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12), // rounded-lg
+                    side: BorderSide(
+                      color: theme.colorScheme.outline.withOpacity(0.2),
+                    ),
+                  ),
                   child: Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Text(
-                      'No sales recorded yet',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.textTheme.bodySmall?.color,
+                    padding: const EdgeInsets.all(24),
+                    child: Center(
+                      child: Text(
+                        'No sales data available',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        ),
                       ),
                     ),
                   ),
@@ -137,109 +152,164 @@ class SalesScreen extends StatelessWidget {
                   final amount = data['amount'] as double;
                   final percentage = data['percentage'] as int;
 
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                method,
-                                style: theme.textTheme.bodyLarge?.copyWith(
-                                  fontWeight: FontWeight.w600,
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Card(
+                      elevation: 0, // matches Next.js flat design
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12), // rounded-lg
+                        side: BorderSide(
+                          color: theme.colorScheme.outline.withOpacity(0.2), // border-border
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16), // p-4
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Top row - method name and amount - matches Next.js
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  method,
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontSize: 16, // text-base font-medium
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
-                              ),
-                              Text(
-                                numberFormat.format(amount),
-                                style: theme.textTheme.bodyLarge?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: const Color(0xFFD97706),
+                                Text(
+                                  '₱${NumberFormat('#,###').format(amount)}',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontSize: 14, // text-sm
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.colorScheme.primary, // text-primary
+                                  ),
                                 ),
+                              ],
+                            ),
+                            const SizedBox(height: 8), // mb-2
+                            // Progress bar with gradient - matches Next.js
+                            Container(
+                              height: 8, // h-2
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(9999), // rounded-full
+                                color: theme.colorScheme.surfaceContainerHighest, // bg-secondary
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              value: percentage / 100,
-                              minHeight: 8,
-                              backgroundColor: theme.colorScheme.secondary,
-                              valueColor: const AlwaysStoppedAnimation<Color>(
-                                Color(0xFFD97706),
+                              child: FractionallySizedBox(
+                                alignment: Alignment.centerLeft,
+                                widthFactor: percentage / 100,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(9999), // rounded-full
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        Color(0xFFF59E0B), // from-amber-500
+                                        Color(0xFFD97706), // to-amber-600
+                                      ],
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
+                            const SizedBox(height: 4), // mt-1
+                            // Percentage text below progress bar - matches Next.js
+                            Text(
                               '$percentage% of sales',
-                              style: theme.textTheme.bodySmall,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontSize: 12, // text-xs
+                                color: theme.colorScheme.onSurface.withOpacity(0.6), // text-muted-foreground
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   );
                 }),
               const SizedBox(height: 24),
 
-              // Recent Sales Transactions
+              // Recent Sales - matches Next.js
               Text(
                 'Recent Sales',
-                style: theme.textTheme.headlineMedium,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontSize: 18, // text-lg
+                  fontWeight: FontWeight.bold, // font-bold
+                ),
               ),
               const SizedBox(height: 12),
+
               if (provider.incomeTransactions.isEmpty)
-                Center(
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12), // rounded-lg
+                    side: BorderSide(
+                      color: theme.colorScheme.outline.withOpacity(0.2),
+                    ),
+                  ),
                   child: Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Text(
-                      'No sales yet',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.textTheme.bodySmall?.color,
+                    padding: const EdgeInsets.all(24),
+                    child: Center(
+                      child: Text(
+                        'No sales yet',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        ),
                       ),
                     ),
                   ),
                 )
               else
                 ...provider.incomeTransactions.take(10).map((transaction) {
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  transaction.description,
-                                  style: theme.textTheme.bodyLarge?.copyWith(
-                                    fontWeight: FontWeight.w600,
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Card(
+                      elevation: 0, // matches Next.js flat design
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12), // rounded-lg
+                        side: BorderSide(
+                          color: theme.colorScheme.outline.withOpacity(0.2), // border-border
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16), // p-4
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    transaction.description,
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      fontSize: 14, // font-medium text-foreground
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  transaction.category,
-                                  style: theme.textTheme.bodySmall,
-                                ),
-                              ],
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    transaction.category,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      fontSize: 12, // text-xs
+                                      color: theme.colorScheme.onSurface.withOpacity(0.6), // text-muted-foreground
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          Text(
-                            '+${numberFormat.format(transaction.amount)}',
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green,
+                            Text(
+                              '+₱${NumberFormat('#,###').format(transaction.amount)}',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontSize: 14, // font-bold
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF16A34A), // text-green-600
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   );

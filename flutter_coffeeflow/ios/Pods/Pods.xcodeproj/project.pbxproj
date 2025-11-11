@@ -19,17 +19,17 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
-		0E38EF2F7653F030ED384271A104FD9A /* messages.g.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BCD2CD6333B1CC38EB2BCB107408A9A /* messages.g.swift */; };
+		0E38EF2F7653F030ED384271A104FD9A /* messages.g.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F7D8A400AADCAAD64AE852CEB4B686E /* messages.g.swift */; };
 		3DC25779AA5144A6F1E12BAE0ED91FE8 /* Pods-Runner-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = E794494AB90477BA94C681E994ADF341 /* Pods-Runner-dummy.m */; };
 		48ABC9CC212358D168731AEE56729598 /* shared_preferences_foundation-umbrella.h in Headers */ = {isa = PBXBuildFile; fileRef = 793E37C0A77310333DA0964135B205A5 /* shared_preferences_foundation-umbrella.h */; settings = {ATTRIBUTES = (Public, ); }; };
-		59A3AF697C0815AFD767B755EE04DB5B /* SharedPreferencesPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9558DDCBF831691647129F62599F5A2 /* SharedPreferencesPlugin.swift */; };
+		59A3AF697C0815AFD767B755EE04DB5B /* SharedPreferencesPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14FA0987188DA7F3AD5B5D0DC47629D9 /* SharedPreferencesPlugin.swift */; };
 		9E9AFE4EF344F7661927DDB6B5CC70AC /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 384DDA2CB25005BD6479B5987C619DD4 /* Foundation.framework */; };
 		B375EA128E6579366091BAA390BBDD34 /* Pods-RunnerTests-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = 4D3DB54C128E3D88C0C9C7DDEA475ED7 /* Pods-RunnerTests-dummy.m */; };
 		B7C67D475D63B3D6501863172F8AD35F /* shared_preferences_foundation-shared_preferences_foundation_privacy in Resources */ = {isa = PBXBuildFile; fileRef = 0652FCE3FC19056983AABE058B3CC45B /* shared_preferences_foundation-shared_preferences_foundation_privacy */; };
 		C67BCC64EA593585756217B11DED24ED /* Pods-Runner-umbrella.h in Headers */ = {isa = PBXBuildFile; fileRef = 499E3722E8DACDC2AAA6C15AD1796520 /* Pods-Runner-umbrella.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		CEBD84922D2CCEF26C272418EC3EB3A6 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 384DDA2CB25005BD6479B5987C619DD4 /* Foundation.framework */; };
 		D2A52C6979E7137696C04242485D21EC /* shared_preferences_foundation-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = 9E64262CE53A9D16A35F763B4AC05B49 /* shared_preferences_foundation-dummy.m */; };
-		D72B072D4B490770113DDBFEBEDD289E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 459FEA6C8FE82C84D3ADCF7B41DEC567 /* PrivacyInfo.xcprivacy */; };
+		D72B072D4B490770113DDBFEBEDD289E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 453D53DFED6B7E97A0EF38B987A2D2D4 /* PrivacyInfo.xcprivacy */; };
 		E6B934071CC8AAC4C2F13418E980DC83 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 384DDA2CB25005BD6479B5987C619DD4 /* Foundation.framework */; };
 		EB2DC96CDCF638AB89007D2DB0F3119A /* Pods-RunnerTests-umbrella.h in Headers */ = {isa = PBXBuildFile; fileRef = 9E9B12BCE5540D02A80250C3EC16D399 /* Pods-RunnerTests-umbrella.h */; settings = {ATTRIBUTES = (Public, ); }; };
 /* End PBXBuildFile section */
@@ -76,16 +76,17 @@
 		03E8AD2E8B75443E12D3D3BD12A9900E /* Pods-RunnerTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-RunnerTests.debug.xcconfig"; sourceTree = "<group>"; };
 		0652FCE3FC19056983AABE058B3CC45B /* shared_preferences_foundation-shared_preferences_foundation_privacy */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = "shared_preferences_foundation-shared_preferences_foundation_privacy"; path = shared_preferences_foundation_privacy.bundle; sourceTree = BUILT_PRODUCTS_DIR; };
 		0AFB643DA4919253F749E2836A5AAFDC /* Pods-Runner-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-Runner-Info.plist"; sourceTree = "<group>"; };
-		0BCD2CD6333B1CC38EB2BCB107408A9A /* messages.g.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = messages.g.swift; path = "../../../../../../../../../../../../../../Users/rheyvictormacayran/.pub-cache/hosted/pub.dev/shared_preferences_foundation-2.5.5/darwin/shared_preferences_foundation/Sources/shared_preferences_foundation/messages.g.swift"; sourceTree = "<group>"; };
 		11AA7018F95317D959D9D2E76CBB2377 /* Pods-RunnerTests-acknowledgements.markdown */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = "Pods-RunnerTests-acknowledgements.markdown"; sourceTree = "<group>"; };
+		14FA0987188DA7F3AD5B5D0DC47629D9 /* SharedPreferencesPlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SharedPreferencesPlugin.swift; path = "../../../../../../../../../../../../../../Users/rheyvictormacayran/.pub-cache/hosted/pub.dev/shared_preferences_foundation-2.5.5/darwin/shared_preferences_foundation/Sources/shared_preferences_foundation/SharedPreferencesPlugin.swift"; sourceTree = "<group>"; };
 		161F268A61A5998CD267C0ED92085B54 /* shared_preferences_foundation.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = shared_preferences_foundation.debug.xcconfig; sourceTree = "<group>"; };
 		1B136F41D5B5FAE96EA576E768A5771D /* Pods-Runner-acknowledgements.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-Runner-acknowledgements.plist"; sourceTree = "<group>"; };
 		1F0040A80494195685FDFFEA8CE1713B /* shared_preferences_foundation.modulemap */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.module; path = shared_preferences_foundation.modulemap; sourceTree = "<group>"; };
 		366789E05DCAF5B43B07B43BD51AAE3F /* shared_preferences_foundation-prefix.pch */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "shared_preferences_foundation-prefix.pch"; sourceTree = "<group>"; };
 		384DDA2CB25005BD6479B5987C619DD4 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
-		459FEA6C8FE82C84D3ADCF7B41DEC567 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = "../../../../../../../../../../../../../../../Users/rheyvictormacayran/.pub-cache/hosted/pub.dev/shared_preferences_foundation-2.5.5/darwin/shared_preferences_foundation/Sources/shared_preferences_foundation/Resources/PrivacyInfo.xcprivacy"; sourceTree = "<group>"; };
+		453D53DFED6B7E97A0EF38B987A2D2D4 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = "../../../../../../../../../../../../../../../Users/rheyvictormacayran/.pub-cache/hosted/pub.dev/shared_preferences_foundation-2.5.5/darwin/shared_preferences_foundation/Sources/shared_preferences_foundation/Resources/PrivacyInfo.xcprivacy"; sourceTree = "<group>"; };
 		499E3722E8DACDC2AAA6C15AD1796520 /* Pods-Runner-umbrella.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "Pods-Runner-umbrella.h"; sourceTree = "<group>"; };
 		4D3DB54C128E3D88C0C9C7DDEA475ED7 /* Pods-RunnerTests-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "Pods-RunnerTests-dummy.m"; sourceTree = "<group>"; };
+		4F7D8A400AADCAAD64AE852CEB4B686E /* messages.g.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = messages.g.swift; path = "../../../../../../../../../../../../../../Users/rheyvictormacayran/.pub-cache/hosted/pub.dev/shared_preferences_foundation-2.5.5/darwin/shared_preferences_foundation/Sources/shared_preferences_foundation/messages.g.swift"; sourceTree = "<group>"; };
 		5FBBCB04D10006DD94AA4953F25D7F8E /* ResourceBundle-shared_preferences_foundation_privacy-shared_preferences_foundation-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "ResourceBundle-shared_preferences_foundation_privacy-shared_preferences_foundation-Info.plist"; sourceTree = "<group>"; };
 		669E8F25E1897672BDB80B7EB784DA24 /* Pods-Runner */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; name = "Pods-Runner"; path = Pods_Runner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		6C3345B1B3CAEDF5B03B1F731FDC492E /* Pods-RunnerTests */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; name = "Pods-RunnerTests"; path = Pods_RunnerTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -112,7 +113,6 @@
 		E5CE2E33E6B3A1F4D396EC53EACA914A /* shared_preferences_foundation-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "shared_preferences_foundation-Info.plist"; sourceTree = "<group>"; };
 		E736E0C9C5B73D27B8865E363E2108AC /* Pods-RunnerTests.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-RunnerTests.profile.xcconfig"; sourceTree = "<group>"; };
 		E794494AB90477BA94C681E994ADF341 /* Pods-Runner-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "Pods-Runner-dummy.m"; sourceTree = "<group>"; };
-		E9558DDCBF831691647129F62599F5A2 /* SharedPreferencesPlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SharedPreferencesPlugin.swift; path = "../../../../../../../../../../../../../../Users/rheyvictormacayran/.pub-cache/hosted/pub.dev/shared_preferences_foundation-2.5.5/darwin/shared_preferences_foundation/Sources/shared_preferences_foundation/SharedPreferencesPlugin.swift"; sourceTree = "<group>"; };
 		ECDF6AA713870989438BA93B395DC557 /* Pods-Runner-acknowledgements.markdown */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = "Pods-Runner-acknowledgements.markdown"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -154,28 +154,28 @@
 		02354D58FD6D35DC2273D49C2B50E86F /* xamppfiles */ = {
 			isa = PBXGroup;
 			children = (
-				532E4043F5BD346FB10D9DAA4AC04C25 /* htdocs */,
+				B14A2F8AC86440866040C2F55A7DA1D4 /* htdocs */,
 			);
 			name = xamppfiles;
 			path = xamppfiles;
 			sourceTree = "<group>";
 		};
-		0ACF01F24C672B4D94B96539A8C33AF4 /* .symlinks */ = {
+		105D666CB9AFC53D360132EDFCFDEC4D /* Sources */ = {
 			isa = PBXGroup;
 			children = (
-				A2A73C928F53832A44954C3CD7BCAD2C /* plugins */,
+				C626B9F273E944875BE07215AF700E75 /* shared_preferences_foundation */,
 			);
-			name = .symlinks;
-			path = .symlinks;
+			name = Sources;
+			path = Sources;
 			sourceTree = "<group>";
 		};
-		123EF295A62C24ADB7BF0494B8379DBC /* darwin */ = {
+		10E95C6FDDE52D0EA037A54DADA2CF19 /* ios */ = {
 			isa = PBXGroup;
 			children = (
-				8869F09B4DC6F2EDAB24C11FACFCDDEB /* shared_preferences_foundation */,
+				9CCA7198DFCA34BAA96EDAC90FFD26A5 /* .symlinks */,
 			);
-			name = darwin;
-			path = darwin;
+			name = ios;
+			path = ios;
 			sourceTree = "<group>";
 		};
 		15C4C4F6724FD8D14D319A98FFA64613 /* Pod */ = {
@@ -194,24 +194,6 @@
 			);
 			name = Applications;
 			path = Applications;
-			sourceTree = "<group>";
-		};
-		1BCDC204A13AB008428449C5351EAC9A /* shared_preferences_foundation */ = {
-			isa = PBXGroup;
-			children = (
-				93FCE700F98D6C108ABA7CC07A1F07A3 /* darwin */,
-			);
-			name = shared_preferences_foundation;
-			path = shared_preferences_foundation;
-			sourceTree = "<group>";
-		};
-		1BD2D9F4E6DDB33A0EFA02BCD8C32768 /* plugins */ = {
-			isa = PBXGroup;
-			children = (
-				1BCDC204A13AB008428449C5351EAC9A /* shared_preferences_foundation */,
-			);
-			name = plugins;
-			path = plugins;
 			sourceTree = "<group>";
 		};
 		21C0ECC844431FE7E797F2721E22A9CC /* XAMPP */ = {
@@ -239,6 +221,24 @@
 			path = "../../../../Pods/Target Support Files/shared_preferences_foundation";
 			sourceTree = "<group>";
 		};
+		289EA27BFF7065EBF95505748E3E9929 /* plugins */ = {
+			isa = PBXGroup;
+			children = (
+				3024F11E5A568D367CA470E0CEA84D47 /* shared_preferences_foundation */,
+			);
+			name = plugins;
+			path = plugins;
+			sourceTree = "<group>";
+		};
+		29CACC3DBDC82D80DCC1D05AC5437EE6 /* .symlinks */ = {
+			isa = PBXGroup;
+			children = (
+				289EA27BFF7065EBF95505748E3E9929 /* plugins */,
+			);
+			name = .symlinks;
+			path = .symlinks;
+			sourceTree = "<group>";
+		};
 		2B577440C7064A3E1597C4C1928D0109 /* .. */ = {
 			isa = PBXGroup;
 			children = (
@@ -257,13 +257,13 @@
 			name = "Targets Support Files";
 			sourceTree = "<group>";
 		};
-		2E53D4712F2C29CC2385CB394381AA9D /* Coffee-manager-app */ = {
+		3024F11E5A568D367CA470E0CEA84D47 /* shared_preferences_foundation */ = {
 			isa = PBXGroup;
 			children = (
-				804C3215EE520D06AF44B662C2DB1D3C /* flutter_coffeeflow */,
+				5E943C0F6E14D41935ABD80CBD671383 /* darwin */,
 			);
-			name = "Coffee-manager-app";
-			path = "Coffee-manager-app";
+			name = shared_preferences_foundation;
+			path = shared_preferences_foundation;
 			sourceTree = "<group>";
 		};
 		31F61F883365EF5F27E6C80ECCCC6F54 /* Pod */ = {
@@ -277,28 +277,10 @@
 		3AE7006D0CC2ADEA7E20A2415210FB93 /* xamppfiles */ = {
 			isa = PBXGroup;
 			children = (
-				87C5A68C79CBCE56B91C6E7C9F164E7B /* htdocs */,
+				66DDCDF9E3F00A1F6D68010D36761CAC /* htdocs */,
 			);
 			name = xamppfiles;
 			path = xamppfiles;
-			sourceTree = "<group>";
-		};
-		3BD49A4C314305679EDA17C2FE17E4BF /* Coffee-manager-app */ = {
-			isa = PBXGroup;
-			children = (
-				AEBA5A7FEB2AA9A6B0AA7B3E661B3709 /* flutter_coffeeflow */,
-			);
-			name = "Coffee-manager-app";
-			path = "Coffee-manager-app";
-			sourceTree = "<group>";
-		};
-		436FBAD6201E2F8FB6F0321404CFDAF7 /* shared_preferences_foundation */ = {
-			isa = PBXGroup;
-			children = (
-				BC5742E9021F9C319670A439E07B265D /* Resources */,
-			);
-			name = shared_preferences_foundation;
-			path = shared_preferences_foundation;
 			sourceTree = "<group>";
 		};
 		43F6091BFC08B79776488725C522C4DE /* .. */ = {
@@ -310,22 +292,22 @@
 			path = ..;
 			sourceTree = "<group>";
 		};
-		487DACF36A015B19F3A433322556A7A9 /* shared_preferences_foundation */ = {
+		4CD04266903E02FD77D446165CFB7899 /* Coffeenance */ = {
 			isa = PBXGroup;
 			children = (
-				BEA768B410895C3B7E03679A05B556DA /* Sources */,
+				D7E0C2513070EEB2FB2EA09E38C1B857 /* flutter_coffeeflow */,
 			);
-			name = shared_preferences_foundation;
-			path = shared_preferences_foundation;
+			name = Coffeenance;
+			path = Coffeenance;
 			sourceTree = "<group>";
 		};
-		532E4043F5BD346FB10D9DAA4AC04C25 /* htdocs */ = {
+		4FFF634C34BCB8D249FA69AA0433B73C /* Sources */ = {
 			isa = PBXGroup;
 			children = (
-				2E53D4712F2C29CC2385CB394381AA9D /* Coffee-manager-app */,
+				C95CE5353C9E98CB260545E4649A8F27 /* shared_preferences_foundation */,
 			);
-			name = htdocs;
-			path = htdocs;
+			name = Sources;
+			path = Sources;
 			sourceTree = "<group>";
 		};
 		537E840C4F4E30B706FD9D64B15C53A7 /* Pods-RunnerTests */ = {
@@ -354,13 +336,22 @@
 			path = ..;
 			sourceTree = "<group>";
 		};
-		5E1057BCCFFBFD734038FF8AA0ECAE66 /* .symlinks */ = {
+		5D68BCB0672448DAADF9DEEE5F8EB99B /* shared_preferences_foundation */ = {
 			isa = PBXGroup;
 			children = (
-				1BD2D9F4E6DDB33A0EFA02BCD8C32768 /* plugins */,
+				105D666CB9AFC53D360132EDFCFDEC4D /* Sources */,
 			);
-			name = .symlinks;
-			path = .symlinks;
+			name = shared_preferences_foundation;
+			path = shared_preferences_foundation;
+			sourceTree = "<group>";
+		};
+		5E943C0F6E14D41935ABD80CBD671383 /* darwin */ = {
+			isa = PBXGroup;
+			children = (
+				5D68BCB0672448DAADF9DEEE5F8EB99B /* shared_preferences_foundation */,
+			);
+			name = darwin;
+			path = darwin;
 			sourceTree = "<group>";
 		};
 		5F80D19E92943FEDD8870D4067696520 /* XAMPP */ = {
@@ -372,14 +363,13 @@
 			path = XAMPP;
 			sourceTree = "<group>";
 		};
-		6466D6FA8617AB9FFF1697B5D34126FB /* shared_preferences_foundation */ = {
+		66DDCDF9E3F00A1F6D68010D36761CAC /* htdocs */ = {
 			isa = PBXGroup;
 			children = (
-				0BCD2CD6333B1CC38EB2BCB107408A9A /* messages.g.swift */,
-				E9558DDCBF831691647129F62599F5A2 /* SharedPreferencesPlugin.swift */,
+				FFCD09A66571239E4DEDE2E1A996C26C /* Coffeenance */,
 			);
-			name = shared_preferences_foundation;
-			path = shared_preferences_foundation;
+			name = htdocs;
+			path = htdocs;
 			sourceTree = "<group>";
 		};
 		671EAFA9F2334AD928E45EA476FD83D5 /* .. */ = {
@@ -400,49 +390,13 @@
 			path = ..;
 			sourceTree = "<group>";
 		};
-		706B749C297C24E7288B1D93E202DE68 /* shared_preferences_foundation */ = {
+		98139D4888DA45F547367EE472ED376F /* shared_preferences_foundation */ = {
 			isa = PBXGroup;
 			children = (
-				123EF295A62C24ADB7BF0494B8379DBC /* darwin */,
+				4FFF634C34BCB8D249FA69AA0433B73C /* Sources */,
 			);
 			name = shared_preferences_foundation;
 			path = shared_preferences_foundation;
-			sourceTree = "<group>";
-		};
-		804C3215EE520D06AF44B662C2DB1D3C /* flutter_coffeeflow */ = {
-			isa = PBXGroup;
-			children = (
-				B2DDBB4FB65C6111744CD38B59D30832 /* ios */,
-			);
-			name = flutter_coffeeflow;
-			path = flutter_coffeeflow;
-			sourceTree = "<group>";
-		};
-		87C5A68C79CBCE56B91C6E7C9F164E7B /* htdocs */ = {
-			isa = PBXGroup;
-			children = (
-				3BD49A4C314305679EDA17C2FE17E4BF /* Coffee-manager-app */,
-			);
-			name = htdocs;
-			path = htdocs;
-			sourceTree = "<group>";
-		};
-		8869F09B4DC6F2EDAB24C11FACFCDDEB /* shared_preferences_foundation */ = {
-			isa = PBXGroup;
-			children = (
-				BC16232526E7551213A8BA6A55714609 /* Sources */,
-			);
-			name = shared_preferences_foundation;
-			path = shared_preferences_foundation;
-			sourceTree = "<group>";
-		};
-		93FCE700F98D6C108ABA7CC07A1F07A3 /* darwin */ = {
-			isa = PBXGroup;
-			children = (
-				487DACF36A015B19F3A433322556A7A9 /* shared_preferences_foundation */,
-			);
-			name = darwin;
-			path = darwin;
 			sourceTree = "<group>";
 		};
 		999543DFB43300D51156C39F2CCCDCB6 /* Products */ = {
@@ -456,13 +410,13 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		A2A73C928F53832A44954C3CD7BCAD2C /* plugins */ = {
+		9CCA7198DFCA34BAA96EDAC90FFD26A5 /* .symlinks */ = {
 			isa = PBXGroup;
 			children = (
-				706B749C297C24E7288B1D93E202DE68 /* shared_preferences_foundation */,
+				D7687636E1865DC3C1DB23D3C0B0B998 /* plugins */,
 			);
-			name = plugins;
-			path = plugins;
+			name = .symlinks;
+			path = .symlinks;
 			sourceTree = "<group>";
 		};
 		A2D07B8EFFD89F149CCBB39288122953 /* .. */ = {
@@ -503,22 +457,31 @@
 			path = .;
 			sourceTree = "<group>";
 		};
-		AEBA5A7FEB2AA9A6B0AA7B3E661B3709 /* flutter_coffeeflow */ = {
+		AFC8036CC33469E4630D1F99DD1DC9DF /* Resources */ = {
 			isa = PBXGroup;
 			children = (
-				F220587E1F6625559168118236BDD228 /* ios */,
+				453D53DFED6B7E97A0EF38B987A2D2D4 /* PrivacyInfo.xcprivacy */,
+			);
+			name = Resources;
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		B116B6F93782C9913C864582630FB9E3 /* flutter_coffeeflow */ = {
+			isa = PBXGroup;
+			children = (
+				C2DEF15B796408381D67A34C2C693E3E /* ios */,
 			);
 			name = flutter_coffeeflow;
 			path = flutter_coffeeflow;
 			sourceTree = "<group>";
 		};
-		B2DDBB4FB65C6111744CD38B59D30832 /* ios */ = {
+		B14A2F8AC86440866040C2F55A7DA1D4 /* htdocs */ = {
 			isa = PBXGroup;
 			children = (
-				5E1057BCCFFBFD734038FF8AA0ECAE66 /* .symlinks */,
+				4CD04266903E02FD77D446165CFB7899 /* Coffeenance */,
 			);
-			name = ios;
-			path = ios;
+			name = htdocs;
+			path = htdocs;
 			sourceTree = "<group>";
 		};
 		BAF1056F873C1FA41CC92A488DF447CB /* .. */ = {
@@ -528,33 +491,6 @@
 			);
 			name = ..;
 			path = ..;
-			sourceTree = "<group>";
-		};
-		BC16232526E7551213A8BA6A55714609 /* Sources */ = {
-			isa = PBXGroup;
-			children = (
-				436FBAD6201E2F8FB6F0321404CFDAF7 /* shared_preferences_foundation */,
-			);
-			name = Sources;
-			path = Sources;
-			sourceTree = "<group>";
-		};
-		BC5742E9021F9C319670A439E07B265D /* Resources */ = {
-			isa = PBXGroup;
-			children = (
-				459FEA6C8FE82C84D3ADCF7B41DEC567 /* PrivacyInfo.xcprivacy */,
-			);
-			name = Resources;
-			path = Resources;
-			sourceTree = "<group>";
-		};
-		BEA768B410895C3B7E03679A05B556DA /* Sources */ = {
-			isa = PBXGroup;
-			children = (
-				6466D6FA8617AB9FFF1697B5D34126FB /* shared_preferences_foundation */,
-			);
-			name = Sources;
-			path = Sources;
 			sourceTree = "<group>";
 		};
 		C096ADED0C7A15C4747F66E330642F06 /* .. */ = {
@@ -573,6 +509,43 @@
 			);
 			name = Applications;
 			path = Applications;
+			sourceTree = "<group>";
+		};
+		C2DEF15B796408381D67A34C2C693E3E /* ios */ = {
+			isa = PBXGroup;
+			children = (
+				29CACC3DBDC82D80DCC1D05AC5437EE6 /* .symlinks */,
+			);
+			name = ios;
+			path = ios;
+			sourceTree = "<group>";
+		};
+		C626B9F273E944875BE07215AF700E75 /* shared_preferences_foundation */ = {
+			isa = PBXGroup;
+			children = (
+				AFC8036CC33469E4630D1F99DD1DC9DF /* Resources */,
+			);
+			name = shared_preferences_foundation;
+			path = shared_preferences_foundation;
+			sourceTree = "<group>";
+		};
+		C95CE5353C9E98CB260545E4649A8F27 /* shared_preferences_foundation */ = {
+			isa = PBXGroup;
+			children = (
+				4F7D8A400AADCAAD64AE852CEB4B686E /* messages.g.swift */,
+				14FA0987188DA7F3AD5B5D0DC47629D9 /* SharedPreferencesPlugin.swift */,
+			);
+			name = shared_preferences_foundation;
+			path = shared_preferences_foundation;
+			sourceTree = "<group>";
+		};
+		CA810C760ACDB9F1E7756F8D66393FA6 /* darwin */ = {
+			isa = PBXGroup;
+			children = (
+				98139D4888DA45F547367EE472ED376F /* shared_preferences_foundation */,
+			);
+			name = darwin;
+			path = darwin;
 			sourceTree = "<group>";
 		};
 		CF1408CF629C7361332E53B88F7BD30C = {
@@ -594,12 +567,39 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		D7687636E1865DC3C1DB23D3C0B0B998 /* plugins */ = {
+			isa = PBXGroup;
+			children = (
+				E5588A5ED2DFBF2F544DD359D7BF62DA /* shared_preferences_foundation */,
+			);
+			name = plugins;
+			path = plugins;
+			sourceTree = "<group>";
+		};
+		D7E0C2513070EEB2FB2EA09E38C1B857 /* flutter_coffeeflow */ = {
+			isa = PBXGroup;
+			children = (
+				10E95C6FDDE52D0EA037A54DADA2CF19 /* ios */,
+			);
+			name = flutter_coffeeflow;
+			path = flutter_coffeeflow;
+			sourceTree = "<group>";
+		};
 		E4801F62A6B08CD9B5410329F1A18FDE /* iOS */ = {
 			isa = PBXGroup;
 			children = (
 				384DDA2CB25005BD6479B5987C619DD4 /* Foundation.framework */,
 			);
 			name = iOS;
+			sourceTree = "<group>";
+		};
+		E5588A5ED2DFBF2F544DD359D7BF62DA /* shared_preferences_foundation */ = {
+			isa = PBXGroup;
+			children = (
+				CA810C760ACDB9F1E7756F8D66393FA6 /* darwin */,
+			);
+			name = shared_preferences_foundation;
+			path = shared_preferences_foundation;
 			sourceTree = "<group>";
 		};
 		E806A4F97D48F5FD3B4CA1BC617EA1F5 /* Pods-Runner */ = {
@@ -638,15 +638,6 @@
 			path = ..;
 			sourceTree = "<group>";
 		};
-		F220587E1F6625559168118236BDD228 /* ios */ = {
-			isa = PBXGroup;
-			children = (
-				0ACF01F24C672B4D94B96539A8C33AF4 /* .symlinks */,
-			);
-			name = ios;
-			path = ios;
-			sourceTree = "<group>";
-		};
 		F2F3FDC38B332C87129E9B6D6ACC9F1B /* shared_preferences_foundation */ = {
 			isa = PBXGroup;
 			children = (
@@ -666,6 +657,15 @@
 			);
 			name = "Support Files";
 			path = "../Pods/Target Support Files/Flutter";
+			sourceTree = "<group>";
+		};
+		FFCD09A66571239E4DEDE2E1A996C26C /* Coffeenance */ = {
+			isa = PBXGroup;
+			children = (
+				B116B6F93782C9913C864582630FB9E3 /* flutter_coffeeflow */,
+			);
+			name = Coffeenance;
+			path = Coffeenance;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */

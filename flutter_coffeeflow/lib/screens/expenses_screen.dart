@@ -48,7 +48,9 @@ class ExpensesScreen extends StatelessWidget {
                 children: [
                   Text(
                     'Expenses',
-                    style: theme.textTheme.displayMedium,
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -95,7 +97,7 @@ class ExpensesScreen extends StatelessWidget {
                     Text(
                       numberFormat.format(provider.totalExpense),
                       style: const TextStyle(
-                        fontSize: 36,
+                        fontSize: 28,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                         letterSpacing: -0.5,

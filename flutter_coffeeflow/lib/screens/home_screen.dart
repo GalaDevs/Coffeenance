@@ -79,38 +79,44 @@ class _HomeScreenState extends State<HomeScreen>
           children: _screens,
         ),
       ),
-      floatingActionButton: ScaleTransition(
-        scale: _fabScaleAnimation,
-        child: FloatingActionButton.extended(
-          onPressed: _showTransactionModal,
-          icon: const Icon(Icons.add),
-          label: const Text('Add'),
-          elevation: 4,
-          backgroundColor: theme.colorScheme.primary,
-          foregroundColor: theme.colorScheme.onPrimary,
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 24), // Fixed position from bottom
+        child: ScaleTransition(
+          scale: _fabScaleAnimation,
+          child: SizedBox(
+            width: 56, // w-14 (56px)
+            height: 56, // h-14 (56px)
+            child: FloatingActionButton(
+              onPressed: _showTransactionModal,
+              elevation: 8,
+              backgroundColor: theme.colorScheme.primary,
+              child: const Icon(
+                Icons.add,
+                size: 28,
+                color: Colors.white,
+              ),
+            ),
+          ),
         ),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: Container(
+        height: 80, // Fixed height matching Next.js h-20 (80px)
         decoration: BoxDecoration(
-          color: theme.scaffoldBackgroundColor,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
+          color: theme.colorScheme.surface,
+          border: Border(
+            top: BorderSide(
+              color: theme.colorScheme.outline.withOpacity(0.2),
+              width: 1,
             ),
-          ],
+          ),
         ),
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: List.generate(_navItems.length, (index) {
-                return _buildNavItem(index, theme);
-              }),
-            ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: List.generate(_navItems.length, (index) {
+              return _buildNavItem(index, theme);
+            }),
           ),
         ),
       ),
@@ -121,11 +127,13 @@ class _HomeScreenState extends State<HomeScreen>
     final navItem = _navItems[index];
     final isSelected = _currentIndex == index;
 
-    return GestureDetector(
+    return InkWell(
       onTap: () => _onTabChanged(index),
+      borderRadius: BorderRadius.circular(12),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        width: 56, // w-14 (56px)
+        height: 56, // h-14 (56px)
         decoration: BoxDecoration(
           color: isSelected
               ? theme.colorScheme.primary.withOpacity(0.1)
@@ -133,26 +141,26 @@ class _HomeScreenState extends State<HomeScreen>
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
               navItem.icon,
               style: TextStyle(
-                fontSize: 24,
+                fontSize: 20, // text-xl
                 color: isSelected
                     ? theme.colorScheme.primary
-                    : theme.textTheme.bodySmall?.color,
+                    : theme.colorScheme.onSurface.withOpacity(0.6),
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2), // mb-1
             Text(
               navItem.label,
               style: TextStyle(
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                fontSize: 10, // text-xs
+                fontWeight: FontWeight.w500, // font-medium
                 color: isSelected
                     ? theme.colorScheme.primary
-                    : theme.textTheme.bodySmall?.color,
+                    : theme.colorScheme.onSurface.withOpacity(0.6),
               ),
             ),
           ],
