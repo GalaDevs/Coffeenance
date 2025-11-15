@@ -44,6 +44,9 @@ class TransactionProvider with ChangeNotifier {
       IncomeCategories.paymaya: incomeTransactions
           .where((t) => t.category == IncomeCategories.paymaya)
           .fold(0.0, (sum, t) => sum + t.amount),
+      IncomeCategories.others: incomeTransactions
+          .where((t) => t.category == IncomeCategories.others)
+          .fold(0.0, (sum, t) => sum + t.amount),
     };
   }
 

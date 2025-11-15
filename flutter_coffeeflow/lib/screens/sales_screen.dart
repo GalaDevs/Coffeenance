@@ -61,56 +61,59 @@ class SalesScreen extends StatelessWidget {
               const SizedBox(height: 24),
 
               // Total Sales Card - matches Next.js exactly
-              Container(
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFFD97706), // from-amber-600
-                      Color(0xFFB45309), // to-amber-700
+              SizedBox(
+                width: double.infinity, // Full width
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Color(0xFFD97706), // from-amber-600
+                        Color(0xFFB45309), // to-amber-700
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(16), // rounded-2xl
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 20,
+                        offset: const Offset(0, 4),
+                      ),
                     ],
                   ),
-                  borderRadius: BorderRadius.circular(16), // rounded-2xl
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 20,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                padding: const EdgeInsets.all(24), // p-6
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Total Sales',
-                      style: TextStyle(
-                        fontSize: 14, // text-sm
-                        fontWeight: FontWeight.w500, // font-medium
-                        color: Colors.white.withOpacity(0.9), // opacity-90
+                  padding: const EdgeInsets.all(24), // p-6
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Total Sales',
+                        style: TextStyle(
+                          fontSize: 14, // text-sm
+                          fontWeight: FontWeight.w500, // font-medium
+                          color: Colors.white.withOpacity(0.9), // opacity-90
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8), // mt-2
-                    Text(
-                      '₱${provider.totalIncome.toStringAsFixed(0)}',
-                      style: const TextStyle(
-                        fontSize: 28, // Reduced from 36
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: -1,
+                      const SizedBox(height: 8), // mt-2
+                      Text(
+                        '₱${provider.totalIncome.toStringAsFixed(0)}',
+                        style: const TextStyle(
+                          fontSize: 28, // Reduced from 36
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: -1,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12), // mt-3
-                    Text(
-                      '${provider.incomeTransactions.length} transactions',
-                      style: TextStyle(
-                        fontSize: 12, // text-xs
-                        color: Colors.white.withOpacity(0.75), // opacity-75
+                      const SizedBox(height: 12), // mt-3
+                      Text(
+                        '${provider.incomeTransactions.length} transactions',
+                        style: TextStyle(
+                          fontSize: 12, // text-xs
+                          color: Colors.white.withOpacity(0.75), // opacity-75
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 24),

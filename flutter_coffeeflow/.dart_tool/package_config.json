@@ -620,7 +620,7 @@
       "languageVersion": "3.4"
     },
     {
-      "name": "coffeenance",
+      "name": "coffeeflow",
       "rootUri": "../",
       "packageUri": "lib/",
       "languageVersion": "3.5"

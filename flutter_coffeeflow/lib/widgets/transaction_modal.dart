@@ -32,6 +32,7 @@ class _TransactionModalState extends State<TransactionModal>
 
   TransactionType _type = TransactionType.income;
   String? _category;
+  DateTime _selectedDate = DateTime.now();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
 
@@ -96,7 +97,7 @@ class _TransactionModalState extends State<TransactionModal>
 
     final transaction = Transaction(
       id: 0, // Will be assigned by provider
-      date: DateTime.now().toIso8601String().split('T')[0],
+      date: _selectedDate.toIso8601String().split('T')[0],
       type: _type,
       category: _category!,
       description: _descriptionController.text,
@@ -182,6 +183,62 @@ class _TransactionModalState extends State<TransactionModal>
                           ),
                         ],
                       ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Date Selection
+                    Text(
+                      'Date',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              setState(() {
+                                _selectedDate = DateTime.now();
+                              });
+                            },
+                            icon: const Icon(Icons.today),
+                            label: const Text('Today'),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              backgroundColor: _selectedDate.difference(DateTime.now()).inDays == 0
+                                  ? theme.colorScheme.primary.withOpacity(0.1)
+                                  : null,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              final DateTime? picked = await showDatePicker(
+                                context: context,
+                                initialDate: _selectedDate,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime.now().add(const Duration(days: 365)),
+                              );
+                              if (picked != null) {
+                                setState(() {
+                                  _selectedDate = picked;
+                                });
+                              }
+                            },
+                            icon: const Icon(Icons.calendar_today),
+                            label: Text(
+                              '${_selectedDate.month}/${_selectedDate.day}/${_selectedDate.year}',
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 24),
 

@@ -1,10 +1,10 @@
 {
   "roots": [
-    "coffeenance"
+    "coffeeflow"
   ],
   "packages": [
     {
-      "name": "coffeenance",
+      "name": "coffeeflow",
       "version": "1.0.0+1",
       "dependencies": [
         "animations",

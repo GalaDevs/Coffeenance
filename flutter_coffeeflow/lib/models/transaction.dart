@@ -59,8 +59,9 @@ class IncomeCategories {
   static const String gcash = 'GCash';
   static const String grab = 'Grab';
   static const String paymaya = 'PayMaya';
+  static const String others = 'Others';
 
-  static const List<String> all = [cash, gcash, grab, paymaya];
+  static const List<String> all = [cash, gcash, grab, paymaya, others];
 }
 
 /// Expense categories matching Next.js EXPENSE_CATEGORIES
