@@ -112,33 +112,41 @@ class MonthlyPLModal extends StatelessWidget {
     double totalProfit,
     String profitMargin,
   ) {
+    final revenueGrowth = '+12.5%'; // Sample data
+    final expenseGrowth = '+8.3%'; // Sample data
+
     return Row(
       children: [
         Expanded(
+          flex: 2,
           child: _buildSummaryCard(
             theme,
             'Total Revenue',
             '₱${(totalRevenue / 1000).toStringAsFixed(0)}K',
             Colors.green,
+            subtitle: revenueGrowth,
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
+          flex: 2,
           child: _buildSummaryCard(
             theme,
             'Total Expenses',
             '₱${(totalExpenses / 1000).toStringAsFixed(0)}K',
             Colors.red,
+            subtitle: expenseGrowth,
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
+          flex: 2,
           child: _buildSummaryCard(
             theme,
             'Total Profit',
             '₱${(totalProfit / 1000).toStringAsFixed(0)}K',
             Colors.blue,
-            subtitle: '$profitMargin% margin',
+            subtitle: '$profitMargin%',
           ),
         ),
       ],
@@ -154,7 +162,7 @@ class MonthlyPLModal extends StatelessWidget {
   }) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -162,22 +170,27 @@ class MonthlyPLModal extends StatelessWidget {
               title,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurface.withOpacity(0.6),
+                fontSize: 11,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               value,
-              style: theme.textTheme.headlineSmall?.copyWith(
+              style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: color,
+                fontSize: 18,
               ),
             ),
             if (subtitle != null) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Text(
                 subtitle,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurface.withOpacity(0.6),
+                  fontSize: 11,
                 ),
               ),
             ],
