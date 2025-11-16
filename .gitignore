@@ -1,44 +1,47 @@
-# Flutter/Dart
-flutter_coffeeflow/build/
-flutter_coffeeflow/.dart_tool/
-flutter_coffeeflow/.flutter-plugins
-flutter_coffeeflow/.flutter-plugins-dependencies
-flutter_coffeeflow/.packages
-flutter_coffeeflow/.pub-cache/
-flutter_coffeeflow/.pub/
-flutter_coffeeflow/pubspec.lock
-
-# iOS
-flutter_coffeeflow/ios/Pods/
-flutter_coffeeflow/ios/.symlinks/
-flutter_coffeeflow/ios/Flutter/Flutter.framework
-flutter_coffeeflow/ios/Flutter/Flutter.podspec
-flutter_coffeeflow/ios/Flutter/App.framework
-flutter_coffeeflow/ios/Flutter/engine/
-flutter_coffeeflow/ios/DerivedData/
-
-# Android
-flutter_coffeeflow/android/.gradle
-flutter_coffeeflow/android/gradle-wrapper.jar
-flutter_coffeeflow/android/captures/
-flutter_coffeeflow/android/.externalNativeBuild
-flutter_coffeeflow/android/app/debug
-flutter_coffeeflow/android/app/profile
-flutter_coffeeflow/android/app/release
-flutter_coffeeflow/android/local.properties
-
-# Next.js
-next/node_modules/
-next/.next/
-next/out/
-next/dist/
-next/.env*.local
-
-# General
-.DS_Store
+# Miscellaneous
+*.class
 *.log
+*.pyc
 *.swp
-*.swo
-*~
-.vscode/
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
 .idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+/build/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
