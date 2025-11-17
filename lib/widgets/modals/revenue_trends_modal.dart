@@ -134,14 +134,18 @@ class RevenueTrendsModal extends StatelessWidget {
                               child: Builder(
                                 builder: (context) {
                                   // Calculate max revenue for dynamic scaling
-                                  final maxRevenue = revenueData.map((d) => d['sales'] as double).reduce((a, b) => a > b ? a : b);
-                                  final maxY = maxRevenue * 1.2;
+                                  final maxRevenue = revenueData.isEmpty 
+                                      ? 100.0 
+                                      : revenueData.map((d) => d['sales'] as double).reduce((a, b) => a > b ? a : b);
+                                  final maxY = maxRevenue == 0 ? 100.0 : maxRevenue * 1.2;
                                   // Calculate interval to show max 5-6 labels
                                   final interval = (maxY / 5).ceilToDouble();
                                   // Round to nice numbers
-                                  final roundedInterval = interval < 1000
+                                  var roundedInterval = interval < 1000
                                       ? (interval / 100).ceil() * 100.0
                                       : (interval / 1000).ceil() * 1000.0;
+                                  // Ensure interval is never zero
+                                  if (roundedInterval <= 0) roundedInterval = 100.0;
 
                                   return LineChart(
                                     LineChartData(

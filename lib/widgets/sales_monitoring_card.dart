@@ -70,14 +70,18 @@ class SalesMonitoringCard extends StatelessWidget {
               height: 192,
               child: Builder(
                 builder: (context) {
-                  final maxValue = chartData.map((e) => e['value'] as double).reduce((a, b) => a > b ? a : b);
-                  final maxY = maxValue * 1.2;
+                  final maxValue = chartData.isEmpty 
+                      ? 100.0 
+                      : chartData.map((e) => e['value'] as double).reduce((a, b) => a > b ? a : b);
+                  final maxY = maxValue == 0 ? 100.0 : maxValue * 1.2;
                   // Calculate interval to show max 5-6 labels (evenly spaced)
                   final interval = (maxY / 5).ceilToDouble();
                   // Round interval to nice numbers (1000, 2000, 5000, 10000, etc.)
-                  final roundedInterval = interval < 1000 
+                  // Ensure interval is never 0
+                  var roundedInterval = interval < 1000 
                       ? (interval / 100).ceil() * 100 
                       : (interval / 1000).ceil() * 1000;
+                  if (roundedInterval <= 0) roundedInterval = 100;
                   
                   return BarChart(
                     BarChartData(

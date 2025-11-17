@@ -218,11 +218,23 @@ class MonthlyPLModal extends StatelessWidget {
               height: 300,
               child: Builder(
                 builder: (context) {
-                  const maxY = 70000.0;
+                  // Calculate max value dynamically
+                  final maxRevenue = monthlyData.isEmpty 
+                      ? 0.0 
+                      : monthlyData.map((d) => (d['revenue'] as num).toDouble()).reduce((a, b) => a > b ? a : b);
+                  final maxExpenses = monthlyData.isEmpty 
+                      ? 0.0 
+                      : monthlyData.map((d) => (d['expenses'] as num).toDouble()).reduce((a, b) => a > b ? a : b);
+                  final maxValue = maxRevenue > maxExpenses ? maxRevenue : maxExpenses;
+                  final maxY = maxValue == 0 ? 100.0 : maxValue * 1.2;
                   // Calculate interval to show max 5-6 labels
                   final interval = (maxY / 5).ceilToDouble();
                   // Round to nice numbers (10000, 15000, etc.)
-                  final roundedInterval = (interval / 10000).ceil() * 10000.0;
+                  var roundedInterval = interval < 1000
+                      ? (interval / 100).ceil() * 100.0
+                      : (interval / 10000).ceil() * 10000.0;
+                  // Ensure interval is never zero
+                  if (roundedInterval <= 0) roundedInterval = 100.0;
 
                   return BarChart(
                     BarChartData(
@@ -348,14 +360,18 @@ class MonthlyPLModal extends StatelessWidget {
               child: Builder(
                 builder: (context) {
                   // Calculate max profit for dynamic scaling
-                  final maxProfit = monthlyData.map((d) => d['profit'] as double).reduce((a, b) => a > b ? a : b);
-                  final maxY = maxProfit * 1.2;
+                  final maxProfit = monthlyData.isEmpty 
+                      ? 100.0 
+                      : monthlyData.map((d) => d['profit'] as double).reduce((a, b) => a > b ? a : b);
+                  final maxY = maxProfit == 0 ? 100.0 : maxProfit * 1.2;
                   // Calculate interval to show max 5-6 labels
                   final interval = (maxY / 5).ceilToDouble();
                   // Round to nice numbers
-                  final roundedInterval = interval < 1000
+                  var roundedInterval = interval < 1000
                       ? (interval / 100).ceil() * 100.0
                       : (interval / 1000).ceil() * 1000.0;
+                  // Ensure interval is never zero
+                  if (roundedInterval <= 0) roundedInterval = 100.0;
 
                   return LineChart(
                     LineChartData(
