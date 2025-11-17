@@ -49,7 +49,7 @@ class ExpenseBreakdownCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Expense Breakdown',
+              'Transaction Breakdown',
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -67,7 +67,7 @@ class ExpenseBreakdownCard extends StatelessWidget {
               const Center(
                 child: Padding(
                   padding: EdgeInsets.symmetric(vertical: 48),
-                  child: Text('No expense data'),
+                  child: Text('No transaction data'),
                 ),
               )
             else ...[
@@ -161,7 +161,7 @@ class ExpenseBreakdownCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Total Expenses',
+                    'Total Transactions',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),

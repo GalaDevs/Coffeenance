@@ -21,21 +21,24 @@ class _SalesBreakdownState extends State<SalesBreakdown> {
 
   // Method configurations matching Next.js
   final List<Map<String, dynamic>> methods = [
-    {'name': 'Cash', 'key': 'cash', 'icon': '💵', 'color': Color(0xFF8B5CF6)}, // chart-1
-    {'name': 'GCash', 'key': 'gcash', 'icon': '📱', 'color': Color(0xFF06B6D4)}, // chart-2
-    {'name': 'Grab', 'key': 'grab', 'icon': '🚗', 'color': Color(0xFF10B981)}, // chart-3
-    {'name': 'PayMaya', 'key': 'paymaya', 'icon': '💳', 'color': Color(0xFFF59E0B)}, // chart-4
+    {'name': 'Cash', 'key': 'Cash', 'icon': Icons.payments, 'color': Color(0xFF8B5CF6)}, // chart-1
+    {'name': 'GCash', 'key': 'GCash', 'icon': Icons.phone_android, 'color': Color(0xFF06B6D4)}, // chart-2
+    {'name': 'Grab', 'key': 'Grab', 'icon': Icons.directions_car, 'color': Color(0xFF10B981)}, // chart-3
+    {'name': 'PayMaya', 'key': 'PayMaya', 'icon': Icons.credit_card, 'color': Color(0xFFF59E0B)}, // chart-4
   ];
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Header with View/Hide button
-        Row(
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with View/Hide button
+            Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
@@ -69,15 +72,17 @@ class _SalesBreakdownState extends State<SalesBreakdown> {
         ),
         const SizedBox(height: 16),
 
-        // Quick Overview - Grid of 4 cards (2x2)
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 1.4,
-          children: methods.map((method) {
+        // Quick Overview - Grid of 4 cards (2x2) - Shows/Hides based on button
+        Visibility(
+          visible: showDetails,
+          child: GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 1.4,
+            children: methods.map((method) {
             final amount = widget.salesByMethod[method['key']] ?? 0.0;
             final percentage = widget.totalSales > 0 
                 ? (amount / widget.totalSales) * 100 
@@ -101,9 +106,10 @@ class _SalesBreakdownState extends State<SalesBreakdown> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          method['icon'] as String,
-                          style: const TextStyle(fontSize: 20), // text-2xl reduced
+                        Icon(
+                          method['icon'] as IconData,
+                          size: 20,
+                          color: method['color'] as Color,
                         ),
                         Text(
                           '${percentage.toStringAsFixed(0)}%',
@@ -161,8 +167,11 @@ class _SalesBreakdownState extends State<SalesBreakdown> {
               ),
             );
           }).toList(),
+          ),
         ),
-        const SizedBox(height: 16),
+
+        // Add spacing only when grid is visible
+        if (showDetails) const SizedBox(height: 16),
 
         // Total Card - Full Width
         SizedBox(
@@ -195,7 +204,9 @@ class _SalesBreakdownState extends State<SalesBreakdown> {
             ),
           ),
         ),
-      ],
+          ],
+        ),
+      ),
     );
   }
 }

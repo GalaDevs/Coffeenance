@@ -35,6 +35,7 @@ class _TransactionModalState extends State<TransactionModal>
   DateTime _selectedDate = DateTime.now();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
+  final TextEditingController _othersSpecificationController = TextEditingController();
 
   @override
   void initState() {
@@ -63,6 +64,7 @@ class _TransactionModalState extends State<TransactionModal>
     _animationController.dispose();
     _descriptionController.dispose();
     _amountController.dispose();
+    _othersSpecificationController.dispose();
     super.dispose();
   }
 
@@ -84,6 +86,18 @@ class _TransactionModalState extends State<TransactionModal>
       return;
     }
 
+    // Validate "Others" specification field if "Others" category is selected
+    if ((_category == ExpenseCategories.others || _category == IncomeCategories.others) &&
+        _othersSpecificationController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please specify what "Others" is for'),
+          backgroundColor: AppColors.lightDestructive,
+        ),
+      );
+      return;
+    }
+
     final amount = double.tryParse(_amountController.text);
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -95,12 +109,19 @@ class _TransactionModalState extends State<TransactionModal>
       return;
     }
 
+    // If "Others" category is selected, append the specification to description
+    String finalDescription = _descriptionController.text;
+    if ((_category == ExpenseCategories.others || _category == IncomeCategories.others) &&
+        _othersSpecificationController.text.isNotEmpty) {
+      finalDescription = '${_descriptionController.text} (${_othersSpecificationController.text})';
+    }
+
     final transaction = Transaction(
       id: 0, // Will be assigned by provider
       date: _selectedDate.toIso8601String().split('T')[0],
       type: _type,
       category: _category!,
-      description: _descriptionController.text,
+      description: finalDescription,
       amount: amount,
     );
 
@@ -176,7 +197,7 @@ class _TransactionModalState extends State<TransactionModal>
                           ),
                           Expanded(
                             child: _buildTypeButton(
-                              'Expense',
+                              'Transaction',
                               TransactionType.expense,
                               theme,
                             ),
@@ -288,6 +309,28 @@ class _TransactionModalState extends State<TransactionModal>
                         );
                       }).toList(),
                     ),
+
+                    // Others Specification Field - Shows when "Others" is selected for either Income or Transaction
+                    if ((_type == TransactionType.expense && _category == ExpenseCategories.others) ||
+                        (_type == TransactionType.income && _category == IncomeCategories.others)) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        'Specify Others',
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _othersSpecificationController,
+                        decoration: const InputDecoration(
+                          hintText: 'e.g., Miscellaneous items, Repairs, etc.',
+                          border: OutlineInputBorder(),
+                        ),
+                        textCapitalization: TextCapitalization.sentences,
+                      ),
+                    ],
+
                     const SizedBox(height: 24),
 
                     // Description Input

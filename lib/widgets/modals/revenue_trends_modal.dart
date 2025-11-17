@@ -131,82 +131,95 @@ class RevenueTrendsModal extends StatelessWidget {
                             const SizedBox(height: 16),
                             SizedBox(
                               height: 300,
-                              child: LineChart(
-                                LineChartData(
-                                  gridData: FlGridData(
-                                    show: true,
-                                    drawVerticalLine: true,
-                                    horizontalInterval: 5000,
-                                    getDrawingHorizontalLine: (value) {
-                                      return FlLine(
-                                        color: theme.colorScheme.outline
-                                            .withOpacity(0.2),
-                                        strokeWidth: 1,
-                                        dashArray: [5, 5],
-                                      );
-                                    },
-                                  ),
-                                  titlesData: FlTitlesData(
-                                    leftTitles: AxisTitles(
-                                      sideTitles: SideTitles(
-                                        showTitles: true,
-                                        reservedSize: 50,
-                                        getTitlesWidget: (value, meta) {
-                                          if (value == 0) {
-                                            return Text(
-                                              '₱0',
-                                              style: theme.textTheme.bodySmall
-                                                  ?.copyWith(fontSize: 10),
-                                            );
-                                          }
-                                          if (value >= 1000) {
-                                            return Text(
-                                              '₱${(value / 1000).toInt()}K',
-                                              style: theme.textTheme.bodySmall
-                                                  ?.copyWith(fontSize: 10),
-                                            );
-                                          }
-                                          return Text(
-                                            '₱${value.toInt()}',
-                                            style: theme.textTheme.bodySmall
-                                                ?.copyWith(fontSize: 10),
+                              child: Builder(
+                                builder: (context) {
+                                  // Calculate max revenue for dynamic scaling
+                                  final maxRevenue = revenueData.map((d) => d['amount'] as double).reduce((a, b) => a > b ? a : b);
+                                  final maxY = maxRevenue * 1.2;
+                                  // Calculate interval to show max 5-6 labels
+                                  final interval = (maxY / 5).ceilToDouble();
+                                  // Round to nice numbers
+                                  final roundedInterval = interval < 1000
+                                      ? (interval / 100).ceil() * 100.0
+                                      : (interval / 1000).ceil() * 1000.0;
+
+                                  return LineChart(
+                                    LineChartData(
+                                      gridData: FlGridData(
+                                        show: true,
+                                        drawVerticalLine: true,
+                                        horizontalInterval: roundedInterval,
+                                        getDrawingHorizontalLine: (value) {
+                                          return FlLine(
+                                            color: theme.colorScheme.outline
+                                                .withOpacity(0.2),
+                                            strokeWidth: 1,
+                                            dashArray: [5, 5],
                                           );
                                         },
                                       ),
-                                    ),
-                                    bottomTitles: AxisTitles(
-                                      sideTitles: SideTitles(
-                                        showTitles: true,
-                                        getTitlesWidget: (value, meta) {
-                                          if (value >= 0 &&
-                                              value < revenueData.length) {
-                                            return Padding(
-                                              padding:
-                                                  const EdgeInsets.only(top: 8),
-                                              child: Text(
-                                                revenueData[value.toInt()]
-                                                    ['date'] as String,
-                                                style:
-                                                    theme.textTheme.bodySmall,
-                                              ),
-                                            );
-                                          }
-                                          return const SizedBox.shrink();
-                                        },
+                                      titlesData: FlTitlesData(
+                                        leftTitles: AxisTitles(
+                                          sideTitles: SideTitles(
+                                            showTitles: true,
+                                            reservedSize: 50,
+                                            interval: roundedInterval,
+                                            getTitlesWidget: (value, meta) {
+                                              if (value == 0) {
+                                                return Text(
+                                                  '₱0',
+                                                  style: theme.textTheme.bodySmall
+                                                      ?.copyWith(fontSize: 10),
+                                                );
+                                              }
+                                              if (value >= 1000) {
+                                                return Text(
+                                                  '₱${(value / 1000).toInt()}K',
+                                                  style: theme.textTheme.bodySmall
+                                                      ?.copyWith(fontSize: 10),
+                                                );
+                                              }
+                                              return Text(
+                                                '₱${value.toInt()}',
+                                                style: theme.textTheme.bodySmall
+                                                    ?.copyWith(fontSize: 10),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                        bottomTitles: AxisTitles(
+                                          sideTitles: SideTitles(
+                                            showTitles: true,
+                                            getTitlesWidget: (value, meta) {
+                                              if (value >= 0 &&
+                                                  value < revenueData.length) {
+                                                return Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(top: 8),
+                                                  child: Text(
+                                                    revenueData[value.toInt()]
+                                                        ['date'] as String,
+                                                    style:
+                                                        theme.textTheme.bodySmall,
+                                                  ),
+                                                );
+                                              }
+                                              return const SizedBox.shrink();
+                                            },
+                                          ),
+                                        ),
+                                        rightTitles: const AxisTitles(
+                                          sideTitles: SideTitles(showTitles: false),
+                                        ),
+                                        topTitles: const AxisTitles(
+                                          sideTitles: SideTitles(showTitles: false),
+                                        ),
                                       ),
-                                    ),
-                                    rightTitles: const AxisTitles(
-                                      sideTitles: SideTitles(showTitles: false),
-                                    ),
-                                    topTitles: const AxisTitles(
-                                      sideTitles: SideTitles(showTitles: false),
-                                    ),
-                                  ),
-                                  borderData: FlBorderData(show: false),
-                                  minX: 0,
-                                  maxX: (revenueData.length - 1).toDouble(),
-                                  minY: 0,
-                                  maxY: 25000,
+                                      borderData: FlBorderData(show: false),
+                                      minX: 0,
+                                      maxX: (revenueData.length - 1).toDouble(),
+                                      minY: 0,
+                                      maxY: maxY,
                                   lineBarsData: [
                                     // Actual Sales Line (filled area)
                                     LineChartBarData(
@@ -264,7 +277,9 @@ class RevenueTrendsModal extends StatelessWidget {
                                       },
                                     ),
                                   ),
-                                ),
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                             const SizedBox(height: 16),

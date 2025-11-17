@@ -73,7 +73,7 @@ class BalanceCard extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          // Income/Expense Row
+          // Income/Transaction Row
           Row(
             children: [
               // Income
@@ -109,13 +109,13 @@ class BalanceCard extends StatelessWidget {
               ),
               const SizedBox(width: 16),
 
-              // Expenses
+              // Transactions
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Expenses',
+                      'Transactions',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.white.withOpacity(0.75),

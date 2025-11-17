@@ -65,10 +65,12 @@ class DashboardScreen extends StatelessWidget {
                           color: theme.colorScheme.primary.withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: const Center(
-                          child: Text(
-                            '☕',
-                            style: TextStyle(fontSize: 24),
+                        child: ClipOval(
+                          child: Image.asset(
+                            'assets/icon Cafenance.png',
+                            width: 48,
+                            height: 48,
+                            fit: BoxFit.cover,
                           ),
                         ),
                       ),
@@ -80,27 +82,27 @@ class DashboardScreen extends StatelessWidget {
                         ),
                         itemBuilder: (context) => [
                           _buildPopupMenuItem(
-                            '📊',
+                            Icons.assessment,
                             'Monthly P&L Summary',
                             'monthly_pl',
                           ),
                           _buildPopupMenuItem(
-                            '📈',
+                            Icons.trending_up,
                             'Revenue Trends',
                             'revenue_trends',
                           ),
                           _buildPopupMenuItem(
-                            '💼',
+                            Icons.inventory_2,
                             'Inventory Status',
                             'inventory',
                           ),
                           _buildPopupMenuItem(
-                            '👥',
+                            Icons.people,
                             'Staff Payroll',
                             'payroll',
                           ),
                           _buildPopupMenuItem(
-                            '🎯',
+                            Icons.track_changes,
                             'KPI Dashboard',
                             'kpi',
                           ),
@@ -171,7 +173,7 @@ class DashboardScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
 
-              // Expense Breakdown
+              // Transaction Breakdown
               ExpenseBreakdownCard(
                 expensesByCategory: provider.expensesByCategory,
                 totalExpenses: provider.totalExpense,
@@ -190,7 +192,7 @@ class DashboardScreen extends StatelessWidget {
   }
 
   PopupMenuEntry<String> _buildPopupMenuItem(
-    String emoji,
+    IconData icon,
     String title,
     String value,
   ) {
@@ -198,7 +200,7 @@ class DashboardScreen extends StatelessWidget {
       value: value,
       child: Row(
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 20)),
+          Icon(icon, size: 20),
           const SizedBox(width: 12),
           Text(title),
         ],
@@ -250,7 +252,11 @@ class _TaxSummaryCardState extends State<_TaxSummaryCard> {
                 children: [
                   Row(
                     children: [
-                      const Text('📋', style: TextStyle(fontSize: 20)),
+                      Icon(
+                        Icons.receipt_long,
+                        size: 20,
+                        color: theme.colorScheme.primary,
+                      ),
                       const SizedBox(width: 12),
                       Text(
                         'Tax Summary',

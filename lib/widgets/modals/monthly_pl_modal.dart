@@ -216,81 +216,90 @@ class MonthlyPLModal extends StatelessWidget {
             const SizedBox(height: 16),
             SizedBox(
               height: 300,
-              child: BarChart(
-                BarChartData(
-                  alignment: BarChartAlignment.spaceAround,
-                  maxY: 70000,
-                  barTouchData: BarTouchData(
-                    enabled: true,
-                    touchTooltipData: BarTouchTooltipData(
-                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                        final month = monthlyData[groupIndex]['month'] as String;
-                        final value = rod.toY.toInt();
-                        final label = rodIndex == 0 ? 'Revenue' : 'Expenses';
-                        return BarTooltipItem(
-                          '$month\n$label: ₱${value.toStringAsFixed(0)}',
-                          const TextStyle(color: Colors.white),
-                        );
-                      },
-                    ),
-                  ),
-                  titlesData: FlTitlesData(
-                    show: true,
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          if (value.toInt() >= 0 && value.toInt() < monthlyData.length) {
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 8.0),
-                              child: Text(
-                                monthlyData[value.toInt()]['month'] as String,
+              child: Builder(
+                builder: (context) {
+                  const maxY = 70000.0;
+                  // Calculate interval to show max 5-6 labels
+                  final interval = (maxY / 5).ceilToDouble();
+                  // Round to nice numbers (10000, 15000, etc.)
+                  final roundedInterval = (interval / 10000).ceil() * 10000.0;
+
+                  return BarChart(
+                    BarChartData(
+                      alignment: BarChartAlignment.spaceAround,
+                      maxY: maxY,
+                      barTouchData: BarTouchData(
+                        enabled: true,
+                        touchTooltipData: BarTouchTooltipData(
+                          getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                            final month = monthlyData[groupIndex]['month'] as String;
+                            final value = rod.toY.toInt();
+                            final label = rodIndex == 0 ? 'Revenue' : 'Expenses';
+                            return BarTooltipItem(
+                              '$month\n$label: ₱${value.toStringAsFixed(0)}',
+                              const TextStyle(color: Colors.white),
+                            );
+                          },
+                        ),
+                      ),
+                      titlesData: FlTitlesData(
+                        show: true,
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            getTitlesWidget: (value, meta) {
+                              if (value.toInt() >= 0 && value.toInt() < monthlyData.length) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 8.0),
+                                  child: Text(
+                                    monthlyData[value.toInt()]['month'] as String,
+                                    style: theme.textTheme.bodySmall,
+                                  ),
+                                );
+                              }
+                              return const Text('');
+                            },
+                          ),
+                        ),
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 50,
+                            interval: roundedInterval,
+                            getTitlesWidget: (value, meta) {
+                              if (value == 0) {
+                                return Text(
+                                  '₱0',
+                                  style: theme.textTheme.bodySmall,
+                                );
+                              }
+                              if (value >= 1000) {
+                                return Text(
+                                  '₱${(value / 1000).toInt()}K',
+                                  style: theme.textTheme.bodySmall,
+                                );
+                              }
+                              return Text(
+                                '₱${value.toInt()}',
                                 style: theme.textTheme.bodySmall,
-                              ),
-                            );
-                          }
-                          return const Text('');
-                        },
+                              );
+                            },
+                          ),
+                        ),
+                        topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
                       ),
-                    ),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 40,
-                        getTitlesWidget: (value, meta) {
-                          if (value == 0) {
-                            return Text(
-                              '₱0',
-                              style: theme.textTheme.bodySmall,
-                            );
-                          }
-                          if (value >= 1000) {
-                            return Text(
-                              '₱${(value / 1000).toInt()}K',
-                              style: theme.textTheme.bodySmall,
-                            );
-                          }
-                          return Text(
-                            '₱${value.toInt()}',
-                            style: theme.textTheme.bodySmall,
-                          );
-                        },
+                      gridData: FlGridData(
+                        show: true,
+                        drawVerticalLine: false,
+                        horizontalInterval: roundedInterval,
                       ),
-                    ),
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                  ),
-                  gridData: FlGridData(
-                    show: true,
-                    drawVerticalLine: false,
-                    horizontalInterval: 10000,
-                  ),
-                  borderData: FlBorderData(show: false),
-                  barGroups: List.generate(monthlyData.length, (index) {
+                      borderData: FlBorderData(show: false),
+                      barGroups: List.generate(monthlyData.length, (index) {
                     return BarChartGroupData(
                       x: index,
                       barRods: [
@@ -309,7 +318,9 @@ class MonthlyPLModal extends StatelessWidget {
                       ],
                     );
                   }),
-                ),
+                    ),
+                  );
+                },
               ),
             ),
           ],
@@ -334,68 +345,81 @@ class MonthlyPLModal extends StatelessWidget {
             const SizedBox(height: 16),
             SizedBox(
               height: 250,
-              child: LineChart(
-                LineChartData(
-                  gridData: FlGridData(
-                    show: true,
-                    drawVerticalLine: false,
-                    horizontalInterval: 5000,
-                  ),
-                  titlesData: FlTitlesData(
-                    show: true,
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          if (value.toInt() >= 0 && value.toInt() < monthlyData.length) {
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 8.0),
-                              child: Text(
-                                monthlyData[value.toInt()]['month'] as String,
+              child: Builder(
+                builder: (context) {
+                  // Calculate max profit for dynamic scaling
+                  final maxProfit = monthlyData.map((d) => d['profit'] as double).reduce((a, b) => a > b ? a : b);
+                  final maxY = maxProfit * 1.2;
+                  // Calculate interval to show max 5-6 labels
+                  final interval = (maxY / 5).ceilToDouble();
+                  // Round to nice numbers
+                  final roundedInterval = interval < 1000
+                      ? (interval / 100).ceil() * 100.0
+                      : (interval / 1000).ceil() * 1000.0;
+
+                  return LineChart(
+                    LineChartData(
+                      gridData: FlGridData(
+                        show: true,
+                        drawVerticalLine: false,
+                        horizontalInterval: roundedInterval,
+                      ),
+                      titlesData: FlTitlesData(
+                        show: true,
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            getTitlesWidget: (value, meta) {
+                              if (value.toInt() >= 0 && value.toInt() < monthlyData.length) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 8.0),
+                                  child: Text(
+                                    monthlyData[value.toInt()]['month'] as String,
+                                    style: theme.textTheme.bodySmall,
+                                  ),
+                                );
+                              }
+                              return const Text('');
+                            },
+                          ),
+                        ),
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 50,
+                            interval: roundedInterval,
+                            getTitlesWidget: (value, meta) {
+                              if (value == 0) {
+                                return Text(
+                                  '₱0',
+                                  style: theme.textTheme.bodySmall,
+                                );
+                              }
+                              if (value >= 1000) {
+                                return Text(
+                                  '₱${(value / 1000).toInt()}K',
+                                  style: theme.textTheme.bodySmall,
+                                );
+                              }
+                              return Text(
+                                '₱${value.toInt()}',
                                 style: theme.textTheme.bodySmall,
-                              ),
-                            );
-                          }
-                          return const Text('');
-                        },
+                              );
+                            },
+                          ),
+                        ),
+                        topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
                       ),
-                    ),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 40,
-                        getTitlesWidget: (value, meta) {
-                          if (value == 0) {
-                            return Text(
-                              '₱0',
-                              style: theme.textTheme.bodySmall,
-                            );
-                          }
-                          if (value >= 1000) {
-                            return Text(
-                              '₱${(value / 1000).toInt()}K',
-                              style: theme.textTheme.bodySmall,
-                            );
-                          }
-                          return Text(
-                            '₱${value.toInt()}',
-                            style: theme.textTheme.bodySmall,
-                          );
-                        },
-                      ),
-                    ),
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                  ),
-                  borderData: FlBorderData(show: false),
-                  minX: 0,
-                  maxX: (monthlyData.length - 1).toDouble(),
-                  minY: 0,
-                  maxY: 35000,
+                      borderData: FlBorderData(show: false),
+                      minX: 0,
+                      maxX: (monthlyData.length - 1).toDouble(),
+                      minY: 0,
+                      maxY: maxY,
                   lineBarsData: [
                     LineChartBarData(
                       spots: List.generate(
@@ -429,7 +453,9 @@ class MonthlyPLModal extends StatelessWidget {
                       },
                     ),
                   ),
-                ),
+                    ),
+                  );
+                },
               ),
             ),
           ],

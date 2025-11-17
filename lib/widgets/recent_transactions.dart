@@ -20,14 +20,20 @@ class RecentTransactions extends StatelessWidget {
       decimalDigits: 2,
     );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Recent Transactions',
-          style: theme.textTheme.headlineMedium,
-        ),
-        const SizedBox(height: 12),
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Recent Transactions',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 12),
         if (transactions.isEmpty)
           Center(
             child: Padding(
@@ -50,13 +56,19 @@ class RecentTransactions extends StatelessWidget {
               final transaction = transactions[index];
               final isIncome = transaction.type == TransactionType.income;
 
-              return Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      // Icon
-                      Container(
+              return Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: theme.colorScheme.outline.withOpacity(0.2),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    // Icon
+                    Container(
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
@@ -116,11 +128,12 @@ class RecentTransactions extends StatelessWidget {
                       ),
                     ],
                   ),
-                ),
-              );
+                );
             },
           ),
-      ],
+          ],
+        ),
+      ),
     );
   }
 

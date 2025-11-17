@@ -47,6 +47,11 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   
+  # Assets
+  assets:
+    - assets/icon.png
+    - assets/icon Cafenance.png
+  
   # Fonts (similar to Geist font in Next.js)
   # fonts:
   #   - family: Inter

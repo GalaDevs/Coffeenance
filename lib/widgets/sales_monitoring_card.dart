@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
 import '../models/transaction.dart';
 import '../theme/app_theme.dart';
 
@@ -67,105 +68,119 @@ class SalesMonitoringCard extends StatelessWidget {
             // Bar Chart
             SizedBox(
               height: 192,
-              child: BarChart(
-                BarChartData(
-                  alignment: BarChartAlignment.spaceAround,
-                  maxY: chartData.map((e) => e['value'] as double).reduce((a, b) => a > b ? a : b) * 1.2,
-                  barTouchData: BarTouchData(
-                    enabled: true,
-                    touchTooltipData: BarTouchTooltipData(
-                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                        final name = chartData[groupIndex]['name'] as String;
-                        final value = rod.toY;
-                        return BarTooltipItem(
-                          '₱${value.toStringAsFixed(0)}',
-                          const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  titlesData: FlTitlesData(
-                    show: true,
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          if (value.toInt() >= 0 && value.toInt() < chartData.length) {
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 8.0),
-                              child: Text(
-                                chartData[value.toInt()]['name'] as String,
-                                style: theme.textTheme.bodySmall,
+              child: Builder(
+                builder: (context) {
+                  final maxValue = chartData.map((e) => e['value'] as double).reduce((a, b) => a > b ? a : b);
+                  final maxY = maxValue * 1.2;
+                  // Calculate interval to show max 5-6 labels (evenly spaced)
+                  final interval = (maxY / 5).ceilToDouble();
+                  // Round interval to nice numbers (1000, 2000, 5000, 10000, etc.)
+                  final roundedInterval = interval < 1000 
+                      ? (interval / 100).ceil() * 100 
+                      : (interval / 1000).ceil() * 1000;
+                  
+                  return BarChart(
+                    BarChartData(
+                      alignment: BarChartAlignment.spaceAround,
+                      maxY: maxY,
+                      barTouchData: BarTouchData(
+                        enabled: true,
+                        touchTooltipData: BarTouchTooltipData(
+                          getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                            final name = chartData[groupIndex]['name'] as String;
+                            final value = rod.toY;
+                            return BarTooltipItem(
+                              '₱${NumberFormat('#,###').format(value)}',
+                              const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
                               ),
                             );
-                          }
-                          return const Text('');
-                        },
+                          },
+                        ),
                       ),
-                    ),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 40,
-                        getTitlesWidget: (value, meta) {
-                          if (value == 0) {
-                            return Text(
-                              '₱0',
-                              style: theme.textTheme.bodySmall,
-                            );
-                          }
-                          if (value >= 1000) {
-                            return Text(
-                              '₱${(value / 1000).toInt()}K',
-                              style: theme.textTheme.bodySmall,
-                            );
-                          }
-                          return Text(
-                            '₱${value.toInt()}',
-                            style: theme.textTheme.bodySmall,
+                      titlesData: FlTitlesData(
+                        show: true,
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            getTitlesWidget: (value, meta) {
+                              if (value.toInt() >= 0 && value.toInt() < chartData.length) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 8.0),
+                                  child: Text(
+                                    chartData[value.toInt()]['name'] as String,
+                                    style: theme.textTheme.bodySmall,
+                                  ),
+                                );
+                              }
+                              return const Text('');
+                            },
+                          ),
+                        ),
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 50,
+                            interval: roundedInterval.toDouble(),
+                            getTitlesWidget: (value, meta) {
+                              if (value == 0) {
+                                return Text(
+                                  '₱0',
+                                  style: theme.textTheme.bodySmall,
+                                );
+                              }
+                              if (value >= 1000) {
+                                return Text(
+                                  '₱${(value / 1000).toInt()}K',
+                                  style: theme.textTheme.bodySmall,
+                                );
+                              }
+                              return Text(
+                                '₱${value.toInt()}',
+                                style: theme.textTheme.bodySmall,
+                              );
+                            },
+                          ),
+                        ),
+                        topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                      ),
+                      gridData: FlGridData(
+                        show: true,
+                        drawVerticalLine: false,
+                        horizontalInterval: roundedInterval.toDouble(),
+                        getDrawingHorizontalLine: (value) {
+                          return FlLine(
+                            color: theme.colorScheme.outline.withOpacity(0.2),
+                            strokeWidth: 1,
+                            dashArray: [3, 3],
                           );
                         },
                       ),
+                      borderData: FlBorderData(show: false),
+                      barGroups: List.generate(chartData.length, (index) {
+                        return BarChartGroupData(
+                          x: index,
+                          barRods: [
+                            BarChartRodData(
+                              toY: chartData[index]['value'] as double,
+                              color: chartData[index]['color'] as Color,
+                              width: 40,
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(8),
+                              ),
+                            ),
+                          ],
+                        );
+                      }),
                     ),
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                  ),
-                  gridData: FlGridData(
-                    show: true,
-                    drawVerticalLine: false,
-                    horizontalInterval: 1000,
-                    getDrawingHorizontalLine: (value) {
-                      return FlLine(
-                        color: theme.colorScheme.outline.withOpacity(0.2),
-                        strokeWidth: 1,
-                        dashArray: [3, 3],
-                      );
-                    },
-                  ),
-                  borderData: FlBorderData(show: false),
-                  barGroups: List.generate(chartData.length, (index) {
-                    return BarChartGroupData(
-                      x: index,
-                      barRods: [
-                        BarChartRodData(
-                          toY: chartData[index]['value'] as double,
-                          color: chartData[index]['color'] as Color,
-                          width: 40,
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(8),
-                          ),
-                        ),
-                      ],
-                    );
-                  }),
-                ),
+                  );
+                },
               ),
             ),
 
@@ -201,7 +216,7 @@ class SalesMonitoringCard extends StatelessWidget {
                       ],
                     ),
                     Text(
-                      '₱${(method['value'] as double).toStringAsFixed(0)}',
+                      '₱${NumberFormat('#,###').format(method['value'] as double)}',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -226,7 +241,7 @@ class SalesMonitoringCard extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '₱${totalSales.toStringAsFixed(0)}',
+                  '₱${NumberFormat('#,###').format(totalSales)}',
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: theme.colorScheme.primary,

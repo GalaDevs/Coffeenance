@@ -28,10 +28,10 @@ class _HomeScreenState extends State<HomeScreen>
   ];
 
   final List<_NavItem> _navItems = const [
-    _NavItem(icon: '📊', label: 'Dashboard'),
-    _NavItem(icon: '💰', label: 'Sales'),
-    _NavItem(icon: '📉', label: 'Expenses'),
-    _NavItem(icon: '⚙️', label: 'Settings'),
+    _NavItem(icon: Icons.dashboard_rounded, label: 'Dashboard'),
+    _NavItem(icon: Icons.attach_money_rounded, label: 'Sales'),
+    _NavItem(icon: Icons.trending_down_rounded, label: 'Transactions'),
+    _NavItem(icon: Icons.settings_rounded, label: 'Settings'),
   ];
 
   @override
@@ -143,14 +143,12 @@ class _HomeScreenState extends State<HomeScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
+            Icon(
               navItem.icon,
-              style: TextStyle(
-                fontSize: 20, // text-xl
-                color: isSelected
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurface.withOpacity(0.6),
-              ),
+              size: 24,
+              color: isSelected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurface.withOpacity(0.6),
             ),
             const SizedBox(height: 2), // mb-1
             Text(
@@ -171,7 +169,7 @@ class _HomeScreenState extends State<HomeScreen>
 }
 
 class _NavItem {
-  final String icon;
+  final IconData icon;
   final String label;
 
   const _NavItem({

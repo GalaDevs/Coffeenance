@@ -47,7 +47,7 @@ class ExpensesScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Expenses',
+                    'Transactions',
                     style: theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -61,7 +61,7 @@ class ExpensesScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
 
-              // Total Expenses Card
+              // Total Transactions Card
               SizedBox(
                 width: double.infinity, // Full width
                 child: Container(
@@ -88,7 +88,7 @@ class ExpensesScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Total Expenses',
+                        'Total Transactions',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
