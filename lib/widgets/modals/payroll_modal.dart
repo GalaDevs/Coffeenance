@@ -98,7 +98,7 @@ class PayrollModal extends StatelessWidget {
                         Text(
                           'Employee roster and salary information',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+            color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.6),
                           ),
                         ),
                       ],
@@ -161,7 +161,7 @@ class PayrollModal extends StatelessWidget {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                         side: BorderSide(
-                          color: theme.colorScheme.outline.withOpacity(0.2),
+                          color: theme.colorScheme.outline.withValues(alpha: 0.2),
                         ),
                       ),
                       child: Padding(
@@ -190,14 +190,11 @@ class PayrollModal extends StatelessWidget {
                                             .asMap()
                                             .entries
                                             .map((entry) {
-                                          final index = entry.key;
                                           final item = entry.value;
                                           final value =
                                               item['value'] as double;
                                           final color = item['color'] as Color;
-                                          final name = item['name'] as String;
-                                          final total = payrollSummary.fold<
-                                                  double>(
+                                          final total = payrollSummary.fold<double>(
                                               0,
                                               (sum, i) =>
                                                   sum + (i['value'] as double));
@@ -267,7 +264,7 @@ class PayrollModal extends StatelessWidget {
                                                     fontSize: 11,
                                                     color: theme.colorScheme
                                                         .onSurface
-                                                        .withOpacity(0.6),
+                                                        .withValues(alpha: 0.6),
                                                   ),
                                                 ),
                                               ],
@@ -292,7 +289,7 @@ class PayrollModal extends StatelessWidget {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                         side: BorderSide(
-                          color: theme.colorScheme.outline.withOpacity(0.2),
+                          color: theme.colorScheme.outline.withValues(alpha: 0.2),
                         ),
                       ),
                       child: Padding(
@@ -316,11 +313,11 @@ class PayrollModal extends StatelessWidget {
                                   decoration: BoxDecoration(
                                     color: theme
                                         .colorScheme.surfaceContainerHighest
-                                        .withOpacity(0.5),
+                                        .withValues(alpha: 0.5),
                                     borderRadius: BorderRadius.circular(8),
                                     border: Border.all(
                                       color: theme.colorScheme.outline
-                                          .withOpacity(0.2),
+                                          .withValues(alpha: 0.2),
                                     ),
                                   ),
                                   child: Row(
@@ -346,7 +343,7 @@ class PayrollModal extends StatelessWidget {
                                                 fontSize: 12,
                                                 color: theme
                                                     .colorScheme.onSurface
-                                                    .withOpacity(0.6),
+                                                    .withValues(alpha: 0.6),
                                               ),
                                             ),
                                           ],
@@ -404,7 +401,7 @@ class _SummaryCard extends StatelessWidget {
             Text(
               title,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 fontSize: 11,
               ),
               maxLines: 1,

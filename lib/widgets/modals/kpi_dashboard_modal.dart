@@ -69,7 +69,7 @@ class KPIDashboardModal extends StatelessWidget {
                 color: theme.colorScheme.surface,
                 border: Border(
                   bottom: BorderSide(
-                    color: theme.colorScheme.outline.withOpacity(0.2),
+                    color: theme.colorScheme.outline.withValues(alpha: 0.2),
                   ),
                 ),
               ),
@@ -89,7 +89,7 @@ class KPIDashboardModal extends StatelessWidget {
                         Text(
                           'Key performance indicators and business metrics',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                         ),
                       ],
@@ -219,7 +219,7 @@ class _KPICard extends StatelessWidget {
             Text(
               label,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 fontWeight: FontWeight.w500,
               ),
               maxLines: 1,
@@ -242,7 +242,7 @@ class _KPICard extends StatelessWidget {
                       Text(
                         'Target: $target',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withOpacity(0.6),
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                       ),
                     ],
@@ -313,7 +313,7 @@ class _RadarChartWidget extends StatelessWidget {
         },
         dataSets: [
           RadarDataSet(
-            fillColor: Colors.blue.withOpacity(0.2),
+            fillColor: Colors.blue.withValues(alpha: 0.2),
             borderColor: Colors.blue,
             borderWidth: 2,
             dataEntries: data.map((item) {
@@ -458,7 +458,7 @@ class _LineChartWidget extends StatelessWidget {
         ],
         lineTouchData: LineTouchData(
           touchTooltipData: LineTouchTooltipData(
-            getTooltipColor: (touchedSpot) => Colors.blueGrey.withOpacity(0.8),
+            getTooltipColor: (touchedSpot) => Colors.blueGrey.withValues(alpha: 0.8),
             getTooltipItems: (List<LineBarSpot> touchedSpots) {
               return touchedSpots.map((LineBarSpot touchedSpot) {
                 String label = '';

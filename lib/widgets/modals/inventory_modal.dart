@@ -96,7 +96,7 @@ class InventoryModal extends StatelessWidget {
                         Text(
                           'Current stock levels and reorder recommendations',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                         ),
                       ],
@@ -155,7 +155,7 @@ class InventoryModal extends StatelessWidget {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                         side: BorderSide(
-                          color: theme.colorScheme.outline.withOpacity(0.2),
+                          color: theme.colorScheme.outline.withValues(alpha: 0.2),
                         ),
                       ),
                       child: Padding(
@@ -246,7 +246,7 @@ class InventoryModal extends StatelessWidget {
                                     getDrawingHorizontalLine: (value) {
                                       return FlLine(
                                         color: theme.colorScheme.outline
-                                            .withOpacity(0.2),
+                                            .withValues(alpha: 0.2),
                                         strokeWidth: 1,
                                         dashArray: [5, 5],
                                       );
@@ -285,7 +285,7 @@ class InventoryModal extends StatelessWidget {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                         side: BorderSide(
-                          color: theme.colorScheme.outline.withOpacity(0.2),
+                          color: theme.colorScheme.outline.withValues(alpha: 0.2),
                         ),
                       ),
                       child: Padding(
@@ -309,7 +309,7 @@ class InventoryModal extends StatelessWidget {
                                   decoration: BoxDecoration(
                                     border: Border.all(
                                       color: theme.colorScheme.outline
-                                          .withOpacity(0.2),
+                                          .withValues(alpha: 0.2),
                                     ),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
@@ -336,7 +336,7 @@ class InventoryModal extends StatelessWidget {
                                                 fontSize: 12,
                                                 color: theme
                                                     .colorScheme.onSurface
-                                                    .withOpacity(0.6),
+                                                    .withValues(alpha: 0.6),
                                               ),
                                             ),
                                           ],
@@ -385,7 +385,7 @@ class _SummaryCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: theme.colorScheme.outline.withOpacity(0.2),
+          color: theme.colorScheme.outline.withValues(alpha: 0.2),
         ),
       ),
       child: Padding(
@@ -398,7 +398,7 @@ class _SummaryCard extends StatelessWidget {
               style: theme.textTheme.bodySmall?.copyWith(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
             const SizedBox(height: 8),

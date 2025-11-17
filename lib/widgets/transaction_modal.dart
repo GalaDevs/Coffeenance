@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/transaction.dart';
 import '../providers/transaction_provider.dart';
-import '../theme/app_theme.dart';
 
 /// Transaction Modal - Matches transaction-modal.tsx
 /// Shows a bottom sheet with animations for adding transactions
@@ -30,12 +29,18 @@ class _TransactionModalState extends State<TransactionModal>
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
-  TransactionType _type = TransactionType.income;
+  // Match Next.js state: revenue vs transaction
+  TransactionType _type = TransactionType.revenue;
   String? _category;
-  DateTime _selectedDate = DateTime.now();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
-  final TextEditingController _othersSpecificationController = TextEditingController();
+  final TextEditingController _paymentMethodController = TextEditingController();
+  final TextEditingController _transactionNumberController = TextEditingController();
+  final TextEditingController _receiptNumberController = TextEditingController();
+  final TextEditingController _tinNumberController = TextEditingController();
+  final TextEditingController _supplierNameController = TextEditingController();
+  final TextEditingController _supplierAddressController = TextEditingController();
+  int _vat = 0; // 0 or 12
 
   @override
   void initState() {
@@ -64,35 +69,29 @@ class _TransactionModalState extends State<TransactionModal>
     _animationController.dispose();
     _descriptionController.dispose();
     _amountController.dispose();
-    _othersSpecificationController.dispose();
+    _paymentMethodController.dispose();
+    _transactionNumberController.dispose();
+    _receiptNumberController.dispose();
+    _tinNumberController.dispose();
+    _supplierNameController.dispose();
+    _supplierAddressController.dispose();
     super.dispose();
   }
 
   List<String> get _categories =>
-      _type == TransactionType.income
-          ? IncomeCategories.all
-          : ExpenseCategories.all;
+      _type == TransactionType.revenue
+          ? RevenueCategories.all
+          : TransactionCategories.all;
 
   void _handleSubmit() {
+    // Match Next.js validation: category, amount, description required
     if (_category == null ||
         _descriptionController.text.isEmpty ||
         _amountController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please fill all fields'),
-          backgroundColor: AppColors.lightDestructive,
-        ),
-      );
-      return;
-    }
-
-    // Validate "Others" specification field if "Others" category is selected
-    if ((_category == ExpenseCategories.others || _category == IncomeCategories.others) &&
-        _othersSpecificationController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please specify what "Others" is for'),
-          backgroundColor: AppColors.lightDestructive,
+        SnackBar(
+          content: const Text('Please fill required fields'),
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
       return;
@@ -101,37 +100,45 @@ class _TransactionModalState extends State<TransactionModal>
     final amount = double.tryParse(_amountController.text);
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid amount'),
-          backgroundColor: AppColors.lightDestructive,
+        SnackBar(
+          content: const Text('Please enter a valid amount'),
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
       return;
     }
 
-    // If "Others" category is selected, append the specification to description
-    String finalDescription = _descriptionController.text;
-    if ((_category == ExpenseCategories.others || _category == IncomeCategories.others) &&
-        _othersSpecificationController.text.isNotEmpty) {
-      finalDescription = '${_descriptionController.text} (${_othersSpecificationController.text})';
-    }
-
+    // Match Next.js logic: create transaction with all fields
+    final now = DateTime.now();
     final transaction = Transaction(
       id: 0, // Will be assigned by provider
-      date: _selectedDate.toIso8601String().split('T')[0],
+      date: now.toIso8601String().split('T')[0],
       type: _type,
       category: _category!,
-      description: finalDescription,
+      description: _descriptionController.text,
       amount: amount,
+      paymentMethod: _paymentMethodController.text.isEmpty 
+          ? _category! 
+          : _paymentMethodController.text,
+      transactionNumber: _transactionNumberController.text.isEmpty
+          ? 'TXN${now.millisecondsSinceEpoch}'
+          : _transactionNumberController.text,
+      receiptNumber: _receiptNumberController.text.isEmpty
+          ? 'RCP${now.millisecondsSinceEpoch}'
+          : _receiptNumberController.text,
+      tinNumber: _tinNumberController.text,
+      vat: _vat,
+      supplierName: _supplierNameController.text,
+      supplierAddress: _supplierAddressController.text,
     );
 
     context.read<TransactionProvider>().addTransaction(transaction);
     Navigator.of(context).pop();
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Transaction added successfully'),
-        backgroundColor: AppColors.success,
+      SnackBar(
+        content: const Text('Transaction added successfully'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
       ),
     );
   }
@@ -145,6 +152,9 @@ class _TransactionModalState extends State<TransactionModal>
       child: SlideTransition(
         position: _slideAnimation,
         child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.9,
+          ),
           decoration: BoxDecoration(
             color: theme.scaffoldBackgroundColor,
             borderRadius: const BorderRadius.only(
@@ -163,23 +173,28 @@ class _TransactionModalState extends State<TransactionModal>
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Header
+                    // Header - Match Next.js
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
                           'Add Transaction',
-                          style: theme.textTheme.displayMedium,
+                          style: theme.textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close),
+                          icon: const Icon(Icons.close, size: 28),
                           onPressed: () => Navigator.of(context).pop(),
+                          style: IconButton.styleFrom(
+                            foregroundColor: theme.textTheme.bodySmall?.color,
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
 
-                    // Type Toggle
+                    // Type Toggle - Match Next.js grid-cols-2
                     Container(
                       decoration: BoxDecoration(
                         color: theme.colorScheme.secondary,
@@ -190,99 +205,51 @@ class _TransactionModalState extends State<TransactionModal>
                         children: [
                           Expanded(
                             child: _buildTypeButton(
-                              'Income',
-                              TransactionType.income,
+                              'Revenue',
+                              TransactionType.revenue,
                               theme,
                             ),
                           ),
                           Expanded(
                             child: _buildTypeButton(
                               'Transaction',
-                              TransactionType.expense,
+                              TransactionType.transaction,
                               theme,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
 
-                    // Date Selection
-                    Text(
-                      'Date',
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () {
-                              setState(() {
-                                _selectedDate = DateTime.now();
-                              });
-                            },
-                            icon: const Icon(Icons.today),
-                            label: const Text('Today'),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              backgroundColor: _selectedDate.difference(DateTime.now()).inDays == 0
-                                  ? theme.colorScheme.primary.withValues(alpha: 0.1)
-                                  : null,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () async {
-                              final DateTime? picked = await showDatePicker(
-                                context: context,
-                                initialDate: _selectedDate,
-                                firstDate: DateTime(2020),
-                                lastDate: DateTime.now().add(const Duration(days: 365)),
-                              );
-                              if (picked != null) {
-                                setState(() {
-                                  _selectedDate = picked;
-                                });
-                              }
-                            },
-                            icon: const Icon(Icons.calendar_today),
-                            label: Text(
-                              '${_selectedDate.month}/${_selectedDate.day}/${_selectedDate.year}',
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Category Selection
+                    // Category Selection - Match Next.js grid-cols-2
                     Text(
                       'Category',
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _categories.map((category) {
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 8,
+                        mainAxisSpacing: 8,
+                        childAspectRatio: 3.5,
+                      ),
+                      itemCount: _categories.length,
+                      itemBuilder: (context, index) {
+                        final category = _categories[index];
                         final isSelected = _category == category;
                         return GestureDetector(
                           onTap: () => setState(() => _category = category),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
+                              horizontal: 12,
+                              vertical: 8,
                             ),
                             decoration: BoxDecoration(
                               color: isSelected
@@ -291,14 +258,15 @@ class _TransactionModalState extends State<TransactionModal>
                               border: Border.all(
                                 color: isSelected
                                     ? theme.colorScheme.primary
-                                    : theme.colorScheme.outline,
+                                    : theme.dividerColor,
                                 width: 2,
                               ),
                               borderRadius: BorderRadius.circular(12),
                             ),
+                            alignment: Alignment.center,
                             child: Text(
                               category,
-                              style: theme.textTheme.bodyMedium?.copyWith(
+                              style: theme.textTheme.bodySmall?.copyWith(
                                 fontWeight: FontWeight.w600,
                                 color: isSelected
                                     ? theme.colorScheme.onPrimary
@@ -307,53 +275,24 @@ class _TransactionModalState extends State<TransactionModal>
                             ),
                           ),
                         );
-                      }).toList(),
+                      },
                     ),
+                    const SizedBox(height: 16),
 
-                    // Others Specification Field - Shows when "Others" is selected for either Income or Transaction
-                    if ((_type == TransactionType.expense && _category == ExpenseCategories.others) ||
-                        (_type == TransactionType.income && _category == IncomeCategories.others)) ...[
-                      const SizedBox(height: 16),
-                      Text(
-                        'Specify Others',
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _othersSpecificationController,
-                        decoration: const InputDecoration(
-                          hintText: 'e.g., Miscellaneous items, Repairs, etc.',
-                          border: OutlineInputBorder(),
-                        ),
-                        textCapitalization: TextCapitalization.sentences,
-                      ),
-                    ],
-
-                    const SizedBox(height: 24),
-
-                    // Description Input
-                    Text(
-                      'Description',
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
+                    // Description
+                    _buildTextField(
+                      label: 'Description',
                       controller: _descriptionController,
-                      decoration: const InputDecoration(
-                        hintText: 'e.g., Morning sales',
-                      ),
+                      hint: 'e.g., Morning sales',
+                      theme: theme,
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
 
-                    // Amount Input
+                    // Amount
                     Text(
                       'Amount (₱)',
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -367,34 +306,162 @@ class _TransactionModalState extends State<TransactionModal>
                           RegExp(r'^\d*\.?\d{0,2}'),
                         ),
                       ],
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         hintText: '0.00',
-                        prefixText: '₱ ',
-                        prefixStyle: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
+                        prefixIcon: Padding(
+                          padding: const EdgeInsets.only(left: 16, top: 10),
+                          child: Text(
+                            '₱',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: theme.textTheme.bodySmall?.color,
+                            ),
+                          ),
                         ),
+                        prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: theme.dividerColor),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: theme.dividerColor),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       ),
-                      style: const TextStyle(
-                        fontSize: 18,
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Payment Method - Dropdown
+                    Text(
+                      'Payment Method',
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      decoration: InputDecoration(
+                        hintText: 'Select payment method',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: theme.dividerColor),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: theme.dividerColor),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      ),
+                      items: PaymentMethods.all.map((method) {
+                        return DropdownMenuItem(
+                          value: method,
+                          child: Text(method, style: theme.textTheme.bodySmall),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _paymentMethodController.text = value ?? '';
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
 
-                    // Action Buttons
+                    // Transaction Number
+                    _buildTextField(
+                      label: 'Transaction Number',
+                      controller: _transactionNumberController,
+                      hint: 'e.g., TXN001',
+                      theme: theme,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Official Receipt Number
+                    _buildTextField(
+                      label: 'Official Receipt Number',
+                      controller: _receiptNumberController,
+                      hint: 'e.g., RCP001',
+                      theme: theme,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // TIN Number
+                    _buildTextField(
+                      label: 'TIN Number',
+                      controller: _tinNumberController,
+                      hint: 'e.g., 123-456-789',
+                      theme: theme,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // VAT Selection - Match Next.js toggle
+                    Text(
+                      'VAT',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildVATButton('No VAT', 0, theme),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildVATButton('12% VAT', 12, theme),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Supplier Name
+                    _buildTextField(
+                      label: 'Supplier / Vendor Name',
+                      controller: _supplierNameController,
+                      hint: 'e.g., Coffee Supplier Inc.',
+                      theme: theme,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Supplier Address
+                    _buildTextField(
+                      label: 'Supplier Address',
+                      controller: _supplierAddressController,
+                      hint: 'e.g., Manila, PH',
+                      theme: theme,
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Action Buttons - Match Next.js grid-cols-2
                     Row(
                       children: [
                         Expanded(
                           child: OutlinedButton(
                             onPressed: () => Navigator.of(context).pop(),
                             style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
+                              side: BorderSide(color: theme.dividerColor),
                             ),
-                            child: const Text('Cancel'),
+                            child: Text(
+                              'Cancel',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -402,9 +469,20 @@ class _TransactionModalState extends State<TransactionModal>
                           child: ElevatedButton(
                             onPressed: _handleSubmit,
                             style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              backgroundColor: theme.colorScheme.primary,
+                              foregroundColor: theme.colorScheme.onPrimary,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
-                            child: const Text('Save'),
+                            child: Text(
+                              'Save',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: theme.colorScheme.onPrimary,
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -413,6 +491,82 @@ class _TransactionModalState extends State<TransactionModal>
                 ),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required String label,
+    required TextEditingController controller,
+    required String hint,
+    required ThemeData theme,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: theme.textTheme.bodySmall?.copyWith(
+              color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.5),
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: theme.dividerColor),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: theme.dividerColor),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          ),
+          style: theme.textTheme.bodySmall,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVATButton(String label, int vatValue, ThemeData theme) {
+    final isSelected = _vat == vatValue;
+    return GestureDetector(
+      onTap: () => setState(() => _vat = vatValue),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? theme.colorScheme.primary
+              : theme.colorScheme.secondary,
+          border: Border.all(
+            color: isSelected
+                ? theme.colorScheme.primary
+                : theme.dividerColor,
+            width: 2,
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: isSelected
+                ? theme.colorScheme.onPrimary
+                : theme.colorScheme.onSurface,
           ),
         ),
       ),
@@ -441,17 +595,20 @@ class _TransactionModalState extends State<TransactionModal>
               ? theme.colorScheme.primary
               : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outline.withValues(alpha: 0.3),
-            width: 1,
-          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
         ),
         child: Text(
           label,
           textAlign: TextAlign.center,
-          style: theme.textTheme.bodyLarge?.copyWith(
+          style: theme.textTheme.bodyMedium?.copyWith(
             fontWeight: FontWeight.w600,
             color: isSelected
                 ? theme.colorScheme.onPrimary

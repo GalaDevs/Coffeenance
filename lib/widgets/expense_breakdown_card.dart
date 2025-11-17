@@ -76,7 +76,6 @@ class ExpenseBreakdownCard extends StatelessWidget {
                 child: PieChart(
                   PieChartData(
                     sections: chartData.map((data) {
-                      final percentage = (data['value'] as double) / totalExpenses * 100;
                       return PieChartSectionData(
                         value: data['value'] as double,
                         title: '',

@@ -19,9 +19,9 @@ class MonthlyPLModal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final totalRevenue = monthlyData.fold(0.0, (sum, d) => sum + d['revenue'] as double);
-    final totalExpenses = monthlyData.fold(0.0, (sum, d) => sum + d['expenses'] as double);
-    final totalProfit = monthlyData.fold(0.0, (sum, d) => sum + d['profit'] as double);
+    final totalRevenue = monthlyData.fold(0.0, (sum, d) => sum + (d['revenue'] as num).toDouble());
+    final totalExpenses = monthlyData.fold(0.0, (sum, d) => sum + (d['expenses'] as num).toDouble());
+    final totalProfit = monthlyData.fold(0.0, (sum, d) => sum + (d['profit'] as num).toDouble());
     final profitMargin = ((totalProfit / totalRevenue) * 100).toStringAsFixed(1);
 
     return Dialog(
@@ -53,7 +53,7 @@ class MonthlyPLModal extends StatelessWidget {
                           Text(
                             'Profit & Loss analysis for the current year',
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurface.withOpacity(0.6),
+              color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.6),
                             ),
                           ),
                         ],
@@ -169,7 +169,7 @@ class MonthlyPLModal extends StatelessWidget {
             Text(
               title,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 fontSize: 11,
               ),
               maxLines: 1,
@@ -189,7 +189,7 @@ class MonthlyPLModal extends StatelessWidget {
               Text(
                 subtitle,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                   fontSize: 11,
                 ),
               ),
@@ -436,7 +436,7 @@ class MonthlyPLModal extends StatelessWidget {
                       dotData: const FlDotData(show: true),
                       belowBarData: BarAreaData(
                         show: true,
-                        color: Colors.blue.withOpacity(0.1),
+                        color: Colors.blue.withValues(alpha: 0.1),
                       ),
                     ),
                   ],
