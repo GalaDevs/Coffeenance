@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/transaction_provider.dart';
 import '../widgets/balance_card.dart';
-import '../widgets/sales_breakdown.dart';
+import '../widgets/revenue_breakdown.dart';
 import '../widgets/recent_transactions.dart';
 import '../widgets/modals/monthly_pl_modal.dart';
 import '../widgets/modals/revenue_trends_modal.dart';
 import '../widgets/modals/inventory_modal.dart';
 import '../widgets/modals/payroll_modal.dart';
+import '../widgets/modals/kpi_dashboard_modal.dart';
 import '../widgets/sales_monitoring_card.dart';
 import '../widgets/expense_breakdown_card.dart';
 
@@ -128,6 +129,11 @@ class DashboardScreen extends StatelessWidget {
                               context: context,
                               builder: (context) => const PayrollModal(),
                             );
+                          } else if (value == 'kpi') {
+                            showDialog(
+                              context: context,
+                              builder: (context) => const KPIDashboardModal(),
+                            );
                           } else {
                             // TODO: Implement other advanced reports
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -148,15 +154,15 @@ class DashboardScreen extends StatelessWidget {
               BalanceCard(
                 label: "Today's Balance",
                 amount: provider.balance,
-                income: provider.totalIncome,
-                expense: provider.totalExpense,
+                income: provider.totalRevenue,
+                expense: provider.totalTransactions,
               ),
               const SizedBox(height: 24),
 
               // Tax Summary (Collapsible)
               _TaxSummaryCard(
-                totalIncome: provider.totalIncome,
-                expenses: provider.totalExpense,
+                totalIncome: provider.totalRevenue,
+                expenses: provider.totalTransactions,
               ),
               const SizedBox(height: 24),
 
@@ -166,17 +172,17 @@ class DashboardScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
 
-              // Sales Breakdown
-              SalesBreakdown(
-                salesByMethod: provider.salesByMethod,
-                totalSales: provider.totalIncome,
+              // Revenue Breakdown
+              RevenueBreakdown(
+                revenueByMethod: provider.revenueByMethod,
+                totalRevenue: provider.totalRevenue,
               ),
               const SizedBox(height: 24),
 
               // Transaction Breakdown
               ExpenseBreakdownCard(
-                expensesByCategory: provider.expensesByCategory,
-                totalExpenses: provider.totalExpense,
+                expensesByCategory: provider.transactionsByCategory,
+                totalExpenses: provider.totalTransactions,
               ),
               const SizedBox(height: 24),
 

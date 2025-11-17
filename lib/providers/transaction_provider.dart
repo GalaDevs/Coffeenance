@@ -21,6 +21,8 @@ class TransactionProvider with ChangeNotifier {
   List<Transaction> get transactionList =>
       _transactions.where((t) => t.type == TransactionType.transaction).toList();
 
+  List<Transaction> get transactionRecords => transactionList; // Alias
+
   double get totalRevenue =>
       revenueTransactions.fold(0.0, (sum, t) => sum + t.amount);
 
@@ -32,6 +34,7 @@ class TransactionProvider with ChangeNotifier {
   // Backward compatibility aliases
   double get totalIncome => totalRevenue;
   double get totalExpense => totalTransaction;
+  double get totalTransactions => totalTransaction; // Plural alias
   Map<String, double> get salesByMethod => revenueByMethod;
   Map<String, double> get expensesByCategory => transactionsByCategory;
 
