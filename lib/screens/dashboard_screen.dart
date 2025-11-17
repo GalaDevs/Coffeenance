@@ -62,7 +62,7 @@ class DashboardScreen extends StatelessWidget {
                         width: 48,
                         height: 48,
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.primary.withOpacity(0.1),
+                          color: theme.colorScheme.primary.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
                         child: ClipOval(
@@ -282,11 +282,8 @@ class _TaxSummaryCardState extends State<_TaxSummaryCard> {
               margin: const EdgeInsets.fromLTRB(0, 8, 0, 0),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: theme.colorScheme.secondary.withOpacity(0.5),
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(12),
-                  bottomRight: Radius.circular(12),
-                ),
+                color: theme.colorScheme.secondary.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
                 children: [
@@ -317,7 +314,7 @@ class _TaxSummaryCardState extends State<_TaxSummaryCard> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.error.withOpacity(0.1),
+                      color: theme.colorScheme.error.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: _buildTaxRow(
@@ -379,5 +376,3 @@ class _TaxSummaryCardState extends State<_TaxSummaryCard> {
     );
   }
 }
-
-

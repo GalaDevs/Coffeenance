@@ -93,7 +93,7 @@ class _SalesBreakdownState extends State<SalesBreakdown> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12), // rounded-xl
                 side: BorderSide(
-                  color: theme.colorScheme.outline.withOpacity(0.2), // border-border
+                  color: theme.colorScheme.outline.withValues(alpha: 0.2), // border-border
                 ),
               ),
               child: Padding(
@@ -116,7 +116,7 @@ class _SalesBreakdownState extends State<SalesBreakdown> {
                           style: theme.textTheme.bodySmall?.copyWith(
                             fontSize: 11, // text-xs reduced
                             fontWeight: FontWeight.w500, // font-medium
-                            color: theme.colorScheme.onSurface.withOpacity(0.6), // text-muted-foreground
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6), // text-muted-foreground
                           ),
                         ),
                       ],
@@ -127,7 +127,7 @@ class _SalesBreakdownState extends State<SalesBreakdown> {
                       method['name'] as String,
                       style: theme.textTheme.bodySmall?.copyWith(
                         fontSize: 11, // text-xs reduced
-                        color: theme.colorScheme.onSurface.withOpacity(0.6), // text-muted-foreground
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6), // text-muted-foreground
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,

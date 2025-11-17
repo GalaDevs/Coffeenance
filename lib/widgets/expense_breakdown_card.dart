@@ -51,14 +51,14 @@ class ExpenseBreakdownCard extends StatelessWidget {
             Text(
               'Transaction Breakdown',
               style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 4),
             Text(
-              'By category',
+              'Distribution of transactions across categories',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.textTheme.bodySmall?.color?.withOpacity(0.6),
+                color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.6),
               ),
             ),
             const SizedBox(height: 16),
@@ -107,7 +107,7 @@ class ExpenseBreakdownCard extends StatelessWidget {
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.secondary.withOpacity(0.5),
+                    color: theme.colorScheme.secondary.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(

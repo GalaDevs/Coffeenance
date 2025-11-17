@@ -229,7 +229,7 @@ class _TransactionModalState extends State<TransactionModal>
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               backgroundColor: _selectedDate.difference(DateTime.now()).inDays == 0
-                                  ? theme.colorScheme.primary.withOpacity(0.1)
+                                  ? theme.colorScheme.primary.withValues(alpha: 0.1)
                                   : null,
                             ),
                           ),
@@ -441,15 +441,12 @@ class _TransactionModalState extends State<TransactionModal>
               ? theme.colorScheme.primary
               : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: theme.colorScheme.primary.withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
+          border: Border.all(
+            color: isSelected
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline.withValues(alpha: 0.3),
+            width: 1,
+          ),
         ),
         child: Text(
           label,

@@ -1,9 +1,5 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// CoffeeFlow App Widget Tests
+// Updated to match the revenue/transaction management app structure
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,20 +7,39 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:coffeeflow/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
+  testWidgets('App loads and shows dashboard', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(const CoffeeFlowApp());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Wait for any async operations
+    await tester.pumpAndSettle();
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    // Verify that the app loads with the dashboard screen
+    expect(find.text('Dashboard'), findsOneWidget);
+    
+    // Verify bottom navigation items are present
+    expect(find.text('Revenue'), findsOneWidget);
+    expect(find.text('Transactions'), findsOneWidget);
+    expect(find.text('Settings'), findsOneWidget);
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('Bottom navigation changes screens', (WidgetTester tester) async {
+    // Build our app
+    await tester.pumpWidget(const CoffeeFlowApp());
+    await tester.pumpAndSettle();
+
+    // Tap on Revenue tab
+    await tester.tap(find.text('Revenue'));
+    await tester.pumpAndSettle();
+    
+    // Verify we're on the Revenue screen
+    expect(find.text('Revenue Report'), findsOneWidget);
+
+    // Tap on Transactions tab
+    await tester.tap(find.text('Transactions'));
+    await tester.pumpAndSettle();
+    
+    // Verify we're on the Transactions screen
+    expect(find.text('Transactions'), findsWidgets);
   });
 }

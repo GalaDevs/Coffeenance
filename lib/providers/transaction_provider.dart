@@ -15,64 +15,70 @@ class TransactionProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
 
   // Computed properties matching Next.js logic
-  List<Transaction> get incomeTransactions =>
-      _transactions.where((t) => t.type == TransactionType.income).toList();
+  List<Transaction> get revenueTransactions =>
+      _transactions.where((t) => t.type == TransactionType.revenue).toList();
 
-  List<Transaction> get expenseTransactions =>
-      _transactions.where((t) => t.type == TransactionType.expense).toList();
+  List<Transaction> get transactionList =>
+      _transactions.where((t) => t.type == TransactionType.transaction).toList();
 
-  double get totalIncome =>
-      incomeTransactions.fold(0.0, (sum, t) => sum + t.amount);
+  double get totalRevenue =>
+      revenueTransactions.fold(0.0, (sum, t) => sum + t.amount);
 
-  double get totalExpense =>
-      expenseTransactions.fold(0.0, (sum, t) => sum + t.amount);
+  double get totalTransaction =>
+      transactionList.fold(0.0, (sum, t) => sum + t.amount);
 
-  double get balance => totalIncome - totalExpense;
+  double get balance => totalRevenue - totalTransaction;
 
-  /// Get sales breakdown by payment method (matching Next.js salesByMethod)
-  Map<String, double> get salesByMethod {
+  // Backward compatibility aliases
+  double get totalIncome => totalRevenue;
+  double get totalExpense => totalTransaction;
+  Map<String, double> get salesByMethod => revenueByMethod;
+  Map<String, double> get expensesByCategory => transactionsByCategory;
+
+  /// Get revenue breakdown by payment method (matching Next.js revenueByMethod)
+  Map<String, double> get revenueByMethod {
     return {
-      IncomeCategories.cash: incomeTransactions
-          .where((t) => t.category == IncomeCategories.cash)
+      RevenueCategories.cash: revenueTransactions
+          .where((t) => t.category == RevenueCategories.cash)
           .fold(0.0, (sum, t) => sum + t.amount),
-      IncomeCategories.gcash: incomeTransactions
-          .where((t) => t.category == IncomeCategories.gcash)
+      RevenueCategories.gcash: revenueTransactions
+          .where((t) => t.category == RevenueCategories.gcash)
           .fold(0.0, (sum, t) => sum + t.amount),
-      IncomeCategories.grab: incomeTransactions
-          .where((t) => t.category == IncomeCategories.grab)
+      RevenueCategories.grab: revenueTransactions
+          .where((t) => t.category == RevenueCategories.grab)
           .fold(0.0, (sum, t) => sum + t.amount),
-      IncomeCategories.paymaya: incomeTransactions
-          .where((t) => t.category == IncomeCategories.paymaya)
+      RevenueCategories.paymaya: revenueTransactions
+          .where((t) => t.category == RevenueCategories.paymaya)
           .fold(0.0, (sum, t) => sum + t.amount),
-      IncomeCategories.others: incomeTransactions
-          .where((t) => t.category == IncomeCategories.others)
+      RevenueCategories.others: revenueTransactions
+          .where((t) => t.category == RevenueCategories.others)
           .fold(0.0, (sum, t) => sum + t.amount),
     };
   }
 
-  /// Get expenses breakdown by category
-  Map<String, double> get expensesByCategory {
+  /// Get transactions breakdown by category
+  Map<String, double> get transactionsByCategory {
     return {
-      ExpenseCategories.supplies: expenseTransactions
-          .where((t) => t.category == ExpenseCategories.supplies)
+      TransactionCategories.supplies: transactionList
+          .where((t) => t.category == TransactionCategories.supplies)
           .fold(0.0, (sum, t) => sum + t.amount),
-      ExpenseCategories.pastries: expenseTransactions
-          .where((t) => t.category == ExpenseCategories.pastries)
+      TransactionCategories.pastries: transactionList
+          .where((t) => t.category == TransactionCategories.pastries)
           .fold(0.0, (sum, t) => sum + t.amount),
-      ExpenseCategories.rent: expenseTransactions
-          .where((t) => t.category == ExpenseCategories.rent)
+      TransactionCategories.rent: transactionList
+          .where((t) => t.category == TransactionCategories.rent)
           .fold(0.0, (sum, t) => sum + t.amount),
-      ExpenseCategories.utilities: expenseTransactions
-          .where((t) => t.category == ExpenseCategories.utilities)
+      TransactionCategories.utilities: transactionList
+          .where((t) => t.category == TransactionCategories.utilities)
           .fold(0.0, (sum, t) => sum + t.amount),
-      ExpenseCategories.manpower: expenseTransactions
-          .where((t) => t.category == ExpenseCategories.manpower)
+      TransactionCategories.manpower: transactionList
+          .where((t) => t.category == TransactionCategories.manpower)
           .fold(0.0, (sum, t) => sum + t.amount),
-      ExpenseCategories.marketing: expenseTransactions
-          .where((t) => t.category == ExpenseCategories.marketing)
+      TransactionCategories.marketing: transactionList
+          .where((t) => t.category == TransactionCategories.marketing)
           .fold(0.0, (sum, t) => sum + t.amount),
-      ExpenseCategories.others: expenseTransactions
-          .where((t) => t.category == ExpenseCategories.others)
+      TransactionCategories.others: transactionList
+          .where((t) => t.category == TransactionCategories.others)
           .fold(0.0, (sum, t) => sum + t.amount),
     };
   }
@@ -100,26 +106,37 @@ class TransactionProvider with ChangeNotifier {
           Transaction(
             id: 1,
             date: DateTime.now().toIso8601String().split('T')[0],
-            type: TransactionType.income,
-            category: IncomeCategories.cash,
+            type: TransactionType.revenue,
+            category: RevenueCategories.cash,
             description: 'Cash sales',
             amount: 450.0,
+            paymentMethod: 'Cash',
+            transactionNumber: 'TXN001',
+            receiptNumber: 'RCP001',
           ),
           Transaction(
             id: 2,
             date: DateTime.now().subtract(const Duration(days: 1)).toIso8601String().split('T')[0],
-            type: TransactionType.income,
-            category: IncomeCategories.gcash,
+            type: TransactionType.revenue,
+            category: RevenueCategories.gcash,
             description: 'GCash payment',
             amount: 280.0,
+            paymentMethod: 'GCash',
+            transactionNumber: 'TXN002',
+            receiptNumber: 'RCP002',
           ),
           Transaction(
             id: 3,
             date: DateTime.now().subtract(const Duration(days: 1)).toIso8601String().split('T')[0],
-            type: TransactionType.expense,
-            category: ExpenseCategories.supplies,
+            type: TransactionType.transaction,
+            category: TransactionCategories.supplies,
             description: 'Coffee beans',
             amount: 150.0,
+            paymentMethod: 'Cash',
+            transactionNumber: 'TXN003',
+            receiptNumber: 'RCP003',
+            supplierName: 'Coffee Supplier Inc.',
+            vat: 12,
           ),
         ];
         await _saveToStorage();

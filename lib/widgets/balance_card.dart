@@ -40,7 +40,7 @@ class BalanceCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppColors.lightPrimary.withOpacity(0.3),
+            color: AppColors.lightPrimary.withValues(alpha: 0.3),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -53,11 +53,11 @@ class BalanceCard extends StatelessWidget {
           // Label
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: Colors.white,
+              color: Colors.white.withValues(alpha: 0.9),
               fontWeight: FontWeight.w500,
-            ).copyWith(color: Colors.white.withOpacity(0.9)),
+            ),
           ),
           const SizedBox(height: 8),
 
@@ -85,7 +85,7 @@ class BalanceCard extends StatelessWidget {
                       'Income',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.white.withOpacity(0.75),
+                        color: Colors.white.withValues(alpha: 0.75),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -105,7 +105,7 @@ class BalanceCard extends StatelessWidget {
               Container(
                 width: 1,
                 height: 48,
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
               ),
               const SizedBox(width: 16),
 
@@ -118,7 +118,7 @@ class BalanceCard extends StatelessWidget {
                       'Transactions',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.white.withOpacity(0.75),
+                        color: Colors.white.withValues(alpha: 0.75),
                       ),
                     ),
                     const SizedBox(height: 4),

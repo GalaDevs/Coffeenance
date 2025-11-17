@@ -17,21 +17,21 @@ class SalesMonitoringCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final incomeTransactions = transactions.where((t) => t.type == TransactionType.income).toList();
+    final revenueTransactions = transactions.where((t) => t.type == TransactionType.revenue).toList();
 
     // Aggregate sales by method
     final salesByMethod = {
-      'Cash': incomeTransactions
-          .where((t) => t.category == IncomeCategories.cash)
+      'Cash': revenueTransactions
+          .where((t) => t.category == RevenueCategories.cash)
           .fold(0.0, (sum, t) => sum + t.amount),
-      'PayMaya': incomeTransactions
-          .where((t) => t.category == IncomeCategories.paymaya)
+      'PayMaya': revenueTransactions
+          .where((t) => t.category == RevenueCategories.paymaya)
           .fold(0.0, (sum, t) => sum + t.amount),
-      'GCash': incomeTransactions
-          .where((t) => t.category == IncomeCategories.gcash)
+      'GCash': revenueTransactions
+          .where((t) => t.category == RevenueCategories.gcash)
           .fold(0.0, (sum, t) => sum + t.amount),
-      'Grab': incomeTransactions
-          .where((t) => t.category == IncomeCategories.grab)
+      'Grab': revenueTransactions
+          .where((t) => t.category == RevenueCategories.grab)
           .fold(0.0, (sum, t) => sum + t.amount),
     };
 
@@ -60,7 +60,7 @@ class SalesMonitoringCard extends StatelessWidget {
             Text(
               'Payment methods breakdown',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.textTheme.bodySmall?.color?.withOpacity(0.6),
+                color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.6),
               ),
             ),
             const SizedBox(height: 16),
@@ -87,7 +87,6 @@ class SalesMonitoringCard extends StatelessWidget {
                         enabled: true,
                         touchTooltipData: BarTouchTooltipData(
                           getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                            final name = chartData[groupIndex]['name'] as String;
                             final value = rod.toY;
                             return BarTooltipItem(
                               '₱${NumberFormat('#,###').format(value)}',
@@ -156,7 +155,7 @@ class SalesMonitoringCard extends StatelessWidget {
                         horizontalInterval: roundedInterval.toDouble(),
                         getDrawingHorizontalLine: (value) {
                           return FlLine(
-                            color: theme.colorScheme.outline.withOpacity(0.2),
+                            color: theme.colorScheme.outline.withValues(alpha: 0.2),
                             strokeWidth: 1,
                             dashArray: [3, 3],
                           );
@@ -192,7 +191,7 @@ class SalesMonitoringCard extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.secondary.withOpacity(0.5),
+                  color: theme.colorScheme.secondary.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(

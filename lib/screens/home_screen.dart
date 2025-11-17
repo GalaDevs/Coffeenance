@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../screens/dashboard_screen.dart';
-import '../screens/sales_screen.dart';
-import '../screens/expenses_screen.dart';
+import '../screens/revenue_screen.dart';
+import '../screens/transactions_screen.dart';
 import '../screens/settings_screen.dart';
 import '../widgets/transaction_modal.dart';
 
@@ -22,14 +22,14 @@ class _HomeScreenState extends State<HomeScreen>
 
   final List<Widget> _screens = const [
     DashboardScreen(),
-    SalesScreen(),
-    ExpensesScreen(),
+    RevenueScreen(),
+    TransactionsScreen(),
     SettingsScreen(),
   ];
 
   final List<_NavItem> _navItems = const [
     _NavItem(icon: Icons.dashboard_rounded, label: 'Dashboard'),
-    _NavItem(icon: Icons.attach_money_rounded, label: 'Sales'),
+    _NavItem(icon: Icons.attach_money_rounded, label: 'Revenue'),
     _NavItem(icon: Icons.trending_down_rounded, label: 'Transactions'),
     _NavItem(icon: Icons.settings_rounded, label: 'Settings'),
   ];
@@ -106,7 +106,7 @@ class _HomeScreenState extends State<HomeScreen>
           color: theme.colorScheme.surface,
           border: Border(
             top: BorderSide(
-              color: theme.colorScheme.outline.withOpacity(0.2),
+              color: theme.colorScheme.outline.withValues(alpha: 0.2),
               width: 1,
             ),
           ),
@@ -136,7 +136,7 @@ class _HomeScreenState extends State<HomeScreen>
         height: 56, // h-14 (56px)
         decoration: BoxDecoration(
           color: isSelected
-              ? theme.colorScheme.primary.withOpacity(0.1)
+              ? theme.colorScheme.primary.withValues(alpha: 0.1)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
@@ -148,7 +148,7 @@ class _HomeScreenState extends State<HomeScreen>
               size: 24,
               color: isSelected
                   ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurface.withOpacity(0.6),
+                  : theme.colorScheme.onSurface.withValues(alpha: 0.6),
             ),
             const SizedBox(height: 2), // mb-1
             Text(
@@ -158,7 +158,7 @@ class _HomeScreenState extends State<HomeScreen>
                 fontWeight: FontWeight.w500, // font-medium
                 color: isSelected
                     ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurface.withOpacity(0.6),
+                    : theme.colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
           ],

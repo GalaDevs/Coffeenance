@@ -223,7 +223,7 @@ class MonthlyPLModal extends StatelessWidget {
                   final interval = (maxY / 5).ceilToDouble();
                   // Round to nice numbers (10000, 15000, etc.)
                   final roundedInterval = (interval / 10000).ceil() * 10000.0;
-
+                  
                   return BarChart(
                     BarChartData(
                       alignment: BarChartAlignment.spaceAround,
@@ -353,10 +353,10 @@ class MonthlyPLModal extends StatelessWidget {
                   // Calculate interval to show max 5-6 labels
                   final interval = (maxY / 5).ceilToDouble();
                   // Round to nice numbers
-                  final roundedInterval = interval < 1000
-                      ? (interval / 100).ceil() * 100.0
+                  final roundedInterval = interval < 1000 
+                      ? (interval / 100).ceil() * 100.0 
                       : (interval / 1000).ceil() * 1000.0;
-
+                  
                   return LineChart(
                     LineChartData(
                       gridData: FlGridData(

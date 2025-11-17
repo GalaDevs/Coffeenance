@@ -63,7 +63,7 @@ class RevenueTrendsModal extends StatelessWidget {
                         Text(
                           'Weekly sales performance and category analysis',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                         ),
                       ],
@@ -113,7 +113,7 @@ class RevenueTrendsModal extends StatelessWidget {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                         side: BorderSide(
-                          color: theme.colorScheme.outline.withOpacity(0.2),
+                          color: theme.colorScheme.outline.withValues(alpha: 0.2),
                         ),
                       ),
                       child: Padding(
@@ -134,7 +134,7 @@ class RevenueTrendsModal extends StatelessWidget {
                               child: Builder(
                                 builder: (context) {
                                   // Calculate max revenue for dynamic scaling
-                                  final maxRevenue = revenueData.map((d) => d['amount'] as double).reduce((a, b) => a > b ? a : b);
+                                  final maxRevenue = revenueData.map((d) => d['sales'] as double).reduce((a, b) => a > b ? a : b);
                                   final maxY = maxRevenue * 1.2;
                                   // Calculate interval to show max 5-6 labels
                                   final interval = (maxY / 5).ceilToDouble();
@@ -152,7 +152,7 @@ class RevenueTrendsModal extends StatelessWidget {
                                         getDrawingHorizontalLine: (value) {
                                           return FlLine(
                                             color: theme.colorScheme.outline
-                                                .withOpacity(0.2),
+                                                .withValues(alpha: 0.2),
                                             strokeWidth: 1,
                                             dashArray: [5, 5],
                                           );
@@ -236,7 +236,7 @@ class RevenueTrendsModal extends StatelessWidget {
                                       belowBarData: BarAreaData(
                                         show: true,
                                         color: const Color(0xFF10B981)
-                                            .withOpacity(0.2),
+                                            .withValues(alpha: 0.2),
                                       ),
                                     ),
                                     // Target Line
@@ -255,7 +255,7 @@ class RevenueTrendsModal extends StatelessWidget {
                                       belowBarData: BarAreaData(
                                         show: true,
                                         color: const Color(0xFFF3F4F6)
-                                            .withOpacity(0.5),
+                                            .withValues(alpha: 0.5),
                                       ),
                                     ),
                                   ],
@@ -310,7 +310,7 @@ class RevenueTrendsModal extends StatelessWidget {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                         side: BorderSide(
-                          color: theme.colorScheme.outline.withOpacity(0.2),
+                          color: theme.colorScheme.outline.withValues(alpha: 0.2),
                         ),
                       ),
                       child: Padding(
@@ -335,7 +335,7 @@ class RevenueTrendsModal extends StatelessWidget {
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
                                     color: theme.colorScheme.surfaceContainerHighest
-                                        .withOpacity(0.5),
+                                        .withValues(alpha: 0.5),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Row(
@@ -361,7 +361,7 @@ class RevenueTrendsModal extends StatelessWidget {
                                                 ?.copyWith(
                                               fontSize: 12,
                                               color: theme.colorScheme.onSurface
-                                                  .withOpacity(0.6),
+                                                  .withValues(alpha: 0.6),
                                             ),
                                           ),
                                         ],
@@ -417,7 +417,7 @@ class _KPICard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: theme.colorScheme.outline.withOpacity(0.2),
+          color: theme.colorScheme.outline.withValues(alpha: 0.2),
         ),
       ),
       child: Padding(
@@ -430,7 +430,7 @@ class _KPICard extends StatelessWidget {
               style: theme.textTheme.bodySmall?.copyWith(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
             const SizedBox(height: 8),
