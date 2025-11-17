@@ -26,7 +26,7 @@ dependencies:
   # UI Components
   cupertino_icons: ^1.0.8
   flutter_svg: ^2.0.10+1
-  
+
   # Animations
   animations: ^2.0.11
   

@@ -28,10 +28,10 @@ class _HomeScreenState extends State<HomeScreen>
   ];
 
   final List<_NavItem> _navItems = const [
-    _NavItem(icon: Icons.dashboard_rounded, label: 'Dashboard'),
-    _NavItem(icon: Icons.attach_money_rounded, label: 'Revenue'),
-    _NavItem(icon: Icons.trending_down_rounded, label: 'Transactions'),
-    _NavItem(icon: Icons.settings_rounded, label: 'Settings'),
+    _NavItem(icon: Icons.dashboard_customize_rounded, label: 'Dashboard'),
+    _NavItem(icon: Icons.account_balance_wallet_rounded, label: 'Revenue'),
+    _NavItem(icon: Icons.swap_horiz_rounded, label: 'Transactions'),
+    _NavItem(icon: Icons.tune_rounded, label: 'Settings'),
   ];
 
   @override

@@ -77,33 +77,33 @@ class DashboardScreen extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_vert),
+                        icon: const Icon(Icons.more_vert_rounded),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                         itemBuilder: (context) => [
                           _buildPopupMenuItem(
-                            Icons.assessment,
+                            Icons.analytics_rounded,
                             'Monthly P&L Summary',
                             'monthly_pl',
                           ),
                           _buildPopupMenuItem(
-                            Icons.trending_up,
+                            Icons.show_chart_rounded,
                             'Revenue Trends',
                             'revenue_trends',
                           ),
                           _buildPopupMenuItem(
-                            Icons.inventory_2,
+                            Icons.inventory_2_rounded,
                             'Inventory Status',
                             'inventory',
                           ),
                           _buildPopupMenuItem(
-                            Icons.people,
+                            Icons.people_rounded,
                             'Staff Payroll',
                             'payroll',
                           ),
                           _buildPopupMenuItem(
-                            Icons.track_changes,
+                            Icons.dashboard_customize_rounded,
                             'KPI Dashboard',
                             'kpi',
                           ),
@@ -259,8 +259,8 @@ class _TaxSummaryCardState extends State<_TaxSummaryCard> {
                   Row(
                     children: [
                       Icon(
-                        Icons.receipt_long,
-                        size: 20,
+                        Icons.receipt_long_rounded,
+                        size: 32,
                         color: theme.colorScheme.primary,
                       ),
                       const SizedBox(width: 12),
@@ -274,8 +274,8 @@ class _TaxSummaryCardState extends State<_TaxSummaryCard> {
                   ),
                   Icon(
                     _isExpanded
-                        ? Icons.keyboard_arrow_up
-                        : Icons.keyboard_arrow_down,
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
                     size: 16,
                     color: theme.textTheme.bodySmall?.color,
                   ),

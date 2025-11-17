@@ -83,6 +83,68 @@ class _TransactionModalState extends State<TransactionModal>
           ? RevenueCategories.all
           : TransactionCategories.all;
 
+  // Get icon for category
+  IconData _getCategoryIcon(String category) {
+    if (_type == TransactionType.revenue) {
+      switch (category) {
+        case 'Cash':
+          return Icons.paid_rounded;
+        case 'GCash':
+          return Icons.smartphone_rounded;
+        case 'Grab':
+          return Icons.local_taxi_rounded;
+        case 'PayMaya':
+          return Icons.credit_card_rounded;
+        case 'Others':
+          return Icons.more_horiz_rounded;
+        default:
+          return Icons.account_balance_wallet_rounded;
+      }
+    } else {
+      // Transaction/Expense categories
+      switch (category) {
+        case 'Supplies':
+          return Icons.inventory_2_rounded;
+        case 'Pastries':
+          return Icons.restaurant_rounded;
+        case 'Rent':
+          return Icons.home_rounded;
+        case 'Utilities':
+          return Icons.bolt_rounded;
+        case 'Manpower':
+          return Icons.people_rounded;
+        case 'Marketing':
+          return Icons.campaign_rounded;
+        case 'Others':
+          return Icons.more_horiz_rounded;
+        default:
+          return Icons.receipt_long_rounded;
+      }
+    }
+  }
+
+  // Get icon for payment method
+  IconData _getPaymentMethodIcon(String method) {
+    switch (method) {
+      case 'Cash':
+        return Icons.paid_rounded;
+      case 'Check':
+        return Icons.receipt_long_rounded;
+      case 'Bank Transfer':
+        return Icons.account_balance_rounded;
+      case 'Credit Card':
+        return Icons.credit_card_rounded;
+      case 'GCash':
+        return Icons.smartphone_rounded;
+      case 'PayMaya':
+        return Icons.credit_card_rounded;
+      case 'Others':
+        return Icons.more_horiz_rounded;
+      default:
+        return Icons.payment_rounded;
+    }
+  }
+
   void _handleSubmit() {
     // Match Next.js validation: category, amount, description required
     if (_category == null ||
@@ -184,7 +246,7 @@ class _TransactionModalState extends State<TransactionModal>
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close, size: 28),
+                          icon: const Icon(Icons.close_rounded, size: 28),
                           onPressed: () => Navigator.of(context).pop(),
                           style: IconButton.styleFrom(
                             foregroundColor: theme.textTheme.bodySmall?.color,
@@ -263,15 +325,30 @@ class _TransactionModalState extends State<TransactionModal>
                               ),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              category,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: isSelected
-                                    ? theme.colorScheme.onPrimary
-                                    : theme.colorScheme.onSurface,
-                              ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  _getCategoryIcon(category),
+                                  size: 18,
+                                  color: isSelected
+                                      ? theme.colorScheme.onPrimary
+                                      : theme.colorScheme.onSurface,
+                                ),
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    category,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: isSelected
+                                          ? theme.colorScheme.onPrimary
+                                          : theme.colorScheme.onSurface,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         );
@@ -308,18 +385,17 @@ class _TransactionModalState extends State<TransactionModal>
                       ],
                       decoration: InputDecoration(
                         hintText: '0.00',
-                        prefixIcon: Padding(
-                          padding: const EdgeInsets.only(left: 16, top: 10),
+                        prefix: Padding(
+                          padding: const EdgeInsets.only(right: 4),
                           child: Text(
                             '₱',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w600,
-                              color: theme.textTheme.bodySmall?.color,
+                              color: theme.textTheme.bodyMedium?.color,
                             ),
                           ),
                         ),
-                        prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(color: theme.dividerColor),
@@ -366,7 +442,17 @@ class _TransactionModalState extends State<TransactionModal>
                       items: PaymentMethods.all.map((method) {
                         return DropdownMenuItem(
                           value: method,
-                          child: Text(method, style: theme.textTheme.bodySmall),
+                          child: Row(
+                            children: [
+                              Icon(
+                                _getPaymentMethodIcon(method),
+                                size: 18,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(method, style: theme.textTheme.bodySmall),
+                            ],
+                          ),
                         );
                       }).toList(),
                       onChanged: (value) {

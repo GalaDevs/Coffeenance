@@ -218,20 +218,20 @@ class _TransactionCard extends StatelessWidget {
 
   IconData _getCategoryIcon(String category) {
     switch (category) {
-      case 'Supplies':
-        return Icons.inventory_2;
-      case 'Pastries':
-        return Icons.bakery_dining;
+      case 'Inventory':
+        return Icons.inventory_2_rounded;
+      case 'Ingredients':
+        return Icons.restaurant_rounded;
       case 'Rent':
-        return Icons.home;
+        return Icons.home_rounded;
       case 'Utilities':
-        return Icons.bolt;
-      case 'Manpower':
-        return Icons.people;
+        return Icons.bolt_rounded;
+      case 'Payroll':
+        return Icons.people_rounded;
       case 'Marketing':
-        return Icons.campaign;
+        return Icons.campaign_rounded;
       default:
-        return Icons.receipt;
+        return Icons.receipt_long_rounded;
     }
   }
 }

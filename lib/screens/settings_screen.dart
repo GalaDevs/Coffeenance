@@ -154,7 +154,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 ListTile(
                   leading: Icon(
-                    Icons.info,
+                    Icons.info_rounded,
                     color: theme.colorScheme.primary,
                   ),
                   title: const Text('Version'),
@@ -163,7 +163,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const Divider(height: 1),
                 ListTile(
                   leading: Icon(
-                    Icons.code,
+                    Icons.code_rounded,
                     color: theme.colorScheme.primary,
                   ),
                   title: const Text('Technology'),
@@ -172,7 +172,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const Divider(height: 1),
                 ListTile(
                   leading: Icon(
-                    Icons.article,
+                    Icons.article_rounded,
                     color: theme.colorScheme.primary,
                   ),
                   title: const Text('Converted from Next.js'),

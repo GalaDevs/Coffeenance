@@ -79,8 +79,8 @@ class RecentTransactions extends StatelessWidget {
                         ),
                         child: Icon(
                           isIncome
-                              ? Icons.arrow_downward_rounded
-                              : Icons.arrow_upward_rounded,
+                              ? Icons.trending_up_rounded
+                              : Icons.trending_down_rounded,
                           color: isIncome ? Colors.green : Colors.red,
                           size: 20,
                         ),

@@ -118,7 +118,7 @@ class RevenueScreen extends StatelessWidget {
                     child: Column(
                       children: [
                         Icon(
-                          Icons.receipt_long,
+                          Icons.receipt_long_rounded,
                           size: 64,
                           color: theme.colorScheme.outline,
                         ),
@@ -211,15 +211,15 @@ class _TransactionCard extends StatelessWidget {
   IconData _getCategoryIcon(String category) {
     switch (category) {
       case 'Cash':
-        return Icons.payments;
+        return Icons.paid_rounded;
       case 'GCash':
-        return Icons.phone_android;
+        return Icons.smartphone_rounded;
       case 'Grab':
-        return Icons.directions_car;
+        return Icons.local_taxi_rounded;
       case 'PayMaya':
-        return Icons.credit_card;
+        return Icons.credit_card_rounded;
       default:
-        return Icons.attach_money;
+        return Icons.account_balance_wallet_rounded;
     }
   }
 }
