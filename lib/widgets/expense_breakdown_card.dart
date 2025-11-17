@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../models/transaction.dart';
 import '../theme/app_theme.dart';
 
 /// Expense Breakdown Card - Matches expense-breakdown.tsx

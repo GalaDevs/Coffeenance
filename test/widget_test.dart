@@ -1,7 +1,6 @@
 // CoffeeFlow App Widget Tests
 // Updated to match the revenue/transaction management app structure
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:coffeeflow/main.dart';
