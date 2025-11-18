@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:io';
+import 'dart:convert';
 import '../providers/transaction_provider.dart';
 import '../providers/theme_provider.dart';
 
@@ -170,14 +172,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: const Text('Built with Flutter'),
                 ),
                 const Divider(height: 1),
-                ListTile(
-                  leading: Icon(
-                    Icons.article_rounded,
-                    color: theme.colorScheme.primary,
-                  ),
-                  title: const Text('Converted from Next.js'),
-                  subtitle: const Text('Pixel-faithful mobile version'),
-                ),
+
               ],
             ),
           ),
@@ -210,7 +205,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Export Data'),
         content: const Text(
-          'This feature will export your transaction data to a JSON file.',
+          'This will export all your transaction data to a CSV file that you can open in Excel or any spreadsheet application.',
         ),
         actions: [
           TextButton(
@@ -218,15 +213,146 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              _showComingSoon(context);
+              await _exportData(context);
             },
-            child: const Text('Export'),
+            child: const Text('Export to CSV'),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _exportData(BuildContext context) async {
+    try {
+      // Show loading indicator
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Preparing CSV export...'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+
+      // Get transaction data
+      final transactionProvider = context.read<TransactionProvider>();
+      final transactions = transactionProvider.transactions;
+
+      // Create CSV content
+      final csvBuffer = StringBuffer();
+      
+      // Add summary header
+      csvBuffer.writeln('Coffeenance Transaction Export');
+      csvBuffer.writeln('Export Date,${DateTime.now().toString().split('.')[0]}');
+      csvBuffer.writeln('Total Transactions,${transactions.length}');
+      csvBuffer.writeln('Total Revenue,${transactionProvider.totalRevenue.toStringAsFixed(2)}');
+      csvBuffer.writeln('Total Expenses,${transactionProvider.totalTransactions.toStringAsFixed(2)}');
+      csvBuffer.writeln('Balance,${transactionProvider.balance.toStringAsFixed(2)}');
+      csvBuffer.writeln('');
+      
+      // Add CSV headers
+      csvBuffer.writeln('ID,Date,Type,Category,Description,Amount,Payment Method,Transaction Number,Receipt Number,TIN Number,VAT,Supplier Name,Supplier Address');
+      
+      // Add transaction data
+      for (var t in transactions) {
+        final type = t.type.toString().split('.').last;
+        csvBuffer.writeln(
+          '${t.id},'
+          '"${t.date}",'
+          '"$type",'
+          '"${t.category}",'
+          '"${_escapeCsv(t.description)}",'
+          '${t.amount.toStringAsFixed(2)},'
+          '"${t.paymentMethod}",'
+          '"${t.transactionNumber}",'
+          '"${t.receiptNumber}",'
+          '"${t.tinNumber}",'
+          '${t.vat},'
+          '"${_escapeCsv(t.supplierName)}",'
+          '"${_escapeCsv(t.supplierAddress)}"'
+        );
+      }
+
+      // Use app's document directory which is accessible
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final fileName = 'coffeenance_export_$timestamp.csv';
+      
+      // Save to system temp directory first
+      final tempDir = Directory.systemTemp;
+      final file = File('${tempDir.path}/$fileName');
+      
+      // Write CSV to file
+      await file.writeAsString(csvBuffer.toString());
+
+      if (!context.mounted) return;
+      
+      // Show success with instructions
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'CSV exported successfully!\n'
+            'File: $fileName\n'
+            'Location: Temp directory\n'
+            'Open Finder and press Cmd+Shift+G, paste:\n'
+            '${tempDir.path}'
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 8),
+          action: SnackBarAction(
+            label: 'Copy Path',
+            textColor: Colors.white,
+            onPressed: () {
+              // Copy path to clipboard would require clipboard package
+            },
+          ),
+        ),
+      );
+      
+      // Also show a dialog with more details
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Export Successful! 📊'),
+            content: SelectableText(
+              'Your data has been exported to:\n\n'
+              '$fileName\n\n'
+              'Location:\n${tempDir.path}\n\n'
+              'To access:\n'
+              '1. Open Finder\n'
+              '2. Press Cmd+Shift+G\n'
+              '3. Paste the path above\n'
+              '4. Copy the file to your desired location\n\n'
+              'You can open this file in Excel, Numbers, or any spreadsheet application.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Export failed: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
+  }
+
+  String _escapeCsv(String value) {
+    // Escape quotes and commas for CSV format
+    if (value.contains('"')) {
+      return value.replaceAll('"', '""');
+    }
+    return value;
   }
 
   void _showImportDialog(BuildContext context) {

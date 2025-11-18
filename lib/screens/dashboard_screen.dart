@@ -72,6 +72,13 @@ class DashboardScreen extends StatelessWidget {
                             width: 48,
                             height: 48,
                             fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Icon(
+                                Icons.coffee,
+                                size: 32,
+                                color: theme.colorScheme.primary,
+                              );
+                            },
                           ),
                         ),
                       ),

@@ -7,18 +7,20 @@ import '../providers/transaction_provider.dart';
 /// Transaction Modal - Matches transaction-modal.tsx
 /// Shows a bottom sheet with animations for adding transactions
 class TransactionModal extends StatefulWidget {
-  const TransactionModal({super.key});
+  final TransactionType? initialType;
+  
+  const TransactionModal({super.key, this.initialType});
 
   @override
   State<TransactionModal> createState() => _TransactionModalState();
 
   /// Show the modal with animation (matching Next.js animate-in)
-  static Future<void> show(BuildContext context) {
+  static Future<void> show(BuildContext context, {TransactionType? initialType}) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const TransactionModal(),
+      builder: (context) => TransactionModal(initialType: initialType),
     );
   }
 }
@@ -30,7 +32,7 @@ class _TransactionModalState extends State<TransactionModal>
   late Animation<Offset> _slideAnimation;
 
   // Match Next.js state: revenue vs transaction
-  TransactionType _type = TransactionType.revenue;
+  late TransactionType _type;
   String? _category;
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
@@ -45,6 +47,7 @@ class _TransactionModalState extends State<TransactionModal>
   @override
   void initState() {
     super.initState();
+    _type = widget.initialType ?? TransactionType.revenue;
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -240,7 +243,7 @@ class _TransactionModalState extends State<TransactionModal>
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Add Transaction',
+                          _type == TransactionType.revenue ? 'Add Revenue' : 'Add Transaction',
                           style: theme.textTheme.headlineMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),

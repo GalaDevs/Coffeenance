@@ -4,6 +4,7 @@ import '../screens/revenue_screen.dart';
 import '../screens/transactions_screen.dart';
 import '../screens/settings_screen.dart';
 import '../widgets/transaction_modal.dart';
+import '../models/transaction.dart';
 
 /// Home Screen with Bottom Navigation
 /// Matches page.tsx with BottomNav component
@@ -65,7 +66,18 @@ class _HomeScreenState extends State<HomeScreen>
     _fabAnimationController.forward().then((_) {
       _fabAnimationController.reverse();
     });
-    TransactionModal.show(context);
+    
+    // Determine initial type based on current screen
+    TransactionType? initialType;
+    if (_currentIndex == 1) {
+      // Revenue screen
+      initialType = TransactionType.revenue;
+    } else if (_currentIndex == 2) {
+      // Transactions screen
+      initialType = TransactionType.transaction;
+    }
+    
+    TransactionModal.show(context, initialType: initialType);
   }
 
   @override
@@ -132,8 +144,12 @@ class _HomeScreenState extends State<HomeScreen>
       borderRadius: BorderRadius.circular(12),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        width: 56, // w-14 (56px)
+        constraints: const BoxConstraints(
+          minWidth: 70, // Increased width to accommodate longer text
+          maxWidth: 85,
+        ),
         height: 56, // h-14 (56px)
+        padding: const EdgeInsets.symmetric(horizontal: 4),
         decoration: BoxDecoration(
           color: isSelected
               ? theme.colorScheme.primary.withValues(alpha: 0.1)
@@ -153,9 +169,13 @@ class _HomeScreenState extends State<HomeScreen>
             const SizedBox(height: 2), // mb-1
             Text(
               navItem.label,
+              maxLines: 1,
+              overflow: TextOverflow.visible,
+              textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 10, // text-xs
+                fontSize: 9, // Slightly smaller to fit better
                 fontWeight: FontWeight.w500, // font-medium
+                letterSpacing: -0.2, // Tighter letter spacing
                 color: isSelected
                     ? theme.colorScheme.primary
                     : theme.colorScheme.onSurface.withValues(alpha: 0.6),

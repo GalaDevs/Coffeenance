@@ -71,28 +71,37 @@ class ExpenseBreakdownCard extends StatelessWidget {
               )
             else ...[
               // Pie Chart
-              SizedBox(
-                height: 192,
-                child: PieChart(
-                  PieChartData(
-                    sections: chartData.map((data) {
-                      return PieChartSectionData(
-                        value: data['value'] as double,
-                        title: '',
-                        color: data['color'] as Color,
-                        radius: 60,
-                      );
-                    }).toList(),
-                    sectionsSpace: 2,
-                    centerSpaceRadius: 0,
-                    pieTouchData: PieTouchData(
-                      touchCallback: (FlTouchEvent event, pieTouchResponse) {},
+              Center(
+                child: SizedBox(
+                  height: 200,
+                  width: 200,
+                  child: PieChart(
+                    PieChartData(
+                      sections: chartData.map((data) {
+                        final percentage = ((data['value'] as double) / totalExpenses) * 100;
+                        return PieChartSectionData(
+                          value: data['value'] as double,
+                          title: '${percentage.toStringAsFixed(0)}%',
+                          titleStyle: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          color: data['color'] as Color,
+                          radius: 80,
+                        );
+                      }).toList(),
+                      sectionsSpace: 3,
+                      centerSpaceRadius: 0,
+                      pieTouchData: PieTouchData(
+                        touchCallback: (FlTouchEvent event, pieTouchResponse) {},
+                      ),
                     ),
                   ),
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
 
               // Category List
               ...chartData.map((data) {

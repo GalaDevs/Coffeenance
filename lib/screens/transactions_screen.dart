@@ -67,7 +67,7 @@ class TransactionsScreen extends StatelessWidget {
 
               // Total Transactions Card
               Container(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
@@ -97,7 +97,7 @@ class TransactionsScreen extends StatelessWidget {
                             color: Colors.white.withValues(alpha: 0.9),
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 12),
                         Text(
                           '₱${NumberFormat('#,###.00').format(provider.totalTransaction)}', // fixed getter name
                           style: const TextStyle(
