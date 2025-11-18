@@ -237,9 +237,8 @@ class _TransactionModalState extends State<TransactionModal>
   }
 
   void _handleSubmit() {
-    // Match Next.js validation: category, amount, description required
+    // Validation: category and amount required
     if (_category == null ||
-        _descriptionController.text.isEmpty ||
         _amountController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -695,133 +694,88 @@ class _TransactionModalState extends State<TransactionModal>
                       ),
                       const SizedBox(height: 12),
                       Container(
+                        height: 200,
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.secondary,
+                          color: theme.colorScheme.secondary.withValues(alpha: 0.3),
                           border: Border.all(
                             color: theme.dividerColor,
                             width: 1,
                           ),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Dropdown Header
-                            GestureDetector(
+                        child: GridView.builder(
+                          padding: const EdgeInsets.all(8),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
+                            childAspectRatio: 3.5,
+                          ),
+                          itemCount: _productTypes.length,
+                          itemBuilder: (context, index) {
+                            final product = _productTypes[index];
+                            final isSelected = _productType == product['name'];
+                            return GestureDetector(
                               onTap: () {
                                 setState(() {
-                                  _isProductDropdownOpen = !_isProductDropdownOpen;
+                                  _productType = product['name'];
                                 });
                               },
-                              child: Container(
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? theme.colorScheme.primary
+                                      : theme.colorScheme.surface,
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? theme.colorScheme.primary
+                                        : theme.dividerColor,
+                                    width: isSelected ? 2 : 1,
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: isSelected
+                                      ? [
+                                          BoxShadow(
+                                            color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ]
+                                      : null,
                                 ),
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Text(
-                                      _productType ?? 'Select product',
-                                      style: theme.textTheme.bodyMedium?.copyWith(
-                                        color: _productType != null
-                                            ? theme.colorScheme.onSurface
-                                            : theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                                      ),
-                                    ),
                                     Icon(
-                                      _isProductDropdownOpen
-                                          ? Icons.keyboard_arrow_up_rounded
-                                          : Icons.keyboard_arrow_down_rounded,
-                                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                                      product['icon'],
+                                      size: 18,
+                                      color: isSelected
+                                          ? theme.colorScheme.onPrimary
+                                          : theme.colorScheme.onSurface,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Flexible(
+                                      child: Text(
+                                        product['name'],
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          color: isSelected
+                                              ? theme.colorScheme.onPrimary
+                                              : theme.colorScheme.onSurface,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
                                   ],
                                 ),
                               ),
-                            ),
-                            // Dropdown Content
-                            if (_isProductDropdownOpen) ...[
-                              Divider(height: 1, color: theme.dividerColor),
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                constraints: const BoxConstraints(maxHeight: 250),
-                                child: GridView.builder(
-                                  shrinkWrap: true,
-                                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: 2,
-                                    crossAxisSpacing: 6,
-                                    mainAxisSpacing: 6,
-                                    childAspectRatio: 3.5,
-                                  ),
-                                  itemCount: _productTypes.length,
-                                  itemBuilder: (context, index) {
-                                    final product = _productTypes[index];
-                                    final isSelected = _productType == product['name'];
-                                    return GestureDetector(
-                                      onTap: () {
-                                        setState(() {
-                                          _productType = product['name'];
-                                          _isProductDropdownOpen = false;
-                                        });
-                                      },
-                                      child: Card(
-                                        margin: EdgeInsets.zero,
-                                        elevation: isSelected ? 4 : 1,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(10),
-                                          side: BorderSide(
-                                            color: isSelected
-                                                ? theme.colorScheme.primary
-                                                : theme.dividerColor,
-                                            width: isSelected ? 2 : 1,
-                                          ),
-                                        ),
-                                        child: AnimatedContainer(
-                                          duration: const Duration(milliseconds: 200),
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 8,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: isSelected
-                                                ? theme.colorScheme.primary
-                                                : theme.colorScheme.surface,
-                                            borderRadius: BorderRadius.circular(10),
-                                          ),
-                                          child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              Icon(
-                                                product['icon'],
-                                                size: 18,
-                                                color: isSelected
-                                                    ? theme.colorScheme.onPrimary
-                                                    : theme.colorScheme.onSurface,
-                                              ),
-                                              const SizedBox(width: 6),
-                                              Flexible(
-                                                child: Text(
-                                                  product['name'],
-                                                  style: theme.textTheme.bodySmall?.copyWith(
-                                                    fontWeight: FontWeight.w600,
-                                                    color: isSelected
-                                                        ? theme.colorScheme.onPrimary
-                                                        : theme.colorScheme.onSurface,
-                                                  ),
-                                                  overflow: TextOverflow.ellipsis,
-                                                  maxLines: 1,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ],
-                          ],
+                            );
+                          },
                         ),
                       ),
                       const SizedBox(height: 16),
