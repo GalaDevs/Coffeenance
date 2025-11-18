@@ -244,7 +244,7 @@ class _TransactionModalState extends State<TransactionModal>
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Add Transaction',
+                          _type == TransactionType.revenue ? 'Add Revenue' : 'Add Transaction',
                           style: theme.textTheme.headlineMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
