@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../models/transaction.dart';
+import 'transaction_modal.dart';
 
 /// Revenue Breakdown Widget - Matches Next.js revenue-breakdown logic
 class RevenueBreakdown extends StatefulWidget {
@@ -172,34 +174,66 @@ class _RevenueBreakdownState extends State<RevenueBreakdown> {
         // Add spacing only when grid is visible
         if (showDetails) const SizedBox(height: 16),
 
-        // Total Card - Full Width
+        // Total Card - Full Width (Clickable)
         SizedBox(
           width: double.infinity, // Full width
-          child: Container(
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest, // bg-secondary
-              borderRadius: BorderRadius.circular(12), // rounded-xl
-            ),
-            padding: const EdgeInsets.all(16), // p-4
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-              Text(
-                'Total Revenue',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontSize: 14, // text-sm
-                  fontWeight: FontWeight.w500, // font-medium
+          child: GestureDetector(
+            onTap: () {
+              TransactionModal.show(context, initialType: TransactionType.revenue);
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest, // bg-secondary
+                borderRadius: BorderRadius.circular(12), // rounded-xl
+                border: Border.all(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.2),
+                  width: 1,
                 ),
               ),
-              Text(
-                '₱${NumberFormat('#,###').format(widget.totalRevenue)}',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontSize: 20, // text-xl
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.primary, // text-primary
-                ),
+              padding: const EdgeInsets.all(16), // p-4
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Total Revenue',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontSize: 14, // text-sm
+                          fontWeight: FontWeight.w500, // font-medium
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Tap to add revenue',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontSize: 11,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      Text(
+                        '₱${NumberFormat('#,###').format(widget.totalRevenue)}',
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontSize: 20, // text-xl
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.primary, // text-primary
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.add_circle_outline,
+                        color: theme.colorScheme.primary,
+                        size: 20,
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ],
             ),
           ),
         ),

@@ -34,6 +34,7 @@ class _TransactionModalState extends State<TransactionModal>
   // Match Next.js state: revenue vs transaction
   late TransactionType _type;
   String? _category;
+  bool _isCategoryDropdownOpen = false;
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _paymentMethodController = TextEditingController();
@@ -243,7 +244,7 @@ class _TransactionModalState extends State<TransactionModal>
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          _type == TransactionType.revenue ? 'Add Revenue' : 'Add Transaction',
+                          'Add Transaction',
                           style: theme.textTheme.headlineMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -287,7 +288,7 @@ class _TransactionModalState extends State<TransactionModal>
                     ),
                     const SizedBox(height: 16),
 
-                    // Category Selection - Match Next.js grid-cols-2
+                    // Category Selection - Dropdown with Grid Layout
                     Text(
                       'Category',
                       style: theme.textTheme.bodyMedium?.copyWith(
@@ -295,67 +296,149 @@ class _TransactionModalState extends State<TransactionModal>
                       ),
                     ),
                     const SizedBox(height: 12),
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 8,
-                        childAspectRatio: 3.5,
+                    // Dropdown Container
+                    Container(
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.secondary,
+                        border: Border.all(
+                          color: theme.dividerColor,
+                          width: 1,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      itemCount: _categories.length,
-                      itemBuilder: (context, index) {
-                        final category = _categories[index];
-                        final isSelected = _category == category;
-                        return GestureDetector(
-                          onTap: () => setState(() => _category = category),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? theme.colorScheme.primary
-                                  : theme.colorScheme.secondary,
-                              border: Border.all(
-                                color: isSelected
-                                    ? theme.colorScheme.primary
-                                    : theme.dividerColor,
-                                width: 2,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Dropdown Header
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _isCategoryDropdownOpen = !_isCategoryDropdownOpen;
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
                               ),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  _getCategoryIcon(category),
-                                  size: 18,
-                                  color: isSelected
-                                      ? theme.colorScheme.onPrimary
-                                      : theme.colorScheme.onSurface,
-                                ),
-                                const SizedBox(width: 6),
-                                Flexible(
-                                  child: Text(
-                                    category,
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      color: isSelected
-                                          ? theme.colorScheme.onPrimary
-                                          : theme.colorScheme.onSurface,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      if (_category != null) ...[
+                                        Icon(
+                                          _getCategoryIcon(_category!),
+                                          size: 18,
+                                          color: theme.colorScheme.onSurface,
+                                        ),
+                                        const SizedBox(width: 8),
+                                      ],
+                                      Text(
+                                        _category ?? 'Select a category',
+                                        style: theme.textTheme.bodyMedium?.copyWith(
+                                          fontWeight: FontWeight.w500,
+                                          color: _category != null
+                                              ? theme.colorScheme.onSurface
+                                              : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              ],
+                                  Icon(
+                                    _isCategoryDropdownOpen
+                                        ? Icons.keyboard_arrow_up
+                                        : Icons.keyboard_arrow_down,
+                                    color: theme.colorScheme.onSurface,
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        );
-                      },
+                          // Dropdown Content - Grid in 2 columns inside tile
+                          if (_isCategoryDropdownOpen) ...[
+                            Divider(height: 1, color: theme.dividerColor),
+                            Padding(
+                              padding: const EdgeInsets.all(8),
+                              child: GridView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  crossAxisSpacing: 6,
+                                  mainAxisSpacing: 6,
+                                  childAspectRatio: 3.5,
+                                ),
+                                itemCount: _categories.length,
+                                itemBuilder: (context, index) {
+                                  final category = _categories[index];
+                                  final isSelected = _category == category;
+                                  return GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _category = category;
+                                        _isCategoryDropdownOpen = false;
+                                      });
+                                    },
+                                    child: Card(
+                                      margin: EdgeInsets.zero,
+                                      elevation: isSelected ? 4 : 1,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        side: BorderSide(
+                                          color: isSelected
+                                              ? theme.colorScheme.primary
+                                              : theme.dividerColor,
+                                          width: isSelected ? 2 : 1,
+                                        ),
+                                      ),
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 200),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 8,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: isSelected
+                                              ? theme.colorScheme.primary
+                                              : theme.colorScheme.surface,
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              _getCategoryIcon(category),
+                                              size: 18,
+                                              color: isSelected
+                                                  ? theme.colorScheme.onPrimary
+                                                  : theme.colorScheme.onSurface,
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Flexible(
+                                              child: Text(
+                                                category,
+                                                style: theme.textTheme.bodySmall?.copyWith(
+                                                  fontWeight: FontWeight.w600,
+                                                  color: isSelected
+                                                      ? theme.colorScheme.onPrimary
+                                                      : theme.colorScheme.onSurface,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                                maxLines: 1,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 16),
 
