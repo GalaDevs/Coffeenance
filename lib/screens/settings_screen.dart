@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
 import 'dart:convert';
+import 'package:path_provider/path_provider.dart';
+import 'package:open_filex/open_filex.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/theme_provider.dart';
 
@@ -142,7 +144,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: const Text('Tax Settings'),
                   subtitle: const Text('Configure tax rates'),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _showComingSoon(context),
+                  onTap: () => _showTaxSettings(context),
                 ),
               ],
             ),
@@ -199,6 +201,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  void _showTaxSettings(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => const TaxSettingsDialog(),
+    );
+  }
+
   void _showExportDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -243,7 +252,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final csvBuffer = StringBuffer();
       
       // Add summary header
-      csvBuffer.writeln('Coffeenance Transaction Export');
+      csvBuffer.writeln('Cafenance Transaction Export');
       csvBuffer.writeln('Export Date,${DateTime.now().toString().split('.')[0]}');
       csvBuffer.writeln('Total Transactions,${transactions.length}');
       csvBuffer.writeln('Total Revenue,${transactionProvider.totalRevenue.toStringAsFixed(2)}');
@@ -274,67 +283,71 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
       }
 
-      // Use app's document directory which is accessible
+      // Create file name with timestamp
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final fileName = 'coffeenance_export_$timestamp.csv';
+      final fileName = 'cafenance_export_$timestamp.csv';
       
-      // Save to system temp directory first
-      final tempDir = Directory.systemTemp;
-      final file = File('${tempDir.path}/$fileName');
+      // Get Downloads directory (for iOS, use documents directory)
+      Directory? directory;
+      if (Platform.isIOS) {
+        directory = await getApplicationDocumentsDirectory();
+      } else if (Platform.isAndroid) {
+        directory = Directory('/storage/emulated/0/Download');
+        if (!await directory.exists()) {
+          directory = await getExternalStorageDirectory();
+        }
+      } else {
+        // macOS or other platforms
+        directory = await getDownloadsDirectory();
+      }
+      
+      if (directory == null) {
+        throw Exception('Could not access downloads directory');
+      }
+
+      final file = File('${directory.path}/$fileName');
       
       // Write CSV to file
       await file.writeAsString(csvBuffer.toString());
 
       if (!context.mounted) return;
       
-      // Show success with instructions
+      // Automatically open the file
+      final result = await OpenFilex.open(file.path);
+      
+      // Show success notification
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'CSV exported successfully!\n'
-            'File: $fileName\n'
-            'Location: Temp directory\n'
-            'Open Finder and press Cmd+Shift+G, paste:\n'
-            '${tempDir.path}'
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '✅ Export Successful!',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              Text('File: $fileName'),
+              Text('Saved to: ${directory.path}'),
+              if (result.message.isNotEmpty)
+                Text('Status: ${result.message}'),
+            ],
           ),
           backgroundColor: Colors.green,
-          duration: const Duration(seconds: 8),
+          duration: const Duration(seconds: 5),
           action: SnackBarAction(
-            label: 'Copy Path',
+            label: 'Open Again',
             textColor: Colors.white,
             onPressed: () {
-              // Copy path to clipboard would require clipboard package
+              OpenFilex.open(file.path);
             },
           ),
         ),
       );
       
-      // Also show a dialog with more details
-      if (context.mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Export Successful! 📊'),
-            content: SelectableText(
-              'Your data has been exported to:\n\n'
-              '$fileName\n\n'
-              'Location:\n${tempDir.path}\n\n'
-              'To access:\n'
-              '1. Open Finder\n'
-              '2. Press Cmd+Shift+G\n'
-              '3. Paste the path above\n'
-              '4. Copy the file to your desired location\n\n'
-              'You can open this file in Excel, Numbers, or any spreadsheet application.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-      }
+      // Close the export dialog if it's open
+      Navigator.of(context).pop();
+      
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -412,6 +425,245 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: const Text('Clear All'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Tax Settings Dialog
+class TaxSettingsDialog extends StatefulWidget {
+  const TaxSettingsDialog({super.key});
+
+  @override
+  State<TaxSettingsDialog> createState() => _TaxSettingsDialogState();
+}
+
+class _TaxSettingsDialogState extends State<TaxSettingsDialog> {
+  late TextEditingController _vatRateController;
+  late TextEditingController _tinController;
+  late TextEditingController _businessNameController;
+  late TextEditingController _businessAddressController;
+  late bool _enableVAT;
+  late bool _taxInclusive;
+  late bool _zeroRatedEnabled;
+  late bool _vatExemptEnabled;
+
+  @override
+  void initState() {
+    super.initState();
+    final provider = context.read<TransactionProvider>();
+    _vatRateController = TextEditingController(
+      text: (provider.getTaxSetting('vatRate') ?? 12.0).toString(),
+    );
+    _tinController = TextEditingController(
+      text: provider.getTaxSetting('businessTIN') ?? '',
+    );
+    _businessNameController = TextEditingController(
+      text: provider.getTaxSetting('businessName') ?? '',
+    );
+    _businessAddressController = TextEditingController(
+      text: provider.getTaxSetting('businessAddress') ?? '',
+    );
+    _enableVAT = provider.getTaxSetting('enableVAT') ?? true;
+    _taxInclusive = provider.getTaxSetting('taxInclusive') ?? false;
+    _zeroRatedEnabled = provider.getTaxSetting('zeroRatedEnabled') ?? true;
+    _vatExemptEnabled = provider.getTaxSetting('vatExemptEnabled') ?? true;
+  }
+
+  @override
+  void dispose() {
+    _vatRateController.dispose();
+    _tinController.dispose();
+    _businessNameController.dispose();
+    _businessAddressController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveTaxSettings() async {
+    final provider = context.read<TransactionProvider>();
+    final vatRate = double.tryParse(_vatRateController.text) ?? 12.0;
+
+    await provider.updateTaxSettings({
+      'vatRate': vatRate,
+      'enableVAT': _enableVAT,
+      'taxInclusive': _taxInclusive,
+      'businessTIN': _tinController.text,
+      'businessName': _businessNameController.text,
+      'businessAddress': _businessAddressController.text,
+      'zeroRatedEnabled': _zeroRatedEnabled,
+      'vatExemptEnabled': _vatExemptEnabled,
+    });
+
+    if (mounted) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tax settings saved successfully')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Dialog(
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 500),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.receipt_long,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Tax Settings',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            // Content
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // VAT Enable Toggle
+                    SwitchListTile(
+                      title: const Text('Enable VAT'),
+                      subtitle: const Text('Apply VAT to transactions'),
+                      value: _enableVAT,
+                      onChanged: (value) => setState(() => _enableVAT = value),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // VAT Rate
+                    TextField(
+                      controller: _vatRateController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'VAT Rate (%)',
+                        helperText: 'Default: 12% for Philippines',
+                        border: OutlineInputBorder(),
+                      ),
+                      enabled: _enableVAT,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Tax Inclusive Toggle
+                    SwitchListTile(
+                      title: const Text('Tax-Inclusive Pricing'),
+                      subtitle: const Text('Prices already include VAT'),
+                      value: _taxInclusive,
+                      onChanged: _enableVAT
+                          ? (value) => setState(() => _taxInclusive = value)
+                          : null,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Zero-Rated Toggle
+                    SwitchListTile(
+                      title: const Text('Allow Zero-Rated Transactions'),
+                      subtitle: const Text('0% VAT transactions'),
+                      value: _zeroRatedEnabled,
+                      onChanged: _enableVAT
+                          ? (value) =>
+                              setState(() => _zeroRatedEnabled = value)
+                          : null,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // VAT Exempt Toggle
+                    SwitchListTile(
+                      title: const Text('Allow VAT-Exempt Transactions'),
+                      subtitle: const Text('Exempt from VAT'),
+                      value: _vatExemptEnabled,
+                      onChanged: _enableVAT
+                          ? (value) =>
+                              setState(() => _vatExemptEnabled = value)
+                          : null,
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Business Information Section
+                    Text(
+                      'Business Information',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    TextField(
+                      controller: _businessNameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Business Name',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    TextField(
+                      controller: _tinController,
+                      decoration: const InputDecoration(
+                        labelText: 'TIN Number',
+                        helperText: 'Tax Identification Number',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    TextField(
+                      controller: _businessAddressController,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        labelText: 'Business Address',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const Divider(height: 1),
+            // Actions
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: _saveTaxSettings,
+                    child: const Text('Save Settings'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,4 +1,4 @@
-name: coffeeflow
+name: cafenance
 description: A modern money tracker for coffee shops - Converted from Next.js
 publish_to: 'none'
 version: 1.0.0+1
@@ -39,6 +39,7 @@ dependencies:
   # File Operations
   path_provider: ^2.1.1
   share_plus: ^7.2.1
+  open_filex: ^4.5.0
 
 dev_dependencies:
   flutter_test:

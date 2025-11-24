@@ -24,7 +24,8 @@ class _SalesBreakdownState extends State<SalesBreakdown> {
     {'name': 'Cash', 'key': 'Cash', 'icon': Icons.paid_rounded, 'color': Color(0xFF8B5CF6)}, // chart-1
     {'name': 'GCash', 'key': 'GCash', 'icon': Icons.smartphone_rounded, 'color': Color(0xFF06B6D4)}, // chart-2
     {'name': 'Grab', 'key': 'Grab', 'icon': Icons.local_taxi_rounded, 'color': Color(0xFF10B981)}, // chart-3
-    {'name': 'PayMaya', 'key': 'PayMaya', 'icon': Icons.credit_card_rounded, 'color': Color(0xFFF59E0B)}, // chart-4
+    {'name': 'Maya', 'key': 'Maya', 'icon': Icons.credit_card_rounded, 'color': Color(0xFFF59E0B)}, // chart-4
+    {'name': 'Credit Card', 'key': 'Credit Card', 'icon': Icons.credit_card_rounded, 'color': Color(0xFFEC4899)}, // chart-5
   ];
 
   @override

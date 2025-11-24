@@ -239,7 +239,9 @@ class _TransactionCard extends StatelessWidget {
         return Icons.smartphone_rounded;
       case 'Grab':
         return Icons.local_taxi_rounded;
-      case 'PayMaya':
+      case 'Maya':
+        return Icons.credit_card_rounded;
+      case 'Credit Card':
         return Icons.credit_card_rounded;
       default:
         return Icons.account_balance_wallet_rounded;

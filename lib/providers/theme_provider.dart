@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Theme Provider - Manages dark/light mode state
 /// Persists theme preference using SharedPreferences
 class ThemeProvider extends ChangeNotifier {
-  ThemeMode _themeMode = ThemeMode.system;
+  ThemeMode _themeMode = ThemeMode.light;
   bool _isLoading = true;
 
   ThemeMode get themeMode => _themeMode;
@@ -24,11 +24,13 @@ class ThemeProvider extends ChangeNotifier {
       if (isDark != null) {
         _themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
       } else {
-        _themeMode = ThemeMode.system;
+        // Default to light mode
+        _themeMode = ThemeMode.light;
       }
     } catch (e) {
       debugPrint('Error loading theme preference: $e');
-      _themeMode = ThemeMode.system;
+      // Default to light mode on error
+      _themeMode = ThemeMode.light;
     } finally {
       _isLoading = false;
       notifyListeners();

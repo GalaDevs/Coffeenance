@@ -9,10 +9,26 @@ import '../models/transaction.dart';
 class TransactionProvider with ChangeNotifier {
   List<Transaction> _transactions = [];
   bool _isLoading = false;
+  
+  // Inventory management
+  List<Map<String, dynamic>> _inventory = [];
+  
+  // Staff/Payroll management
+  List<Map<String, dynamic>> _staff = [];
+  
+  // KPI Settings and Targets
+  Map<String, dynamic> _kpiSettings = {};
+  
+  // Tax Settings
+  Map<String, dynamic> _taxSettings = {};
 
   // Getters
   List<Transaction> get transactions => List.unmodifiable(_transactions);
   bool get isLoading => _isLoading;
+  List<Map<String, dynamic>> get inventory => List.unmodifiable(_inventory);
+  List<Map<String, dynamic>> get staff => List.unmodifiable(_staff);
+  Map<String, dynamic> get kpiSettings => Map.unmodifiable(_kpiSettings);
+  Map<String, dynamic> get taxSettings => Map.unmodifiable(_taxSettings);
 
   // Computed properties matching Next.js logic
   List<Transaction> get revenueTransactions =>
@@ -88,6 +104,61 @@ class TransactionProvider with ChangeNotifier {
 
   TransactionProvider() {
     _loadInitialData();
+    _loadInventoryData();
+    _loadStaffData();
+    _loadKPISettings();
+    _loadTaxSettings();
+  }
+
+  /// Load initial inventory data
+  Future<void> _loadInventoryData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? inventoryJson = prefs.getString('inventory');
+
+      if (inventoryJson != null) {
+        final List<dynamic> decoded = json.decode(inventoryJson);
+        _inventory = decoded.cast<Map<String, dynamic>>();
+      } else {
+        // Sample inventory data
+        _inventory = [
+          {'item': 'Coffee Beans', 'stock': 45, 'unit': 'kg', 'status': 'good', 'reorder': 30},
+          {'item': 'Milk', 'stock': 12, 'unit': 'L', 'status': 'warning', 'reorder': 20},
+          {'item': 'Sugar', 'stock': 8, 'unit': 'kg', 'status': 'critical', 'reorder': 15},
+          {'item': 'Pastry Dough', 'stock': 25, 'unit': 'kg', 'status': 'good', 'reorder': 20},
+          {'item': 'Cups (12oz)', 'stock': 200, 'unit': 'pcs', 'status': 'good', 'reorder': 500},
+          {'item': 'Napkins', 'stock': 80, 'unit': 'pcs', 'status': 'warning', 'reorder': 200},
+        ];
+        await _saveInventoryToStorage();
+      }
+    } catch (e) {
+      debugPrint('Error loading inventory: $e');
+    }
+  }
+
+  /// Load initial staff data
+  Future<void> _loadStaffData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? staffJson = prefs.getString('staff');
+
+      if (staffJson != null) {
+        final List<dynamic> decoded = json.decode(staffJson);
+        _staff = decoded.cast<Map<String, dynamic>>();
+      } else {
+        // Sample staff data
+        _staff = [
+          {'id': 1, 'name': 'Maria Santos', 'position': 'Manager', 'salary': 25000.0, 'status': 'Full-time', 'startDate': '2023-01'},
+          {'id': 2, 'name': 'Juan Dela Cruz', 'position': 'Barista', 'salary': 18000.0, 'status': 'Full-time', 'startDate': '2023-06'},
+          {'id': 3, 'name': 'Rosa Garcia', 'position': 'Cashier', 'salary': 16000.0, 'status': 'Full-time', 'startDate': '2023-09'},
+          {'id': 4, 'name': 'Pedro Lim', 'position': 'Barista', 'salary': 18000.0, 'status': 'Full-time', 'startDate': '2024-01'},
+          {'id': 5, 'name': 'Anna Wong', 'position': 'Part-time Staff', 'salary': 12000.0, 'status': 'Part-time', 'startDate': '2024-03'},
+        ];
+        await _saveStaffToStorage();
+      }
+    } catch (e) {
+      debugPrint('Error loading staff: $e');
+    }
   }
 
   /// Load initial sample data matching Next.js initial state
@@ -208,6 +279,64 @@ class TransactionProvider with ChangeNotifier {
     }
   }
 
+  /// Save inventory to storage
+  Future<void> _saveInventoryToStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('inventory', json.encode(_inventory));
+    } catch (e) {
+      debugPrint('Error saving inventory: $e');
+    }
+  }
+
+  /// Save staff to storage
+  Future<void> _saveStaffToStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('staff', json.encode(_staff));
+    } catch (e) {
+      debugPrint('Error saving staff: $e');
+    }
+  }
+
+  /// Update inventory item
+  Future<void> updateInventoryItem(String itemName, Map<String, dynamic> updates) async {
+    final index = _inventory.indexWhere((item) => item['item'] == itemName);
+    if (index != -1) {
+      _inventory[index] = {..._inventory[index], ...updates};
+      notifyListeners();
+      await _saveInventoryToStorage();
+    }
+  }
+
+  /// Add inventory item
+  Future<void> addInventoryItem(Map<String, dynamic> item) async {
+    _inventory.add(item);
+    notifyListeners();
+    await _saveInventoryToStorage();
+  }
+
+  /// Update staff member
+  Future<void> updateStaffMember(int id, Map<String, dynamic> updates) async {
+    final index = _staff.indexWhere((member) => member['id'] == id);
+    if (index != -1) {
+      _staff[index] = {..._staff[index], ...updates};
+      notifyListeners();
+      await _saveStaffToStorage();
+    }
+  }
+
+  /// Add staff member
+  Future<void> addStaffMember(Map<String, dynamic> member) async {
+    final int newId = _staff.isEmpty
+        ? 1
+        : _staff.map((s) => s['id'] as int).reduce((a, b) => a > b ? a : b) + 1;
+    member['id'] = newId;
+    _staff.add(member);
+    notifyListeners();
+    await _saveStaffToStorage();
+  }
+
   /// Filter transactions by date range
   List<Transaction> getTransactionsByDateRange(DateTime start, DateTime end) {
     return _transactions.where((t) {
@@ -222,5 +351,162 @@ class TransactionProvider with ChangeNotifier {
     final today = DateTime.now();
     final todayStr = today.toIso8601String().split('T')[0];
     return _transactions.where((t) => t.date == todayStr).toList();
+  }
+
+  /// Load KPI settings from storage
+  Future<void> _loadKPISettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? kpiJson = prefs.getString('kpi_settings');
+
+      if (kpiJson != null) {
+        _kpiSettings = json.decode(kpiJson);
+      } else {
+        // Default KPI targets
+        _kpiSettings = {
+          'dailyRevenueTarget': 50000.0,
+          'dailyTransactionsTarget': 100,
+          'avgTransactionTarget': 500.0,
+          'dailyExpensesTarget': 20000.0,
+          'customerSatisfaction': 91.0,
+          'operationalEfficiency': 88.0,
+          'staffRetention': 95.0,
+          'inventoryTurnover': 82.0,
+          'revenueGrowth': 78.0,
+        };
+        await _saveKPISettings();
+      }
+    } catch (e) {
+      debugPrint('Error loading KPI settings: $e');
+    }
+  }
+
+  /// Save KPI settings to storage
+  Future<void> _saveKPISettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('kpi_settings', json.encode(_kpiSettings));
+    } catch (e) {
+      debugPrint('Error saving KPI settings: $e');
+    }
+  }
+
+  /// Update KPI setting
+  Future<void> updateKPISetting(String key, dynamic value) async {
+    // Ensure value is stored as double
+    if (value is int) {
+      _kpiSettings[key] = value.toDouble();
+    } else if (value is double) {
+      _kpiSettings[key] = value;
+    } else {
+      _kpiSettings[key] = double.tryParse(value.toString()) ?? 0.0;
+    }
+    notifyListeners();
+    await _saveKPISettings();
+  }
+
+  /// Update multiple KPI settings
+  Future<void> updateKPISettings(Map<String, dynamic> updates) async {
+    updates.forEach((key, value) {
+      // Ensure all values are stored as double
+      if (value is int) {
+        _kpiSettings[key] = value.toDouble();
+      } else if (value is double) {
+        _kpiSettings[key] = value;
+      } else {
+        _kpiSettings[key] = double.tryParse(value.toString()) ?? 0.0;
+      }
+    });
+    notifyListeners();
+    await _saveKPISettings();
+  }
+
+  /// Get KPI target value
+  double getKPITarget(String key) {
+    final value = _kpiSettings[key] ?? 0.0;
+    if (value is int) {
+      return value.toDouble();
+    }
+    return value as double;
+  }
+
+  /// Load tax settings from storage
+  Future<void> _loadTaxSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? taxJson = prefs.getString('tax_settings');
+
+      if (taxJson != null) {
+        _taxSettings = json.decode(taxJson);
+      } else {
+        // Default tax settings
+        _taxSettings = {
+          'vatRate': 12.0,
+          'enableVAT': true,
+          'taxInclusive': false,
+          'businessTIN': '',
+          'businessName': '',
+          'businessAddress': '',
+          'zeroRatedEnabled': true,
+          'vatExemptEnabled': true,
+        };
+        await _saveTaxSettings();
+      }
+    } catch (e) {
+      debugPrint('Error loading tax settings: \$e');
+    }
+  }
+
+  /// Save tax settings to storage
+  Future<void> _saveTaxSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('tax_settings', json.encode(_taxSettings));
+    } catch (e) {
+      debugPrint('Error saving tax settings: \$e');
+    }
+  }
+
+  /// Update tax setting
+  Future<void> updateTaxSetting(String key, dynamic value) async {
+    _taxSettings[key] = value;
+    notifyListeners();
+    await _saveTaxSettings();
+  }
+
+  /// Update multiple tax settings
+  Future<void> updateTaxSettings(Map<String, dynamic> updates) async {
+    _taxSettings.addAll(updates);
+    notifyListeners();
+    await _saveTaxSettings();
+  }
+
+  /// Get tax setting value
+  dynamic getTaxSetting(String key) {
+    return _taxSettings[key];
+  }
+
+  /// Calculate VAT amount
+  double calculateVAT(double amount, {int? vatRate}) {
+    if (_taxSettings['enableVAT'] != true) return 0.0;
+    final rate = vatRate ?? (_taxSettings['vatRate'] ?? 12.0);
+    if (_taxSettings['taxInclusive'] == true) {
+      // Tax-inclusive: VAT = amount - (amount / (1 + rate/100))
+      return amount - (amount / (1 + rate / 100));
+    } else {
+      // Tax-exclusive: VAT = amount * (rate/100)
+      return amount * (rate / 100);
+    }
+  }
+
+  /// Calculate total with VAT
+  double calculateTotalWithVAT(double amount, {int? vatRate}) {
+    if (_taxSettings['enableVAT'] != true) return amount;
+    if (_taxSettings['taxInclusive'] == true) {
+      return amount; // Already includes VAT
+    } else {
+      final vat = calculateVAT(amount, vatRate: vatRate);
+      return amount + vat;
+    }
   }
 }

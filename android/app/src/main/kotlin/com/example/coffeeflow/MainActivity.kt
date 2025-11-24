@@ -1,4 +1,4 @@
-package com.example.coffeeflow
+package com.example.cafenance
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -1,14 +1,14 @@
-// CoffeeFlow App Widget Tests
+// Cafenance App Widget Tests
 // Updated to match the revenue/transaction management app structure
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:coffeeflow/main.dart';
+import 'package:cafenance/main.dart' as app;
 
 void main() {
   testWidgets('App loads and shows dashboard', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const CoffeeFlowApp());
+    await tester.pumpWidget(const app.CafenanceApp());
 
     // Wait for any async operations
     await tester.pumpAndSettle();
@@ -24,7 +24,7 @@ void main() {
 
   testWidgets('Bottom navigation changes screens', (WidgetTester tester) async {
     // Build our app
-    await tester.pumpWidget(const CoffeeFlowApp());
+    await tester.pumpWidget(const app.CafenanceApp());
     await tester.pumpAndSettle();
 
     // Tap on Revenue tab

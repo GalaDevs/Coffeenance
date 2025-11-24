@@ -1,28 +1,51 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../../providers/transaction_provider.dart';
+import '../../models/transaction.dart';
 
 /// Monthly P&L Summary Modal - matches monthly-pl-modal.tsx
 /// Shows profit & loss analysis with charts and tables
 class MonthlyPLModal extends StatelessWidget {
   const MonthlyPLModal({super.key});
 
-  // Sample monthly data (in a real app, this would come from the provider)
-  static const List<Map<String, dynamic>> monthlyData = [
-    {'month': 'Jan', 'revenue': 45000.0, 'expenses': 28000.0, 'profit': 17000.0},
-    {'month': 'Feb', 'revenue': 52000.0, 'expenses': 31000.0, 'profit': 21000.0},
-    {'month': 'Mar', 'revenue': 48000.0, 'expenses': 29000.0, 'profit': 19000.0},
-    {'month': 'Apr', 'revenue': 61000.0, 'expenses': 35000.0, 'profit': 26000.0},
-    {'month': 'May', 'revenue': 58000.0, 'expenses': 32000.0, 'profit': 26000.0},
-    {'month': 'Jun', 'revenue': 67000.0, 'expenses': 38000.0, 'profit': 29000.0},
-  ];
+  // Generate monthly P&L data from transactions
+  List<Map<String, dynamic>> _generateMonthlyData(TransactionProvider provider) {
+    final now = DateTime.now();
+    final monthlyData = <Map<String, dynamic>>[];
+    
+    for (int i = 5; i >= 0; i--) {
+      final targetMonth = DateTime(now.year, now.month - i, 1);
+      final monthName = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][targetMonth.month - 1];
+      
+      final monthStart = DateTime(targetMonth.year, targetMonth.month, 1);
+      final monthEnd = DateTime(targetMonth.year, targetMonth.month + 1, 0);
+      
+      final monthTransactions = provider.getTransactionsByDateRange(monthStart, monthEnd);
+      final revenue = monthTransactions.where((t) => t.type == TransactionType.revenue).fold(0.0, (sum, t) => sum + t.amount);
+      final expenses = monthTransactions.where((t) => t.type == TransactionType.transaction).fold(0.0, (sum, t) => sum + t.amount);
+      
+      monthlyData.add({
+        'month': monthName,
+        'revenue': revenue,
+        'expenses': expenses,
+        'profit': revenue - expenses,
+      });
+    }
+    
+    return monthlyData;
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final provider = Provider.of<TransactionProvider>(context);
+    final monthlyData = _generateMonthlyData(provider);
+    
     final totalRevenue = monthlyData.fold(0.0, (sum, d) => sum + (d['revenue'] as num).toDouble());
     final totalExpenses = monthlyData.fold(0.0, (sum, d) => sum + (d['expenses'] as num).toDouble());
     final totalProfit = monthlyData.fold(0.0, (sum, d) => sum + (d['profit'] as num).toDouble());
-    final profitMargin = ((totalProfit / totalRevenue) * 100).toStringAsFixed(1);
+    final profitMargin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toStringAsFixed(1) : '0.0';
 
     return Dialog(
       insetPadding: const EdgeInsets.all(16),
@@ -86,15 +109,15 @@ class MonthlyPLModal extends StatelessWidget {
                     const SizedBox(height: 24),
 
                     // Revenue vs Expenses Chart
-                    _buildRevenueExpensesChart(theme),
+                    _buildRevenueExpensesChart(theme, monthlyData),
                     const SizedBox(height: 24),
 
                     // Monthly Profit Trend Chart
-                    _buildProfitTrendChart(theme),
+                    _buildProfitTrendChart(theme, monthlyData),
                     const SizedBox(height: 24),
 
                     // Monthly Breakdown Table
-                    _buildMonthlyBreakdownTable(theme),
+                    _buildMonthlyBreakdownTable(theme, monthlyData),
                   ],
                 ),
               ),
@@ -200,7 +223,7 @@ class MonthlyPLModal extends StatelessWidget {
     );
   }
 
-  Widget _buildRevenueExpensesChart(ThemeData theme) {
+  Widget _buildRevenueExpensesChart(ThemeData theme, List<Map<String, dynamic>> monthlyData) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -341,7 +364,7 @@ class MonthlyPLModal extends StatelessWidget {
     );
   }
 
-  Widget _buildProfitTrendChart(ThemeData theme) {
+  Widget _buildProfitTrendChart(ThemeData theme, List<Map<String, dynamic>> monthlyData) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -480,7 +503,7 @@ class MonthlyPLModal extends StatelessWidget {
     );
   }
 
-  Widget _buildMonthlyBreakdownTable(ThemeData theme) {
+  Widget _buildMonthlyBreakdownTable(ThemeData theme, List<Map<String, dynamic>> monthlyData) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),

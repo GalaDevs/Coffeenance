@@ -9,11 +9,11 @@ import 'theme/app_theme.dart';
 /// Main entry point - Matches Next.js layout.tsx and page.tsx
 /// Provides state management and adaptive theming for iOS/Android/Web
 void main() {
-  runApp(const CoffeeFlowApp());
+  runApp(const CafenanceApp());
 }
 
-class CoffeeFlowApp extends StatelessWidget {
-  const CoffeeFlowApp({super.key});
+class CafenanceApp extends StatelessWidget {
+  const CafenanceApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +25,7 @@ class CoffeeFlowApp extends StatelessWidget {
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
           return MaterialApp(
-            title: 'CoffeeFlow - Coffee Shop Tracker',
+            title: 'Cafenance - Coffee Shop Tracker',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,

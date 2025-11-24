@@ -92,10 +92,11 @@ class RevenueCategories {
   static const String cash = 'Cash';
   static const String gcash = 'GCash';
   static const String grab = 'Grab';
-  static const String paymaya = 'PayMaya';
+  static const String paymaya = 'Maya';
+  static const String creditCard = 'Credit Card';
   static const String others = 'Others';
 
-  static const List<String> all = [cash, gcash, grab, paymaya, others];
+  static const List<String> all = [cash, gcash, grab, paymaya, creditCard, others];
 }
 
 /// Transaction categories matching Next.js TRANSACTION_CATEGORIES
@@ -130,7 +131,7 @@ class PaymentMethods {
   static const String bankTransfer = 'Bank Transfer';
   static const String creditCard = 'Credit Card';
   static const String gcash = 'GCash';
-  static const String paymaya = 'PayMaya';
+  static const String paymaya = 'Maya';
   static const String others = 'Others';
 
   static const List<String> all = [

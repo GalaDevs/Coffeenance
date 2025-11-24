@@ -24,8 +24,11 @@ class SalesMonitoringCard extends StatelessWidget {
       'Cash': revenueTransactions
           .where((t) => t.category == RevenueCategories.cash)
           .fold(0.0, (sum, t) => sum + t.amount),
-      'PayMaya': revenueTransactions
+      'Maya': revenueTransactions
           .where((t) => t.category == RevenueCategories.paymaya)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      'Credit Card': revenueTransactions
+          .where((t) => t.category == RevenueCategories.creditCard)
           .fold(0.0, (sum, t) => sum + t.amount),
       'GCash': revenueTransactions
           .where((t) => t.category == RevenueCategories.gcash)
@@ -38,10 +41,11 @@ class SalesMonitoringCard extends StatelessWidget {
     final totalSales = salesByMethod.values.fold(0.0, (sum, value) => sum + value);
 
     final chartData = [
-      {'name': 'Cash', 'value': salesByMethod['Cash']!, 'color': AppColors.chart1},
-      {'name': 'PayMaya', 'value': salesByMethod['PayMaya']!, 'color': AppColors.chart2},
       {'name': 'GCash', 'value': salesByMethod['GCash']!, 'color': AppColors.chart3},
+      {'name': 'Maya', 'value': salesByMethod['Maya']!, 'color': AppColors.chart2},
       {'name': 'Grab', 'value': salesByMethod['Grab']!, 'color': AppColors.chart4},
+      {'name': 'Credit Card', 'value': salesByMethod['Credit Card']!, 'color': AppColors.chart5},
+      {'name': 'Cash', 'value': salesByMethod['Cash']!, 'color': AppColors.chart1},
     ];
 
     return Card(

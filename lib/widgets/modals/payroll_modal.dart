@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import '../../providers/transaction_provider.dart';
 
 /// Staff Payroll Modal - matches payroll-modal.tsx
 /// Shows employee roster and salary information
@@ -10,50 +12,8 @@ class PayrollModal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-    // Sample staff data matching Next.js
-    final staffData = [
-      {
-        'id': 1,
-        'name': 'Maria Santos',
-        'position': 'Manager',
-        'salary': 25000.0,
-        'status': 'Full-time',
-        'startDate': '2023-01'
-      },
-      {
-        'id': 2,
-        'name': 'Juan Dela Cruz',
-        'position': 'Barista',
-        'salary': 18000.0,
-        'status': 'Full-time',
-        'startDate': '2023-06'
-      },
-      {
-        'id': 3,
-        'name': 'Rosa Garcia',
-        'position': 'Cashier',
-        'salary': 16000.0,
-        'status': 'Full-time',
-        'startDate': '2023-09'
-      },
-      {
-        'id': 4,
-        'name': 'Pedro Lim',
-        'position': 'Barista',
-        'salary': 18000.0,
-        'status': 'Full-time',
-        'startDate': '2024-01'
-      },
-      {
-        'id': 5,
-        'name': 'Anna Wong',
-        'position': 'Part-time Staff',
-        'salary': 12000.0,
-        'status': 'Part-time',
-        'startDate': '2024-03'
-      },
-    ];
+    final provider = Provider.of<TransactionProvider>(context);
+    final staffData = provider.staff;
 
     final payrollSummary = [
       {'name': 'Salaries', 'value': 89000.0, 'color': const Color(0xFF3B82F6)},
@@ -297,12 +257,25 @@ class PayrollModal extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Staff Directory',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Staff Directory',
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                FilledButton.icon(
+                                  onPressed: () => _showAddDialog(context, provider),
+                                  icon: const Icon(Icons.add, size: 18),
+                                  label: const Text('Add Staff'),
+                                  style: FilledButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 12),
                             ...staffData.map((staff) {
@@ -357,6 +330,12 @@ class PayrollModal extends StatelessWidget {
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
+                                      const SizedBox(width: 8),
+                                      IconButton(
+                                        icon: const Icon(Icons.edit_rounded, size: 20),
+                                        onPressed: () => _showEditDialog(context, staff, provider),
+                                        tooltip: 'Edit',
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -369,6 +348,198 @@ class PayrollModal extends StatelessWidget {
                   ],
                 ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAddDialog(BuildContext context, TransactionProvider provider) {
+    final nameController = TextEditingController();
+    final positionController = TextEditingController();
+    final salaryController = TextEditingController();
+    String selectedStatus = 'Full-time';
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Add Staff Member'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Name',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: positionController,
+                  decoration: const InputDecoration(
+                    labelText: 'Position',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: salaryController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Monthly Salary (₱)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: selectedStatus,
+                  decoration: const InputDecoration(
+                    labelText: 'Status',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: ['Full-time', 'Part-time', 'Contract']
+                      .map((status) => DropdownMenuItem(
+                            value: status,
+                            child: Text(status),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => selectedStatus = value);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (nameController.text.isEmpty || positionController.text.isEmpty || salaryController.text.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please fill all fields')),
+                  );
+                  return;
+                }
+
+                final salary = double.tryParse(salaryController.text) ?? 0;
+                final now = DateTime.now();
+                
+                provider.addStaffMember({
+                  'name': nameController.text,
+                  'position': positionController.text,
+                  'salary': salary,
+                  'status': selectedStatus,
+                  'startDate': '${now.year}-${now.month.toString().padLeft(2, '0')}',
+                });
+                
+                Navigator.pop(dialogContext);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Staff member added')),
+                );
+              },
+              child: const Text('Add'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showEditDialog(BuildContext context, Map<String, dynamic> staff, TransactionProvider provider) {
+    final nameController = TextEditingController(text: staff['name'] as String);
+    final positionController = TextEditingController(text: staff['position'] as String);
+    final salaryController = TextEditingController(text: staff['salary'].toString());
+    String selectedStatus = staff['status'] as String;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Edit Staff Member'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Name',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: positionController,
+                  decoration: const InputDecoration(
+                    labelText: 'Position',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: salaryController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Monthly Salary (₱)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: selectedStatus,
+                  decoration: const InputDecoration(
+                    labelText: 'Status',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: ['Full-time', 'Part-time', 'Contract']
+                      .map((status) => DropdownMenuItem(
+                            value: status,
+                            child: Text(status),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => selectedStatus = value);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final newSalary = double.tryParse(salaryController.text) ?? staff['salary'];
+                
+                provider.updateStaffMember(
+                  staff['id'] as int,
+                  {
+                    'name': nameController.text,
+                    'position': positionController.text,
+                    'salary': newSalary,
+                    'status': selectedStatus,
+                  },
+                );
+                
+                Navigator.pop(dialogContext);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Staff member updated')),
+                );
+              },
+              child: const Text('Save'),
             ),
           ],
         ),

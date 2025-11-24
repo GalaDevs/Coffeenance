@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../../providers/transaction_provider.dart';
 
 /// Inventory Status Modal - matches inventory-modal.tsx
 /// Shows current stock levels and reorder recommendations
@@ -9,52 +11,8 @@ class InventoryModal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-    // Sample inventory data matching Next.js
-    final inventoryData = [
-      {
-        'item': 'Coffee Beans',
-        'stock': 45,
-        'unit': 'kg',
-        'status': 'good',
-        'reorder': 30
-      },
-      {
-        'item': 'Milk',
-        'stock': 12,
-        'unit': 'L',
-        'status': 'warning',
-        'reorder': 20
-      },
-      {
-        'item': 'Sugar',
-        'stock': 8,
-        'unit': 'kg',
-        'status': 'critical',
-        'reorder': 15
-      },
-      {
-        'item': 'Pastry Dough',
-        'stock': 25,
-        'unit': 'kg',
-        'status': 'good',
-        'reorder': 20
-      },
-      {
-        'item': 'Cups (12oz)',
-        'stock': 200,
-        'unit': 'pcs',
-        'status': 'good',
-        'reorder': 500
-      },
-      {
-        'item': 'Napkins',
-        'stock': 80,
-        'unit': 'pcs',
-        'status': 'warning',
-        'reorder': 200
-      },
-    ];
+    final provider = Provider.of<TransactionProvider>(context);
+    final inventoryData = provider.inventory;
 
     final consumptionData = [
       {'item': 'Coffee Beans', 'daily': 2.5},
@@ -293,12 +251,25 @@ class InventoryModal extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Stock Levels',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Stock Levels',
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                FilledButton.icon(
+                                  onPressed: () => _showAddDialog(context, provider),
+                                  icon: const Icon(Icons.add, size: 18),
+                                  label: const Text('Add Item'),
+                                  style: FilledButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 12),
                             ...inventoryData.map((item) {
@@ -345,6 +316,12 @@ class InventoryModal extends StatelessWidget {
                                       _StatusBadge(
                                         status: item['status'] as String,
                                       ),
+                                      const SizedBox(width: 8),
+                                      IconButton(
+                                        icon: const Icon(Icons.edit_rounded, size: 20),
+                                        onPressed: () => _showEditDialog(context, item, provider),
+                                        tooltip: 'Edit',
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -360,6 +337,169 @@ class InventoryModal extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showAddDialog(BuildContext context, TransactionProvider provider) {
+    final itemController = TextEditingController();
+    final stockController = TextEditingController();
+    final unitController = TextEditingController(text: 'kg');
+    final reorderController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Add Inventory Item'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: itemController,
+                decoration: const InputDecoration(
+                  labelText: 'Item Name',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: stockController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Current Stock',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: unitController,
+                decoration: const InputDecoration(
+                  labelText: 'Unit (kg, L, pcs, etc.)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: reorderController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Reorder Level',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (itemController.text.isEmpty || stockController.text.isEmpty || reorderController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please fill all fields')),
+                );
+                return;
+              }
+
+              final stock = int.tryParse(stockController.text) ?? 0;
+              final reorder = int.tryParse(reorderController.text) ?? 0;
+              
+              String status = 'good';
+              if (stock <= reorder * 0.5) {
+                status = 'critical';
+              } else if (stock <= reorder) {
+                status = 'warning';
+              }
+              
+              provider.addInventoryItem({
+                'item': itemController.text,
+                'stock': stock,
+                'unit': unitController.text,
+                'reorder': reorder,
+                'status': status,
+              });
+              
+              Navigator.pop(dialogContext);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Item added to inventory')),
+              );
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditDialog(BuildContext context, Map<String, dynamic> item, TransactionProvider provider) {
+    final stockController = TextEditingController(text: item['stock'].toString());
+    final reorderController = TextEditingController(text: item['reorder'].toString());
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Edit ${item['item']}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: stockController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Current Stock (${item['unit']})',
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: reorderController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Reorder Level (${item['unit']})',
+                border: const OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final newStock = int.tryParse(stockController.text) ?? item['stock'];
+              final newReorder = int.tryParse(reorderController.text) ?? item['reorder'];
+              
+              // Determine status based on stock level
+              String status = 'good';
+              if (newStock <= newReorder * 0.5) {
+                status = 'critical';
+              } else if (newStock <= newReorder) {
+                status = 'warning';
+              }
+              
+              provider.updateInventoryItem(
+                item['item'] as String,
+                {
+                  'stock': newStock,
+                  'reorder': newReorder,
+                  'status': status,
+                },
+              );
+              
+              Navigator.pop(dialogContext);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Inventory updated')),
+              );
+            },
+            child: const Text('Save'),
+          ),
+        ],
       ),
     );
   }

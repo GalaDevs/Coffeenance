@@ -34,10 +34,31 @@ class CurrencyInputFormatter extends TextInputFormatter {
       decimalPart = decimalPart.substring(0, 2);
     }
 
-    // Format integer part with commas
+    // Format integer part with commas - handle unlimited amounts
     if (integerPart.isNotEmpty) {
-      final formatter = NumberFormat('#,###');
-      integerPart = formatter.format(int.parse(integerPart));
+      try {
+        // Use BigInt for unlimited amount support
+        final number = BigInt.parse(integerPart);
+        
+        // Format with commas manually to avoid overflow
+        String formatted = number.toString();
+        String result = '';
+        int count = 0;
+        
+        for (int i = formatted.length - 1; i >= 0; i--) {
+          if (count == 3) {
+            result = ',$result';
+            count = 0;
+          }
+          result = formatted[i] + result;
+          count++;
+        }
+        
+        integerPart = result;
+      } catch (e) {
+        // If parsing fails, keep the old value
+        return oldValue;
+      }
     }
 
     // Combine parts
@@ -80,14 +101,12 @@ class _TransactionModalState extends State<TransactionModal>
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
-  // Match Next.js state: revenue vs transaction
+  // Match Next.js state: revenue vs expenses
   late TransactionType _type;
   String? _category;
   String? _productType;
-  String? _paymentMethod;
   bool _isCategoryDropdownOpen = false;
   bool _isProductDropdownOpen = false;
-  bool _isPaymentMethodDropdownOpen = false;
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _paymentMethodController = TextEditingController();
@@ -187,7 +206,9 @@ class _TransactionModalState extends State<TransactionModal>
           return Icons.smartphone_rounded;
         case 'Grab':
           return Icons.local_taxi_rounded;
-        case 'PayMaya':
+        case 'Maya':
+          return Icons.credit_card_rounded;
+        case 'Credit Card':
           return Icons.credit_card_rounded;
         case 'Others':
           return Icons.more_horiz_rounded;
@@ -195,7 +216,7 @@ class _TransactionModalState extends State<TransactionModal>
           return Icons.account_balance_wallet_rounded;
       }
     } else {
-      // Transaction/Expense categories
+      // Expense categories
       switch (category) {
         case 'Supplies':
           return Icons.inventory_2_rounded;
@@ -230,7 +251,7 @@ class _TransactionModalState extends State<TransactionModal>
         return Icons.credit_card_rounded;
       case 'GCash':
         return Icons.smartphone_rounded;
-      case 'PayMaya':
+      case 'Maya':
         return Icons.credit_card_rounded;
       case 'Others':
         return Icons.more_horiz_rounded;
@@ -239,12 +260,36 @@ class _TransactionModalState extends State<TransactionModal>
     }
   }
 
-  // Check if selected date is today
-  bool _isToday() {
+  bool _isToday(DateTime date) {
     final now = DateTime.now();
-    return _selectedDate.year == now.year &&
-        _selectedDate.month == now.month &&
-        _selectedDate.day == now.day;
+    return date.year == now.year &&
+           date.month == now.month &&
+           date.day == now.day;
+  }
+
+  Future<void> _pickDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: Theme.of(context).colorScheme.primary,
+              onPrimary: Theme.of(context).colorScheme.onPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
   }
 
   void _handleSubmit() {
@@ -260,7 +305,9 @@ class _TransactionModalState extends State<TransactionModal>
       return;
     }
 
-    final amount = double.tryParse(_amountController.text);
+    // Remove commas before parsing the amount
+    final amountText = _amountController.text.replaceAll(',', '');
+    final amount = double.tryParse(amountText);
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -272,7 +319,6 @@ class _TransactionModalState extends State<TransactionModal>
     }
 
     // Match Next.js logic: create transaction with all fields
-    final now = DateTime.now();
     final transaction = Transaction(
       id: 0, // Will be assigned by provider
       date: _selectedDate.toIso8601String().split('T')[0],
@@ -284,10 +330,10 @@ class _TransactionModalState extends State<TransactionModal>
           ? _category! 
           : _paymentMethodController.text,
       transactionNumber: _transactionNumberController.text.isEmpty
-          ? 'TXN${now.millisecondsSinceEpoch}'
+          ? 'TXN${DateTime.now().millisecondsSinceEpoch}'
           : _transactionNumberController.text,
       receiptNumber: _receiptNumberController.text.isEmpty
-          ? 'RCP${now.millisecondsSinceEpoch}'
+          ? 'RCP${DateTime.now().millisecondsSinceEpoch}'
           : _receiptNumberController.text,
       tinNumber: _tinNumberController.text,
       vat: _vat,
@@ -310,29 +356,34 @@ class _TransactionModalState extends State<TransactionModal>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return FadeTransition(
-      opacity: _fadeAnimation,
-      child: SlideTransition(
-        position: _slideAnimation,
-        child: Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.9,
-          ),
-          decoration: BoxDecoration(
-            color: theme.scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(24),
-              topRight: Radius.circular(24),
+    return GestureDetector(
+      onTap: () {
+        // Dismiss keyboard when tapping outside text fields
+        FocusScope.of(context).unfocus();
+      },
+      child: FadeTransition(
+        opacity: _fadeAnimation,
+        child: SlideTransition(
+          position: _slideAnimation,
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.9,
             ),
-          ),
-          child: SafeArea(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
+            decoration: BoxDecoration(
+              color: theme.scaffoldBackgroundColor,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(24),
+                topRight: Radius.circular(24),
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
+            ),
+            child: SafeArea(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -341,7 +392,7 @@ class _TransactionModalState extends State<TransactionModal>
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          _type == TransactionType.revenue ? 'Add Revenue' : 'Add Transaction',
+                          _type == TransactionType.revenue ? 'Add Revenue' : 'Add Expenses',
                           style: theme.textTheme.headlineMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -375,7 +426,7 @@ class _TransactionModalState extends State<TransactionModal>
                           ),
                           Expanded(
                             child: _buildTypeButton(
-                              'Transaction',
+                              'Expenses',
                               TransactionType.transaction,
                               theme,
                             ),
@@ -478,128 +529,89 @@ class _TransactionModalState extends State<TransactionModal>
                     // Date Selection
                     Text(
                       'Date',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
                       ),
                     ),
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        // Today Button
                         Expanded(
-                          flex: 2,
-                          child: GestureDetector(
-                            onTap: () {
+                          child: ElevatedButton.icon(
+                            onPressed: () {
                               setState(() {
                                 _selectedDate = DateTime.now();
                               });
                             },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                              decoration: BoxDecoration(
-                                color: _isToday()
-                                    ? theme.colorScheme.primary
-                                    : theme.colorScheme.secondary,
-                                border: Border.all(
-                                  color: _isToday()
+                            icon: Icon(
+                              Icons.today_rounded,
+                              size: 20,
+                              color: _isToday(_selectedDate)
+                                  ? theme.colorScheme.onPrimary
+                                  : theme.colorScheme.onSurface,
+                            ),
+                            label: Text(
+                              'Today',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: _isToday(_selectedDate)
+                                    ? theme.colorScheme.onPrimary
+                                    : theme.colorScheme.onSurface,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _isToday(_selectedDate)
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.secondary,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(
+                                  color: _isToday(_selectedDate)
                                       ? theme.colorScheme.primary
                                       : theme.dividerColor,
-                                  width: _isToday() ? 2 : 1,
+                                  width: 2,
                                 ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.today_rounded,
-                                    size: 20,
-                                    color: _isToday()
-                                        ? theme.colorScheme.onPrimary
-                                        : theme.colorScheme.onSurface,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Today',
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      color: _isToday()
-                                          ? theme.colorScheme.onPrimary
-                                          : theme.colorScheme.onSurface,
-                                    ),
-                                  ),
-                                ],
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        // Date Picker Button
+                        const SizedBox(width: 12),
                         Expanded(
-                          flex: 3,
-                          child: GestureDetector(
-                            onTap: () async {
-                              final DateTime? picked = await showDatePicker(
-                                context: context,
-                                initialDate: _selectedDate,
-                                firstDate: DateTime(2020),
-                                lastDate: DateTime(2030),
-                                builder: (context, child) {
-                                  return Theme(
-                                    data: Theme.of(context).copyWith(
-                                      colorScheme: ColorScheme.light(
-                                        primary: theme.colorScheme.primary,
-                                        onPrimary: theme.colorScheme.onPrimary,
-                                        surface: theme.colorScheme.surface,
-                                        onSurface: theme.colorScheme.onSurface,
-                                      ),
-                                      dialogBackgroundColor: theme.colorScheme.surface,
-                                    ),
-                                    child: child!,
-                                  );
-                                },
-                              );
-                              if (picked != null && picked != _selectedDate) {
-                                setState(() {
-                                  _selectedDate = picked;
-                                });
-                              }
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                              decoration: BoxDecoration(
-                                color: !_isToday()
-                                    ? theme.colorScheme.primary
-                                    : theme.colorScheme.secondary,
-                                border: Border.all(
-                                  color: !_isToday()
+                          child: ElevatedButton.icon(
+                            onPressed: _pickDate,
+                            icon: Icon(
+                              Icons.calendar_today_rounded,
+                              size: 20,
+                              color: !_isToday(_selectedDate)
+                                  ? theme.colorScheme.onPrimary
+                                  : theme.colorScheme.onSurface,
+                            ),
+                            label: Text(
+                              _isToday(_selectedDate)
+                                  ? 'Pick Date'
+                                  : DateFormat('MMM dd, yyyy').format(_selectedDate),
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: !_isToday(_selectedDate)
+                                    ? theme.colorScheme.onPrimary
+                                    : theme.colorScheme.onSurface,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: !_isToday(_selectedDate)
+                                  ? theme.colorScheme.primary // Use theme's primary brown color
+                                  : theme.colorScheme.secondary,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(
+                                  color: !_isToday(_selectedDate)
                                       ? theme.colorScheme.primary
                                       : theme.dividerColor,
-                                  width: !_isToday() ? 2 : 1,
+                                  width: 2,
                                 ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.calendar_today_rounded,
-                                    size: 18,
-                                    color: !_isToday()
-                                        ? theme.colorScheme.onPrimary
-                                        : theme.colorScheme.onSurface,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    DateFormat('MMM dd, yyyy').format(_selectedDate),
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      color: !_isToday()
-                                          ? theme.colorScheme.onPrimary
-                                          : theme.colorScheme.onSurface,
-                                    ),
-                                  ),
-                                ],
                               ),
                             ),
                           ),
@@ -829,7 +841,7 @@ class _TransactionModalState extends State<TransactionModal>
                     const SizedBox(height: 16),
 
                     // Product Type - Only show for revenue
-                    if (_type == TransactionType.revenue) ...[
+                    if (false && _type == TransactionType.revenue) ...[
                       Text(
                         'Product Type',
                         style: theme.textTheme.bodyMedium?.copyWith(
@@ -925,192 +937,103 @@ class _TransactionModalState extends State<TransactionModal>
                       const SizedBox(height: 16),
                     ],
 
-                    // Payment Method - Only show for transactions, not revenue
+                    // Description
+                    _buildTextField(
+                      label: 'Description',
+                      controller: _descriptionController,
+                      hint: 'e.g., Morning sales',
+                      theme: theme,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Expense-only fields
                     if (_type == TransactionType.transaction) ...[
+                      // Mode of Payment
                       Text(
-                        'Payment Method',
+                        'Mode of Payment',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.secondary,
-                          border: Border.all(
-                            color: theme.dividerColor,
-                            width: 1,
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        decoration: InputDecoration(
+                          hintText: 'Select mode of payment',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: theme.dividerColor),
                           ),
-                          borderRadius: BorderRadius.circular(12),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: theme.dividerColor),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Dropdown Header
-                            GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _isPaymentMethodDropdownOpen = !_isPaymentMethodDropdownOpen;
-                                });
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
+                        items: PaymentMethods.all.map((method) {
+                          return DropdownMenuItem(
+                            value: method,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  _getPaymentMethodIcon(method),
+                                  size: 18,
+                                  color: theme.colorScheme.onSurface,
                                 ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        if (_paymentMethod != null) ...[
-                                          Icon(
-                                            _getPaymentMethodIcon(_paymentMethod!),
-                                            size: 18,
-                                            color: theme.colorScheme.onSurface,
-                                          ),
-                                          const SizedBox(width: 8),
-                                        ],
-                                        Text(
-                                          _paymentMethod ?? 'Select payment method',
-                                          style: theme.textTheme.bodyMedium?.copyWith(
-                                            fontWeight: FontWeight.w500,
-                                            color: _paymentMethod != null
-                                                ? theme.colorScheme.onSurface
-                                                : theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    Icon(
-                                      _isPaymentMethodDropdownOpen
-                                          ? Icons.keyboard_arrow_up
-                                          : Icons.keyboard_arrow_down,
-                                      color: theme.colorScheme.onSurface,
-                                    ),
-                                  ],
-                                ),
-                              ),
+                                const SizedBox(width: 8),
+                                Text(method, style: theme.textTheme.bodySmall),
+                              ],
                             ),
-                            // Dropdown Content - Grid in 2 columns
-                            if (_isPaymentMethodDropdownOpen) ...[
-                              Divider(height: 1, color: theme.dividerColor),
-                              Padding(
-                                padding: const EdgeInsets.all(8),
-                                child: GridView.builder(
-                                  shrinkWrap: true,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: 2,
-                                    crossAxisSpacing: 6,
-                                    mainAxisSpacing: 6,
-                                    childAspectRatio: 3.5,
-                                  ),
-                                  itemCount: PaymentMethods.all.length,
-                                  itemBuilder: (context, index) {
-                                    final method = PaymentMethods.all[index];
-                                    final isSelected = _paymentMethod == method;
-                                    return GestureDetector(
-                                      onTap: () {
-                                        setState(() {
-                                          _paymentMethod = method;
-                                          _paymentMethodController.text = method;
-                                          _isPaymentMethodDropdownOpen = false;
-                                        });
-                                      },
-                                      child: Card(
-                                        margin: EdgeInsets.zero,
-                                        elevation: isSelected ? 4 : 1,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(10),
-                                          side: BorderSide(
-                                            color: isSelected
-                                                ? theme.colorScheme.primary
-                                                : theme.dividerColor,
-                                            width: isSelected ? 2 : 1,
-                                          ),
-                                        ),
-                                        child: AnimatedContainer(
-                                          duration: const Duration(milliseconds: 200),
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 8,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: isSelected
-                                                ? theme.colorScheme.primary
-                                                : theme.colorScheme.surface,
-                                            borderRadius: BorderRadius.circular(10),
-                                          ),
-                                          child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              Icon(
-                                                _getPaymentMethodIcon(method),
-                                                size: 18,
-                                                color: isSelected
-                                                    ? theme.colorScheme.onPrimary
-                                                    : theme.colorScheme.onSurface,
-                                              ),
-                                              const SizedBox(width: 6),
-                                              Flexible(
-                                                child: Text(
-                                                  method,
-                                                  style: theme.textTheme.bodySmall?.copyWith(
-                                                    fontWeight: FontWeight.w600,
-                                                    color: isSelected
-                                                        ? theme.colorScheme.onPrimary
-                                                        : theme.colorScheme.onSurface,
-                                                  ),
-                                                  overflow: TextOverflow.ellipsis,
-                                                  maxLines: 1,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _paymentMethodController.text = value ?? '';
+                          });
+                        },
                       ),
                       const SizedBox(height: 16),
-                    ],
 
-                    // Transaction-only fields
-                    if (_type == TransactionType.transaction) ...[
-                      // Transaction Number
+                      // Voucher
                       _buildTextField(
-                        label: 'Transaction Number',
+                        label: 'Voucher',
                         controller: _transactionNumberController,
-                        hint: 'e.g., TXN001',
+                        hint: 'e.g., VCH001',
                         theme: theme,
                       ),
                       const SizedBox(height: 16),
 
-                      // Official Receipt Number
+                      // Invoice Number
                       _buildTextField(
-                        label: 'Official Receipt Number',
+                        label: 'Invoice Number',
                         controller: _receiptNumberController,
-                        hint: 'e.g., RCP001',
+                        hint: 'e.g., INV001',
                         theme: theme,
                       ),
                       const SizedBox(height: 16),
 
-                      // TIN Number
+                      // Supplier Name
                       _buildTextField(
-                        label: 'TIN Number',
-                        controller: _tinNumberController,
-                        hint: 'e.g., 123-456-789',
+                        label: 'Supplier Name',
+                        controller: _supplierNameController,
+                        hint: 'e.g., Coffee Supplier Inc.',
                         theme: theme,
                       ),
                       const SizedBox(height: 16),
 
-                      // VAT Selection - Match Next.js toggle
+                      // Supplier Address
+                      _buildTextField(
+                        label: 'Supplier Address',
+                        controller: _supplierAddressController,
+                        hint: 'e.g., Manila, PH',
+                        theme: theme,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // VAT Selection
                       Text(
                         'VAT',
                         style: theme.textTheme.bodyMedium?.copyWith(
@@ -1131,33 +1054,16 @@ class _TransactionModalState extends State<TransactionModal>
                       ),
                       const SizedBox(height: 16),
 
-                      // Supplier Name
+                      // TIN Number
                       _buildTextField(
-                        label: 'Supplier / Vendor Name',
-                        controller: _supplierNameController,
-                        hint: 'e.g., Coffee Supplier Inc.',
+                        label: 'TIN Number',
+                        controller: _tinNumberController,
+                        hint: 'e.g., 123-456-789',
                         theme: theme,
                       ),
-                      const SizedBox(height: 16),
-
-                      // Supplier Address
-                      _buildTextField(
-                        label: 'Supplier Address',
-                        controller: _supplierAddressController,
-                        hint: 'e.g., Manila, PH',
-                        theme: theme,
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-
-                    // Description - Moved to bottom
-                    _buildTextField(
-                      label: 'Description',
-                      controller: _descriptionController,
-                      hint: 'e.g., Morning sales',
-                      theme: theme,
-                    ),
-                    const SizedBox(height: 24),
+                      const SizedBox(height: 24),
+                    ] else
+                      const SizedBox(height: 8),
 
                     // Action Buttons - Match Next.js grid-cols-2
                     Row(
@@ -1209,6 +1115,7 @@ class _TransactionModalState extends State<TransactionModal>
             ),
           ),
         ),
+      ),
       ),
     );
   }

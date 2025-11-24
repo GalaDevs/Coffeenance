@@ -1,33 +1,70 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import '../../providers/transaction_provider.dart';
+import '../../models/transaction.dart';
 
 /// Revenue Trends Modal - matches revenue-trends-modal.tsx
 /// Shows weekly sales performance and category analysis with area chart
 class RevenueTrendsModal extends StatelessWidget {
   const RevenueTrendsModal({super.key});
 
+  // Generate weekly revenue data from real transactions
+  List<Map<String, dynamic>> _generateWeeklyData(TransactionProvider provider) {
+    final now = DateTime.now();
+    final weeklyData = <Map<String, dynamic>>[];
+    final dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    
+    for (int i = 6; i >= 0; i--) {
+      final targetDate = now.subtract(Duration(days: i));
+      final dayName = dayNames[targetDate.weekday - 1];
+      final dateStr = targetDate.toIso8601String().split('T')[0];
+      
+      final dayTransactions = provider.transactions.where((t) => 
+        t.date == dateStr && t.type == TransactionType.revenue
+      ).toList();
+      
+      final sales = dayTransactions.fold(0.0, (sum, t) => sum + t.amount);
+      
+      weeklyData.add({
+        'date': dayName,
+        'sales': sales,
+        'target': 15000.0, // Target remains constant
+      });
+    }
+    
+    return weeklyData;
+  }
+
+  // Generate category breakdown from real transactions
+  List<Map<String, dynamic>> _generateCategoryData(TransactionProvider provider) {
+    final revenueTransactions = provider.revenueTransactions;
+    
+    // Group by payment method (category)
+    final categoryTotals = <String, double>{};
+    for (final transaction in revenueTransactions) {
+      categoryTotals[transaction.category] = 
+        (categoryTotals[transaction.category] ?? 0) + transaction.amount;
+    }
+    
+    // Convert to list format with sample trend data
+    return categoryTotals.entries.map((entry) {
+      return {
+        'category': entry.key,
+        'revenue': entry.value,
+        'trend': (entry.value / 1000).clamp(0, 20).toDouble(), // Simple trend calculation
+      };
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-    // Sample revenue data matching Next.js
-    final revenueData = [
-      {'date': 'Mon', 'sales': 12000.0, 'target': 15000.0},
-      {'date': 'Tue', 'sales': 14500.0, 'target': 15000.0},
-      {'date': 'Wed', 'sales': 13200.0, 'target': 15000.0},
-      {'date': 'Thu', 'sales': 15800.0, 'target': 15000.0},
-      {'date': 'Fri', 'sales': 18200.0, 'target': 15000.0},
-      {'date': 'Sat', 'sales': 22000.0, 'target': 15000.0},
-      {'date': 'Sun', 'sales': 19500.0, 'target': 15000.0},
-    ];
-
-    final categoryData = [
-      {'category': 'Coffee', 'revenue': 45000.0, 'trend': 12.0},
-      {'category': 'Pastries', 'revenue': 28000.0, 'trend': 8.0},
-      {'category': 'Snacks', 'revenue': 15000.0, 'trend': -2.0},
-      {'category': 'Beverages', 'revenue': 32000.0, 'trend': 15.0},
-    ];
+    final provider = Provider.of<TransactionProvider>(context);
+    
+    final revenueData = _generateWeeklyData(provider);
+    final categoryData = _generateCategoryData(provider);
 
     // Calculate KPIs
     final weeklyTotal = revenueData.fold<double>(

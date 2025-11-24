@@ -245,11 +245,9 @@ class _TaxSummaryCardState extends State<_TaxSummaryCard> {
     
     // Tax calculations matching Next.js
     const vatRate = 0.12;
-    const withholdingTax = 0.02;
     final grossSales = widget.totalIncome;
     final vatTax = grossSales * vatRate;
-    final withholdingTaxAmount = grossSales * withholdingTax;
-    final totalTaxes = vatTax + withholdingTaxAmount;
+    final totalTaxes = vatTax;
     final netSales = grossSales - totalTaxes;
 
     return Card(
@@ -315,13 +313,6 @@ class _TaxSummaryCardState extends State<_TaxSummaryCard> {
                     isNegative: true,
                   ),
                   const SizedBox(height: 12),
-                  _buildTaxRow(
-                    'Withholding Tax (2%)',
-                    withholdingTaxAmount,
-                    theme,
-                    isNegative: true,
-                  ),
-                  const SizedBox(height: 12),
                   const Divider(height: 1),
                   const SizedBox(height: 12),
                   Container(
@@ -375,7 +366,7 @@ class _TaxSummaryCardState extends State<_TaxSummaryCard> {
           ),
         ),
         Text(
-          '${isNegative ? "-" : ""}₱${amount.toStringAsFixed(2)}',
+          '${isNegative ? "-" : ""}₱${amount.toStringAsFixed(2).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
           style: theme.textTheme.bodySmall?.copyWith(
             fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
             color: isPrimary
