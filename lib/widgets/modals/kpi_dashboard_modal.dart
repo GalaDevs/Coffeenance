@@ -148,36 +148,102 @@ class _KPIDashboardModalState extends State<KPIDashboardModal> {
     );
   }
 
-  // KPI Trends Data (sample - could be enhanced with historical data)
-  static final List<Map<String, dynamic>> kpiTrends = [
-    {'week': 'W1', 'efficiency': 78.0, 'retention': 92.0},
-    {'week': 'W2', 'efficiency': 82.0, 'retention': 93.0},
-    {'week': 'W3', 'efficiency': 85.0, 'retention': 94.0},
-    {'week': 'W4', 'efficiency': 88.0, 'retention': 95.0},
-  ];
+  // KPI Trends Data - PULL from provider and calculate from real weekly data
+  List<Map<String, dynamic>> _getWeeklyTrends(TransactionProvider provider) {
+    final now = DateTime.now();
+    final List<Map<String, dynamic>> weeklyData = [];
+    
+    // Get data for last 4 weeks
+    for (int i = 3; i >= 0; i--) {
+      final weekStart = now.subtract(Duration(days: 7 * i));
+      final weekEnd = weekStart.add(const Duration(days: 6));
+      
+      // Get transactions for this week
+      final weekTransactions = provider.transactions.where((t) {
+        final transactionDate = DateTime.parse(t.date);
+        return transactionDate.isAfter(weekStart.subtract(const Duration(days: 1))) &&
+               transactionDate.isBefore(weekEnd.add(const Duration(days: 1)));
+      }).toList();
+      
+      final revenueTransactions = weekTransactions.where((t) => t.type == TransactionType.revenue).toList();
+      final expenseTransactions = weekTransactions.where((t) => t.type == TransactionType.transaction).toList();
+      
+      final totalRevenue = revenueTransactions.fold(0.0, (sum, t) => sum + t.amount);
+      final totalExpenses = expenseTransactions.fold(0.0, (sum, t) => sum + t.amount);
+      
+      // Calculate metrics (0-100 scale)
+      // Revenue Growth
+      final revenueGrowth = (totalRevenue / 1000).clamp(0, 100);
+      
+      // Operational Efficiency (inverse of expense ratio)
+      final efficiency = totalRevenue > 0 
+          ? (100 - ((totalExpenses / totalRevenue) * 100)).clamp(0, 100)
+          : 50.0;
+      
+      // Profit Margin
+      final profitMargin = totalRevenue > 0
+          ? (((totalRevenue - totalExpenses) / totalRevenue) * 100).clamp(0, 100)
+          : 0.0;
+      
+      weeklyData.add({
+        'week': 'W${4 - i}',
+        'revenue': revenueGrowth,
+        'efficiency': efficiency,
+        'profit': profitMargin,
+      });
+    }
+    
+    return weeklyData;
+  }
 
-  // Performance Radar Data - PULL from provider
+  // Performance Radar Data - PULL from provider and calculate from real data
   List<Map<String, dynamic>> _getPerformanceRadar(TransactionProvider provider) {
+    // Get all transactions for calculations
+    final allTransactions = provider.transactions;
+    final revenueTransactions = allTransactions.where((t) => t.type == TransactionType.revenue).toList();
+    final expenseTransactions = allTransactions.where((t) => t.type == TransactionType.transaction).toList();
+    
+    // Calculate total revenue and expenses
+    final totalRevenue = revenueTransactions.fold(0.0, (sum, t) => sum + t.amount);
+    final totalExpenses = expenseTransactions.fold(0.0, (sum, t) => sum + t.amount);
+    
+    // Calculate metrics (0-100 scale)
+    // Operational Efficiency: Based on expense ratio (lower expenses = higher efficiency)
+    final operationalEfficiency = totalRevenue > 0 
+        ? (100 - ((totalExpenses / totalRevenue) * 100)).clamp(0, 100)
+        : 50.0;
+    
+    // Revenue Growth: Based on total revenue achievement
+    final revenueGrowth = (totalRevenue / 1000).clamp(0, 100);
+    
+    // Transaction Volume: Based on number of transactions
+    final transactionVolume = (revenueTransactions.length / 2).clamp(0, 100).toDouble();
+    
+    // Profit Margin: Revenue minus expenses as percentage
+    final profitMargin = totalRevenue > 0
+        ? (((totalRevenue - totalExpenses) / totalRevenue) * 100).clamp(0, 100)
+        : 0.0;
+    
     return [
       {
         'metric': 'Operational\nEfficiency',
-        'value': provider.getKPITarget('operationalEfficiency'),
+        'value': operationalEfficiency,
         'key': 'operationalEfficiency',
       },
       {
-        'metric': 'Staff\nRetention',
-        'value': provider.getKPITarget('staffRetention'),
-        'key': 'staffRetention',
-      },
-      {
-        'metric': 'Inventory\nTurnover',
-        'value': provider.getKPITarget('inventoryTurnover'),
-        'key': 'inventoryTurnover',
-      },
-      {
         'metric': 'Revenue\nGrowth',
-        'value': provider.getKPITarget('revenueGrowth'),
+        'value': revenueGrowth,
         'key': 'revenueGrowth',
+      },
+      {
+        'metric': 'Transaction\nVolume',
+        'value': transactionVolume,
+        'key': 'transactionVolume',
+      },
+      {
+        'metric': 'Profit\nMargin',
+        'value': profitMargin,
+        'key': 'profitMargin',
       },
     ];
   }
@@ -190,6 +256,7 @@ class _KPIDashboardModalState extends State<KPIDashboardModal> {
       builder: (context, provider, child) {
         final kpiCards = _generateKPICards(provider);
         final performanceRadar = _getPerformanceRadar(provider);
+        final weeklyTrends = _getWeeklyTrends(provider);
 
         return Dialog(
           insetPadding: const EdgeInsets.all(16),
@@ -314,14 +381,14 @@ class _KPIDashboardModalState extends State<KPIDashboardModal> {
                         ),
                         const SizedBox(height: 16),
                         SizedBox(
-                          height: 250,
+                          height: 240,
                           child: _RadarChartWidget(data: performanceRadar),
                         ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
 
                 // Weekly Trends Line Chart
                 Card(
@@ -350,19 +417,23 @@ class _KPIDashboardModalState extends State<KPIDashboardModal> {
                           spacing: 16,
                           children: [
                             _LegendItem(
+                              color: const Color(0xFF10b981),
+                              label: 'Revenue',
+                            ),
+                            _LegendItem(
                               color: const Color(0xFF3b82f6),
                               label: 'Efficiency',
                             ),
                             _LegendItem(
                               color: const Color(0xFFf59e0b),
-                              label: 'Retention',
+                              label: 'Profit',
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 12),
                         SizedBox(
-                          height: 250,
-                          child: _LineChartWidget(data: kpiTrends),
+                          height: 240,
+                          child: _LineChartWidget(data: weeklyTrends),
                         ),
                       ],
                     ),
@@ -412,7 +483,7 @@ class _KPICard extends StatelessWidget {
         onTap: onEditTarget,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -426,6 +497,7 @@ class _KPICard extends StatelessWidget {
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.6),
                         fontWeight: FontWeight.w500,
+                        fontSize: 11,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -434,11 +506,12 @@ class _KPICard extends StatelessWidget {
                   if (onEditTarget != null)
                     Icon(
                       Icons.edit_rounded,
-                      size: 14,
+                      size: 13,
                       color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.4),
                     ),
                 ],
               ),
+              const SizedBox(height: 4),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -451,14 +524,14 @@ class _KPICard extends StatelessWidget {
                           value,
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                            fontSize: 15,
                           ),
                         ),
                         Text(
                           'Target: $target',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.6),
-                            fontSize: 11,
+                            fontSize: 10,
                           ),
                         ),
                       ],
@@ -466,8 +539,8 @@ class _KPICard extends StatelessWidget {
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+                      horizontal: 6,
+                      vertical: 3,
                     ),
                     decoration: BoxDecoration(
                       color: isAboveTarget
@@ -478,7 +551,7 @@ class _KPICard extends StatelessWidget {
                     child: Text(
                       isAboveTarget ? '✓ Above' : '◔ On Track',
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 10,
                         fontWeight: FontWeight.w600,
                         color: isAboveTarget
                             ? Colors.green.shade800
@@ -631,6 +704,21 @@ class _LineChartWidget extends StatelessWidget {
         minY: 0,
         maxY: 100,
         lineBarsData: [
+          // Revenue Growth - Green
+          LineChartBarData(
+            spots: data.asMap().entries.map((entry) {
+              return FlSpot(
+                entry.key.toDouble(),
+                entry.value['revenue'] as double,
+              );
+            }).toList(),
+            isCurved: true,
+            color: const Color(0xFF10b981),
+            barWidth: 2,
+            isStrokeCapRound: true,
+            dotData: const FlDotData(show: true),
+            belowBarData: BarAreaData(show: false),
+          ),
           // Operational Efficiency - Blue
           LineChartBarData(
             spots: data.asMap().entries.map((entry) {
@@ -646,12 +734,12 @@ class _LineChartWidget extends StatelessWidget {
             dotData: const FlDotData(show: true),
             belowBarData: BarAreaData(show: false),
           ),
-          // Staff Retention - Amber
+          // Profit Margin - Amber
           LineChartBarData(
             spots: data.asMap().entries.map((entry) {
               return FlSpot(
                 entry.key.toDouble(),
-                entry.value['retention'] as double,
+                entry.value['profit'] as double,
               );
             }).toList(),
             isCurved: true,
@@ -669,9 +757,11 @@ class _LineChartWidget extends StatelessWidget {
               return touchedSpots.map((LineBarSpot touchedSpot) {
                 String label = '';
                 if (touchedSpot.barIndex == 0) {
-                  label = 'Efficiency';
+                  label = 'Revenue';
                 } else if (touchedSpot.barIndex == 1) {
-                  label = 'Retention';
+                  label = 'Efficiency';
+                } else if (touchedSpot.barIndex == 2) {
+                  label = 'Profit';
                 }
                 return LineTooltipItem(
                   '$label\n${touchedSpot.y.toStringAsFixed(0)}%',

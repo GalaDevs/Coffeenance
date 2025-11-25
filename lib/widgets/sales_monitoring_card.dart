@@ -36,6 +36,9 @@ class SalesMonitoringCard extends StatelessWidget {
       'Grab': revenueTransactions
           .where((t) => t.category == RevenueCategories.grab)
           .fold(0.0, (sum, t) => sum + t.amount),
+      'Others': revenueTransactions
+          .where((t) => t.category == RevenueCategories.others)
+          .fold(0.0, (sum, t) => sum + t.amount),
     };
 
     final totalSales = salesByMethod.values.fold(0.0, (sum, value) => sum + value);
@@ -46,6 +49,7 @@ class SalesMonitoringCard extends StatelessWidget {
       {'name': 'Grab', 'value': salesByMethod['Grab']!, 'color': AppColors.chart4},
       {'name': 'Credit Card', 'value': salesByMethod['Credit Card']!, 'color': AppColors.chart5},
       {'name': 'Cash', 'value': salesByMethod['Cash']!, 'color': AppColors.chart1},
+      {'name': 'Others', 'value': salesByMethod['Others']!, 'color': const Color(0xFF64748B)},
     ];
 
     return Card(
