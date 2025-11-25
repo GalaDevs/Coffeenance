@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
 import '../../providers/transaction_provider.dart';
 import '../../models/transaction.dart';
 
@@ -16,11 +17,41 @@ class KPIDashboardModal extends StatefulWidget {
 }
 
 class _KPIDashboardModalState extends State<KPIDashboardModal> {
+  DateTime _selectedDate = DateTime.now();
+
+  // Format number with comma separators
+  String _formatNumber(double number) {
+    final formatter = NumberFormat('#,##0', 'en_US');
+    return formatter.format(number.round());
+  }
+
+  // Format date for display
+  String _formatDate(DateTime date) {
+    return DateFormat('MMMM dd, yyyy').format(date);
+  }
+
+  // Pick date
+  Future<void> _pickDate(BuildContext context) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
+  }
+
   // Generate KPI cards from real data (PULL from provider)
   List<Map<String, dynamic>> _generateKPICards(TransactionProvider provider) {
-    final todayTransactions = provider.todayTransactions;
-    final revenueTransactions = todayTransactions.where((t) => t.type == TransactionType.revenue).toList();
-    final expenseTransactions = todayTransactions.where((t) => t.type == TransactionType.transaction).toList();
+    // Get transactions for selected date
+    final selectedDateStr = _selectedDate.toIso8601String().split('T')[0];
+    final dateTransactions = provider.transactions.where((t) => t.date == selectedDateStr).toList();
+    final revenueTransactions = dateTransactions.where((t) => t.type == TransactionType.revenue).toList();
+    final expenseTransactions = dateTransactions.where((t) => t.type == TransactionType.transaction).toList();
     
     final dailyRevenue = revenueTransactions.fold(0.0, (sum, t) => sum + t.amount);
     final dailyExpenses = expenseTransactions.fold(0.0, (sum, t) => sum + t.amount);
@@ -36,36 +67,36 @@ class _KPIDashboardModalState extends State<KPIDashboardModal> {
     return [
       {
         'label': 'Daily Revenue',
-        'value': '₱${dailyRevenue.toStringAsFixed(0)}',
+        'value': '₱${_formatNumber(dailyRevenue)}',
         'valueNum': dailyRevenue,
-        'target': '₱${dailyRevenueTarget.toStringAsFixed(0)}',
+        'target': '₱${_formatNumber(dailyRevenueTarget)}',
         'targetNum': dailyRevenueTarget,
         'status': dailyRevenue >= dailyRevenueTarget ? 'above-target' : 'on-track',
         'key': 'dailyRevenueTarget',
       },
       {
         'label': 'Daily Transactions',
-        'value': revenueCount.toString(),
+        'value': _formatNumber(revenueCount.toDouble()),
         'valueNum': revenueCount.toDouble(),
-        'target': dailyTransactionsTarget.toStringAsFixed(0),
+        'target': _formatNumber(dailyTransactionsTarget),
         'targetNum': dailyTransactionsTarget,
         'status': revenueCount >= dailyTransactionsTarget ? 'above-target' : 'on-track',
         'key': 'dailyTransactionsTarget',
       },
       {
         'label': 'Average Transaction',
-        'value': '₱${avgTransaction.toStringAsFixed(0)}',
+        'value': '₱${_formatNumber(avgTransaction)}',
         'valueNum': avgTransaction,
-        'target': '₱${avgTransactionTarget.toStringAsFixed(0)}',
+        'target': '₱${_formatNumber(avgTransactionTarget)}',
         'targetNum': avgTransactionTarget,
         'status': avgTransaction >= avgTransactionTarget ? 'above-target' : 'on-track',
         'key': 'avgTransactionTarget',
       },
       {
         'label': 'Daily Expenses',
-        'value': '₱${dailyExpenses.toStringAsFixed(0)}',
+        'value': '₱${_formatNumber(dailyExpenses)}',
         'valueNum': dailyExpenses,
-        'target': '₱${dailyExpensesTarget.toStringAsFixed(0)}',
+        'target': '₱${_formatNumber(dailyExpensesTarget)}',
         'targetNum': dailyExpensesTarget,
         'status': dailyExpenses <= dailyExpensesTarget ? 'above-target' : 'on-track',
         'key': 'dailyExpensesTarget',
@@ -76,7 +107,7 @@ class _KPIDashboardModalState extends State<KPIDashboardModal> {
   // PUSH: Edit KPI target
   void _editTarget(BuildContext context, String label, String key, double currentTarget) async {
     final provider = Provider.of<TransactionProvider>(context, listen: false);
-    final controller = TextEditingController(text: currentTarget.toStringAsFixed(0));
+    final controller = TextEditingController(text: _formatNumber(currentTarget));
     
     await showDialog(
       context: context,
@@ -97,13 +128,15 @@ class _KPIDashboardModalState extends State<KPIDashboardModal> {
           ),
           TextButton(
             onPressed: () async {
-              final newValue = double.tryParse(controller.text);
+              // Remove commas before parsing
+              final cleanValue = controller.text.replaceAll(',', '');
+              final newValue = double.tryParse(cleanValue);
               if (newValue != null && newValue > 0) {
                 await provider.updateKPISetting(key, newValue);
                 if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('$label target updated to ₱${newValue.toStringAsFixed(0)}')),
+                    SnackBar(content: Text('$label target updated to ₱${_formatNumber(newValue)}')),
                   );
                 }
               }
@@ -117,20 +150,15 @@ class _KPIDashboardModalState extends State<KPIDashboardModal> {
 
   // KPI Trends Data (sample - could be enhanced with historical data)
   static final List<Map<String, dynamic>> kpiTrends = [
-    {'week': 'W1', 'satisfaction': 85.0, 'efficiency': 78.0, 'retention': 92.0},
-    {'week': 'W2', 'satisfaction': 87.0, 'efficiency': 82.0, 'retention': 93.0},
-    {'week': 'W3', 'satisfaction': 89.0, 'efficiency': 85.0, 'retention': 94.0},
-    {'week': 'W4', 'satisfaction': 91.0, 'efficiency': 88.0, 'retention': 95.0},
+    {'week': 'W1', 'efficiency': 78.0, 'retention': 92.0},
+    {'week': 'W2', 'efficiency': 82.0, 'retention': 93.0},
+    {'week': 'W3', 'efficiency': 85.0, 'retention': 94.0},
+    {'week': 'W4', 'efficiency': 88.0, 'retention': 95.0},
   ];
 
   // Performance Radar Data - PULL from provider
   List<Map<String, dynamic>> _getPerformanceRadar(TransactionProvider provider) {
     return [
-      {
-        'metric': 'Customer\nSatisfaction',
-        'value': provider.getKPITarget('customerSatisfaction'),
-        'key': 'customerSatisfaction',
-      },
       {
         'metric': 'Operational\nEfficiency',
         'value': provider.getKPITarget('operationalEfficiency'),
@@ -189,12 +217,33 @@ class _KPIDashboardModalState extends State<KPIDashboardModal> {
                               ),
                             ),
                             const SizedBox(height: 4),
-                    Text(
-                      'Key performance indicators and business metrics',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.6),
-                      ),
-                    ),
+                            InkWell(
+                              onTap: () => _pickDate(context),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.calendar_today_rounded,
+                                    size: 14,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    _formatDate(_selectedDate),
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.primary,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Icon(
+                                    Icons.arrow_drop_down,
+                                    size: 18,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ],
+                              ),
+                            ),
                   ],
                 ),
               ),
@@ -301,10 +350,6 @@ class _KPIDashboardModalState extends State<KPIDashboardModal> {
                           spacing: 16,
                           children: [
                             _LegendItem(
-                              color: const Color(0xFF10b981),
-                              label: 'Satisfaction',
-                            ),
-                            _LegendItem(
                               color: const Color(0xFF3b82f6),
                               label: 'Efficiency',
                             ),
@@ -404,14 +449,16 @@ class _KPICard extends StatelessWidget {
                       children: [
                         Text(
                           value,
-                          style: theme.textTheme.headlineSmall?.copyWith(
+                          style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
+                            fontSize: 16,
                           ),
                         ),
                         Text(
                           'Target: $target',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.6),
+                            fontSize: 11,
                           ),
                         ),
                       ],
@@ -476,9 +523,13 @@ class _RadarChartWidget extends StatelessWidget {
         ),
         getTitle: (index, angle) {
           if (index >= data.length) return const RadarChartTitle(text: '');
+          // Rotate Inventory Turnover 180 degrees
+          final adjustedAngle = data[index]['metric'] == 'Inventory\nTurnover' 
+              ? angle + 180 
+              : angle;
           return RadarChartTitle(
             text: data[index]['metric'],
-            angle: angle,
+            angle: adjustedAngle,
           );
         },
         dataSets: [
@@ -580,21 +631,6 @@ class _LineChartWidget extends StatelessWidget {
         minY: 0,
         maxY: 100,
         lineBarsData: [
-          // Customer Satisfaction - Green
-          LineChartBarData(
-            spots: data.asMap().entries.map((entry) {
-              return FlSpot(
-                entry.key.toDouble(),
-                entry.value['satisfaction'] as double,
-              );
-            }).toList(),
-            isCurved: true,
-            color: const Color(0xFF10b981),
-            barWidth: 2,
-            isStrokeCapRound: true,
-            dotData: const FlDotData(show: true),
-            belowBarData: BarAreaData(show: false),
-          ),
           // Operational Efficiency - Blue
           LineChartBarData(
             spots: data.asMap().entries.map((entry) {
@@ -633,10 +669,8 @@ class _LineChartWidget extends StatelessWidget {
               return touchedSpots.map((LineBarSpot touchedSpot) {
                 String label = '';
                 if (touchedSpot.barIndex == 0) {
-                  label = 'Satisfaction';
-                } else if (touchedSpot.barIndex == 1) {
                   label = 'Efficiency';
-                } else if (touchedSpot.barIndex == 2) {
+                } else if (touchedSpot.barIndex == 1) {
                   label = 'Retention';
                 }
                 return LineTooltipItem(
