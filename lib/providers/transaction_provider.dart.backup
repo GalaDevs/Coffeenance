@@ -6,12 +6,12 @@ import '../services/firestore_service.dart';
 
 /// TransactionProvider manages all transaction state
 /// Replaces Next.js useState for transactions management
-/// Persists to both local storage (SharedPreferences) AND Firebase Cloud Firestore
+/// Persists to both local storage (SharedPreferences) and Cloud Firestore
 class TransactionProvider with ChangeNotifier {
   final FirestoreService _firestoreService = FirestoreService();
   List<Transaction> _transactions = [];
   bool _isLoading = false;
-  bool _cloudSyncEnabled = true; // Enable cloud sync by default
+  bool _useFirestore = true; // Toggle to enable/disable Firestore sync
   
   // Inventory management
   List<Map<String, dynamic>> _inventory = [];
@@ -111,198 +111,354 @@ class TransactionProvider with ChangeNotifier {
     _loadStaffData();
     _loadKPISettings();
     _loadTaxSettings();
+    
+    // Set up Firestore listeners if enabled
+    if (_useFirestore) {
+      _setupFirestoreListeners();
+    }
   }
 
-  /// Load initial inventory data from Firebase
+  /// Set up real-time listeners for Firestore data
+  void _setupFirestoreListeners() {
+    // Listen to transactions
+    _firestoreService.getTransactionsStream().listen((transactions) {
+      _transactions = transactions;
+      notifyListeners();
+      _saveToStorage(); // Also save to local storage for offline access
+    });
+
+    // Listen to inventory
+    _firestoreService.getInventoryStream().listen((inventory) {
+      _inventory = inventory;
+      notifyListeners();
+      _saveInventoryToStorage();
+    });
+
+    // Listen to staff
+    _firestoreService.getStaffStream().listen((staff) {
+      _staff = staff;
+      notifyListeners();
+      _saveStaffToStorage();
+    });
+  }
+
+  /// Load initial inventory data
   Future<void> _loadInventoryData() async {
     try {
-      // Load from Firebase Firestore
-      final inventoryData = await _firestoreService.getInventoryStream().first;
-      _inventory = inventoryData;
-      notifyListeners();
+      final prefs = await SharedPreferences.getInstance();
+      final String? inventoryJson = prefs.getString('inventory');
+
+      if (inventoryJson != null) {
+        final List<dynamic> decoded = json.decode(inventoryJson);
+        _inventory = decoded.cast<Map<String, dynamic>>();
+      } else {
+        // Sample inventory data
+        _inventory = [
+          {'item': 'Coffee Beans', 'stock': 45, 'unit': 'kg', 'status': 'good', 'reorder': 30},
+          {'item': 'Milk', 'stock': 12, 'unit': 'L', 'status': 'warning', 'reorder': 20},
+          {'item': 'Sugar', 'stock': 8, 'unit': 'kg', 'status': 'critical', 'reorder': 15},
+          {'item': 'Pastry Dough', 'stock': 25, 'unit': 'kg', 'status': 'good', 'reorder': 20},
+          {'item': 'Cups (12oz)', 'stock': 200, 'unit': 'pcs', 'status': 'good', 'reorder': 500},
+          {'item': 'Napkins', 'stock': 80, 'unit': 'pcs', 'status': 'warning', 'reorder': 200},
+        ];
+        await _saveInventoryToStorage();
+      }
     } catch (e) {
-      debugPrint('Error loading inventory from Firebase: $e');
-      _inventory = [];
+      debugPrint('Error loading inventory: $e');
     }
   }
 
-  /// Load initial staff data from Firebase
+  /// Load initial staff data
   Future<void> _loadStaffData() async {
     try {
-      // Load from Firebase Firestore
-      final staffData = await _firestoreService.getStaffStream().first;
-      _staff = staffData;
-      notifyListeners();
+      final prefs = await SharedPreferences.getInstance();
+      final String? staffJson = prefs.getString('staff');
+
+      if (staffJson != null) {
+        final List<dynamic> decoded = json.decode(staffJson);
+        _staff = decoded.cast<Map<String, dynamic>>();
+      } else {
+        // Sample staff data
+        _staff = [
+          {'id': 1, 'name': 'Maria Santos', 'position': 'Manager', 'salary': 25000.0, 'status': 'Full-time', 'startDate': '2023-01'},
+          {'id': 2, 'name': 'Juan Dela Cruz', 'position': 'Barista', 'salary': 18000.0, 'status': 'Full-time', 'startDate': '2023-06'},
+          {'id': 3, 'name': 'Rosa Garcia', 'position': 'Cashier', 'salary': 16000.0, 'status': 'Full-time', 'startDate': '2023-09'},
+          {'id': 4, 'name': 'Pedro Lim', 'position': 'Barista', 'salary': 18000.0, 'status': 'Full-time', 'startDate': '2024-01'},
+          {'id': 5, 'name': 'Anna Wong', 'position': 'Part-time Staff', 'salary': 12000.0, 'status': 'Part-time', 'startDate': '2024-03'},
+        ];
+        await _saveStaffToStorage();
+      }
     } catch (e) {
-      debugPrint('Error loading staff from Firebase: $e');
-      _staff = [];
+      debugPrint('Error loading staff: $e');
     }
   }
 
-  /// Load initial data from Firebase
+  /// Load initial sample data matching Next.js initial state
   Future<void> _loadInitialData() async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      // Load from Firebase Firestore
-      final transactions = await _firestoreService.getTransactions();
-      _transactions = transactions;
+      // Try to load from SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final String? transactionsJson = prefs.getString('transactions');
+
+      if (transactionsJson != null) {
+        final List<dynamic> decoded = json.decode(transactionsJson);
+        _transactions = decoded.map((json) => Transaction.fromJson(json)).toList();
+      } else {
+        // Load sample data matching Next.js initial state
+        _transactions = [
+          Transaction(
+            id: 1,
+            date: DateTime.now().toIso8601String().split('T')[0],
+            type: TransactionType.revenue,
+            category: RevenueCategories.cash,
+            description: 'Cash sales',
+            amount: 450.0,
+            paymentMethod: 'Cash',
+            transactionNumber: 'TXN001',
+            receiptNumber: 'RCP001',
+          ),
+          Transaction(
+            id: 2,
+            date: DateTime.now().subtract(const Duration(days: 1)).toIso8601String().split('T')[0],
+            type: TransactionType.revenue,
+            category: RevenueCategories.gcash,
+            description: 'GCash payment',
+            amount: 280.0,
+            paymentMethod: 'GCash',
+            transactionNumber: 'TXN002',
+            receiptNumber: 'RCP002',
+          ),
+          Transaction(
+            id: 3,
+            date: DateTime.now().subtract(const Duration(days: 1)).toIso8601String().split('T')[0],
+            type: TransactionType.transaction,
+            category: TransactionCategories.supplies,
+            description: 'Coffee beans',
+            amount: 150.0,
+            paymentMethod: 'Cash',
+            transactionNumber: 'TXN003',
+            receiptNumber: 'RCP003',
+            supplierName: 'Coffee Supplier Inc.',
+            vat: 12,
+          ),
+        ];
+        await _saveToStorage();
+      }
     } catch (e) {
-      debugPrint('Error loading transactions from Firebase: $e');
-      _transactions = [];
+      debugPrint('Error loading transactions: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  /// Add transaction - saves to Firebase only
+  /// Add transaction (matching Next.js handleAddTransaction)
   Future<void> addTransaction(Transaction transaction) async {
-    try {
-      // Generate new ID
-      final int newId = _transactions.isEmpty
-          ? 1
-          : _transactions.map((t) => t.id).reduce((a, b) => a > b ? a : b) + 1;
+    // Generate new ID
+    final int newId = _transactions.isEmpty
+        ? 1
+        : _transactions.map((t) => t.id).reduce((a, b) => a > b ? a : b) + 1;
 
-      final newTransaction = transaction.copyWith(
-        id: newId,
-        date: DateTime.now().toIso8601String().split('T')[0],
-      );
+    final newTransaction = transaction.copyWith(
+      id: newId,
+      date: DateTime.now().toIso8601String().split('T')[0],
+    );
 
-      // Add to Firebase
-      final docId = await _firestoreService.addTransaction(newTransaction);
-      
-      // Update local list with Firebase ID
-      final transactionWithFirestoreId = newTransaction.copyWith(firestoreId: docId);
-      _transactions.insert(0, transactionWithFirestoreId);
-      
+    // Add to Firestore if enabled
+    if (_useFirestore) {
+      try {
+        await _firestoreService.addTransaction(newTransaction);
+        // Firestore listener will update local state
+      } catch (e) {
+        debugPrint('Error adding to Firestore: $e');
+        // Fall back to local-only
+        _transactions.insert(0, newTransaction);
+        notifyListeners();
+        await _saveToStorage();
+      }
+    } else {
+      // Add to beginning of list (matching Next.js behavior)
+      _transactions.insert(0, newTransaction);
       notifyListeners();
-      debugPrint('✅ Transaction added to Firebase: $docId');
+      await _saveToStorage();
+    }
+  }     ];
+        await _saveToStorage();
+      }
     } catch (e) {
-      debugPrint('❌ Failed to add transaction to Firebase: $e');
-      rethrow;
+      debugPrint('Error loading transactions: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
-  /// Delete transaction - deletes from Firebase only
+  /// Add transaction (matching Next.js handleAddTransaction)
+  Future<void> addTransaction(Transaction transaction) async {
+    // Generate new ID
+    final int newId = _transactions.isEmpty
+        ? 1
+        : _transactions.map((t) => t.id).reduce((a, b) => a > b ? a : b) + 1;
+
+    final newTransaction = transaction.copyWith(
+  /// Delete transaction
   Future<void> deleteTransaction(int id) async {
-    try {
-      // Find transaction before deleting
-      final transaction = _transactions.firstWhere((t) => t.id == id);
-      
-      if (transaction.firestoreId != null) {
-        await _firestoreService.deleteTransaction(transaction.firestoreId!);
+    if (_useFirestore) {
+      try {
+        // Find the transaction to get its Firestore document ID
+        final transaction = _transactions.firstWhere((t) => t.id == id);
+        if (transaction.firestoreId != null) {
+          await _firestoreService.deleteTransaction(transaction.firestoreId!);
+          // Firestore listener will update local state
+        }
+      } catch (e) {
+        debugPrint('Error deleting from Firestore: $e');
+        // Fall back to local-only
         _transactions.removeWhere((t) => t.id == id);
         notifyListeners();
-        debugPrint('✅ Transaction deleted from Firebase');
-      } else {
-        debugPrint('⚠️ Transaction has no Firebase ID, cannot delete');
+        await _saveToStorage();
       }
-    } catch (e) {
-      debugPrint('❌ Failed to delete transaction from Firebase: $e');
-      rethrow;
+    } else {
+      _transactions.removeWhere((t) => t.id == id);
+      notifyListeners();
+      await _saveToStorage();
     }
+  } _transactions.insert(0, newTransaction);
+    notifyListeners();
+
+    // Persist to storage
+    await _saveToStorage();
   }
 
-  /// Update transaction - updates in Firebase only
+  /// Delete transaction
+  Future<void> deleteTransaction(int id) async {
+    _transactions.removeWhere((t) => t.id == id);
+    notifyListeners();
+    await _saveToStorage();
+  }
+
+  /// Update transaction
   Future<void> updateTransaction(Transaction transaction) async {
-    try {
-      if (transaction.firestoreId != null) {
-        await _firestoreService.updateTransaction(transaction.firestoreId!, transaction);
-        
-        final index = _transactions.indexWhere((t) => t.id == transaction.id);
-        if (index != -1) {
-          _transactions[index] = transaction;
-          notifyListeners();
-        }
-        debugPrint('✅ Transaction updated in Firebase');
-      } else {
-        debugPrint('⚠️ Transaction has no Firebase ID, cannot update');
-      }
-    } catch (e) {
-      debugPrint('❌ Failed to update transaction in Firebase: $e');
-      rethrow;
+    final index = _transactions.indexWhere((t) => t.id == transaction.id);
+    if (index != -1) {
+      _transactions[index] = transaction;
+      notifyListeners();
+      await _saveToStorage();
     }
   }
 
-  /// Clear all transactions from Firebase
+  /// Clear all transactions
   Future<void> clearAll() async {
+    _transactions.clear();
+    notifyListeners();
+    await _saveToStorage();
+  }
+
+  /// Save transactions to SharedPreferences (localStorage equivalent)
+  Future<void> _saveToStorage() async {
     try {
-      await _firestoreService.clearAllData();
-      _transactions.clear();
-      _inventory.clear();
-      _staff.clear();
-      notifyListeners();
-      debugPrint('✅ All data cleared from Firebase');
+      final prefs = await SharedPreferences.getInstance();
+      final List<Map<String, dynamic>> jsonList =
+          _transactions.map((t) => t.toJson()).toList();
+      await prefs.setString('transactions', json.encode(jsonList));
     } catch (e) {
-      debugPrint('❌ Failed to clear Firebase data: $e');
-      rethrow;
+      debugPrint('Error saving transactions: $e');
     }
   }
 
-
-
-
-
-
-
-  /// Update inventory item in Firebase
-  Future<void> updateInventoryItem(String itemId, Map<String, dynamic> updates) async {
-    try {
-      await _firestoreService.updateInventoryItem(itemId, updates);
-      final index = _inventory.indexWhere((item) => item['id'] == itemId);
-      if (index != -1) {
-        _inventory[index] = {..._inventory[index], ...updates};
-        notifyListeners();
-      }
-      debugPrint('✅ Inventory item updated in Firebase');
-    } catch (e) {
-      debugPrint('❌ Failed to update inventory item: $e');
-      rethrow;
-    }
-  }
-
-  /// Add inventory item to Firebase
+  /// Save inventory to storage
+  /// Add inventory item
   Future<void> addInventoryItem(Map<String, dynamic> item) async {
-    try {
-      final docId = await _firestoreService.addInventoryItem(item);
-      _inventory.add({...item, 'id': docId});
-      notifyListeners();
-      debugPrint('✅ Inventory item added to Firebase');
-    } catch (e) {
-      debugPrint('❌ Failed to add inventory item: $e');
-      rethrow;
-    }
-  }
-
-  /// Update staff member in Firebase
-  Future<void> updateStaffMember(String staffId, Map<String, dynamic> updates) async {
-    try {
-      await _firestoreService.updateStaffMember(staffId, updates);
-      final index = _staff.indexWhere((member) => member['id'] == staffId);
-      if (index != -1) {
-        _staff[index] = {..._staff[index], ...updates};
+    if (_useFirestore) {
+      try {
+        await _firestoreService.addInventoryItem(item);
+        // Firestore listener will update local state
+      } catch (e) {
+        debugPrint('Error adding inventory to Firestore: $e');
+        _inventory.add(item);
         notifyListeners();
+        await _saveInventoryToStorage();
       }
-      debugPrint('✅ Staff member updated in Firebase');
-    } catch (e) {
-      debugPrint('❌ Failed to update staff member: $e');
-      rethrow;
+    } else {
+      _inventory.add(item);
+      notifyListeners();
+      await _saveInventoryToStorage();
+    }
+  }   debugPrint('Error saving inventory: $e');
     }
   }
 
-  /// Add staff member to Firebase
-  Future<void> addStaffMember(Map<String, dynamic> member) async {
+  /// Save staff to storage
+  Future<void> _saveStaffToStorage() async {
     try {
-      final docId = await _firestoreService.addStaffMember(member);
-      _staff.add({...member, 'id': docId});
-      notifyListeners();
-      debugPrint('✅ Staff member added to Firebase');
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('staff', json.encode(_staff));
     } catch (e) {
-      debugPrint('❌ Failed to add staff member: $e');
-      rethrow;
+      debugPrint('Error saving staff: $e');
     }
+  /// Add staff member
+  Future<void> addStaffMember(Map<String, dynamic> member) async {
+    final int newId = _staff.isEmpty
+        ? 1
+        : _staff.map((s) => s['id'] as int).reduce((a, b) => a > b ? a : b) + 1;
+    member['id'] = newId;
+    
+    if (_useFirestore) {
+      try {
+        await _firestoreService.addStaffMember(member);
+        // Firestore listener will update local state
+      } catch (e) {
+        debugPrint('Error adding staff to Firestore: $e');
+        _staff.add(member);
+        notifyListeners();
+        await _saveStaffToStorage();
+      }
+    } else {
+      _staff.add(member);
+      notifyListeners();
+      await _saveStaffToStorage();
+    }
+  }
+
+  /// Toggle Firestore sync
+  void setFirestoreSync(bool enabled) {
+    _useFirestore = enabled;
+    if (enabled) {
+      _setupFirestoreListeners();
+    }
+    notifyListeners();
+  } }
+  }
+
+  /// Add inventory item
+  Future<void> addInventoryItem(Map<String, dynamic> item) async {
+    _inventory.add(item);
+    notifyListeners();
+    await _saveInventoryToStorage();
+  }
+
+  /// Update staff member
+  Future<void> updateStaffMember(int id, Map<String, dynamic> updates) async {
+    final index = _staff.indexWhere((member) => member['id'] == id);
+    if (index != -1) {
+      _staff[index] = {..._staff[index], ...updates};
+      notifyListeners();
+      await _saveStaffToStorage();
+    }
+  }
+
+  /// Add staff member
+  Future<void> addStaffMember(Map<String, dynamic> member) async {
+    final int newId = _staff.isEmpty
+        ? 1
+        : _staff.map((s) => s['id'] as int).reduce((a, b) => a > b ? a : b) + 1;
+    member['id'] = newId;
+    _staff.add(member);
+    notifyListeners();
+    await _saveStaffToStorage();
   }
 
   /// Filter transactions by date range

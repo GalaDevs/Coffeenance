@@ -13,13 +13,14 @@ Transaction _$TransactionFromJson(Map<String, dynamic> json) => Transaction(
       category: json['category'] as String,
       description: json['description'] as String,
       amount: (json['amount'] as num).toDouble(),
-      paymentMethod: json['paymentMethod'] as String,
-      transactionNumber: json['transactionNumber'] as String,
-      receiptNumber: json['receiptNumber'] as String,
+      paymentMethod: json['paymentMethod'] as String? ?? '',
+      transactionNumber: json['transactionNumber'] as String? ?? '',
+      receiptNumber: json['receiptNumber'] as String? ?? '',
       tinNumber: json['tinNumber'] as String? ?? '',
       vat: (json['vat'] as num?)?.toInt() ?? 0,
       supplierName: json['supplierName'] as String? ?? '',
       supplierAddress: json['supplierAddress'] as String? ?? '',
+      firestoreId: json['firestoreId'] as String?,
     );
 
 Map<String, dynamic> _$TransactionToJson(Transaction instance) =>
@@ -42,4 +43,6 @@ Map<String, dynamic> _$TransactionToJson(Transaction instance) =>
 const _$TransactionTypeEnumMap = {
   TransactionType.revenue: 'revenue',
   TransactionType.transaction: 'transaction',
+  TransactionType.income: 'income',
+  TransactionType.expense: 'expense',
 };

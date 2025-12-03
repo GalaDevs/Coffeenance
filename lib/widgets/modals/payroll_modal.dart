@@ -525,7 +525,7 @@ class PayrollModal extends StatelessWidget {
                 final newSalary = double.tryParse(salaryController.text) ?? staff['salary'];
                 
                 provider.updateStaffMember(
-                  staff['id'] as int,
+                  staff['id'].toString(),
                   {
                     'name': nameController.text,
                     'position': positionController.text,
