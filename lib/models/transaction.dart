@@ -19,9 +19,6 @@ class Transaction {
   final int vat;
   final String supplierName;
   final String supplierAddress;
-  
-  @JsonKey(includeFromJson: true, includeToJson: false)
-  final String? firestoreId; // Firestore document ID (not persisted to Firestore)
 
   Transaction({
     required this.id,
@@ -37,7 +34,6 @@ class Transaction {
     this.vat = 0,
     this.supplierName = '',
     this.supplierAddress = '',
-    this.firestoreId,
   });
 
   factory Transaction.fromJson(Map<String, dynamic> json) =>
@@ -59,7 +55,6 @@ class Transaction {
     int? vat,
     String? supplierName,
     String? supplierAddress,
-    String? firestoreId,
   }) {
     return Transaction(
       id: id ?? this.id,
@@ -75,7 +70,6 @@ class Transaction {
       vat: vat ?? this.vat,
       supplierName: supplierName ?? this.supplierName,
       supplierAddress: supplierAddress ?? this.supplierAddress,
-      firestoreId: firestoreId ?? this.firestoreId,
     );
   }
 }

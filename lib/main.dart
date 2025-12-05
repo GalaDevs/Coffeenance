@@ -1,8 +1,5 @@
-// import 'package:flutter/foundation.dart' show kIsWeb; // Unused - commented out
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
 import 'providers/transaction_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/home_screen.dart';
@@ -10,11 +7,8 @@ import 'theme/app_theme.dart';
 
 /// Main entry point - Matches Next.js layout.tsx and page.tsx
 /// Provides state management and adaptive theming for iOS/Android/Web
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
   runApp(const CafenanceApp());
 }
 

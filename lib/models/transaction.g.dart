@@ -20,7 +20,6 @@ Transaction _$TransactionFromJson(Map<String, dynamic> json) => Transaction(
       vat: (json['vat'] as num?)?.toInt() ?? 0,
       supplierName: json['supplierName'] as String? ?? '',
       supplierAddress: json['supplierAddress'] as String? ?? '',
-      firestoreId: json['firestoreId'] as String?,
     );
 
 Map<String, dynamic> _$TransactionToJson(Transaction instance) =>
