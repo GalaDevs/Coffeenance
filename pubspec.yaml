@@ -16,6 +16,9 @@ dependencies:
   # Local Storage
   shared_preferences: ^2.3.2
   
+  # Supabase
+  supabase_flutter: ^2.8.0
+  
   # Networking (if needed for future API integration)
   http: ^1.2.2
   dio: ^5.7.0
@@ -40,10 +43,6 @@ dependencies:
   path_provider: ^2.1.1
   share_plus: ^7.2.1
   open_filex: ^4.5.0
-  firebase_core: ^4.2.1
-  firebase_auth: ^6.1.2
-  cloud_firestore: ^6.1.0
-  firebase_storage: ^13.0.4
 
 dev_dependencies:
   flutter_test:

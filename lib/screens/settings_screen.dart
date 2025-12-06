@@ -6,6 +6,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:open_filex/open_filex.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/theme_provider.dart';
+import 'supabase_test_screen.dart';
+import 'connection_debug_screen.dart';
 
 /// Settings Page Screen - Matches settings-page.tsx
 /// Shows app settings and preferences
@@ -72,6 +74,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Card(
             child: Column(
               children: [
+                ListTile(
+                  leading: Icon(
+                    Icons.bug_report,
+                    color: theme.colorScheme.primary,
+                  ),
+                  title: const Text('Connection Diagnostics'),
+                  subtitle: const Text('Detailed cloud connection testing'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ConnectionDebugScreen(),
+                      ),
+                    );
+                  },
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: Icon(
+                    Icons.cloud_done,
+                    color: theme.colorScheme.primary,
+                  ),
+                  title: const Text('Quick Connection Test'),
+                  subtitle: const Text('Simple cloud verification'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SupabaseTestScreen(),
+                      ),
+                    );
+                  },
+                ),
+                const Divider(height: 1),
                 ListTile(
                   leading: Icon(
                     Icons.file_download,

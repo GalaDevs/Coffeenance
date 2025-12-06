@@ -1,14 +1,22 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/transaction.dart';
+import '../services/supabase_service.dart';
 
 /// TransactionProvider manages all transaction state
-/// Replaces Next.js useState for transactions management
-/// Persists to local storage (SharedPreferences)
+/// Now syncs with Supabase for cloud storage with REALTIME updates
+/// Falls back to local storage (SharedPreferences) when offline
 class TransactionProvider with ChangeNotifier {
   List<Transaction> _transactions = [];
   bool _isLoading = false;
+  final SupabaseService _supabaseService = SupabaseService();
+  
+  // Realtime subscriptions
+  RealtimeChannel? _transactionsSubscription;
+  RealtimeChannel? _inventorySubscription;
+  RealtimeChannel? _staffSubscription;
   
   // Inventory management
   List<Map<String, dynamic>> _inventory = [];
@@ -108,60 +116,283 @@ class TransactionProvider with ChangeNotifier {
     _loadStaffData();
     _loadKPISettings();
     _loadTaxSettings();
+    _setupRealtimeSubscriptions();
   }
 
-  /// Load initial inventory data from local storage
+  /// Setup realtime subscriptions for live updates
+  void _setupRealtimeSubscriptions() {
+    try {
+      // Subscribe to transactions changes
+      _transactionsSubscription = _supabaseService.subscribeToTransactions(
+        onInsert: (payload) {
+          _handleRealtimeTransactionInsert(payload);
+        },
+        onUpdate: (payload) {
+          _handleRealtimeTransactionUpdate(payload);
+        },
+        onDelete: (payload) {
+          _handleRealtimeTransactionDelete(payload);
+        },
+      );
+
+      // Subscribe to inventory changes
+      _inventorySubscription = _supabaseService.subscribeToInventory(
+        onInsert: (payload) {
+          _handleRealtimeInventoryInsert(payload);
+        },
+        onUpdate: (payload) {
+          _handleRealtimeInventoryUpdate(payload);
+        },
+        onDelete: (payload) {
+          _handleRealtimeInventoryDelete(payload);
+        },
+      );
+
+      // Subscribe to staff changes
+      _staffSubscription = _supabaseService.subscribeToStaff(
+        onInsert: (payload) {
+          _handleRealtimeStaffInsert(payload);
+        },
+        onUpdate: (payload) {
+          _handleRealtimeStaffUpdate(payload);
+        },
+        onDelete: (payload) {
+          _handleRealtimeStaffDelete(payload);
+        },
+      );
+
+      debugPrint('🔔 Realtime subscriptions active');
+    } catch (e) {
+      debugPrint('⚠️ Failed to setup realtime subscriptions: $e');
+    }
+  }
+
+  /// Handle realtime transaction insert
+  void _handleRealtimeTransactionInsert(Map<String, dynamic> payload) {
+    try {
+      final transaction = Transaction.fromJson({
+        'id': payload['id'],
+        'date': payload['date'],
+        'type': payload['type'],
+        'category': payload['category'],
+        'description': payload['description'],
+        'amount': (payload['amount'] as num).toDouble(),
+        'paymentMethod': payload['payment_method'] ?? '',
+        'transactionNumber': payload['transaction_number'] ?? '',
+        'receiptNumber': payload['receipt_number'] ?? '',
+        'tinNumber': payload['tin_number'] ?? '',
+        'vat': payload['vat'] ?? 0,
+        'supplierName': payload['supplier_name'] ?? '',
+        'supplierAddress': payload['supplier_address'] ?? '',
+      });
+
+      // Check if already exists (prevent duplicates from our own inserts)
+      if (!_transactions.any((t) => t.id == transaction.id)) {
+        _transactions.insert(0, transaction);
+        _saveToStorage();
+        notifyListeners();
+        debugPrint('🔔 Realtime: New transaction added');
+      }
+    } catch (e) {
+      debugPrint('❌ Error handling realtime insert: $e');
+    }
+  }
+
+  /// Handle realtime transaction update
+  void _handleRealtimeTransactionUpdate(Map<String, dynamic> payload) {
+    try {
+      final transaction = Transaction.fromJson({
+        'id': payload['id'],
+        'date': payload['date'],
+        'type': payload['type'],
+        'category': payload['category'],
+        'description': payload['description'],
+        'amount': (payload['amount'] as num).toDouble(),
+        'paymentMethod': payload['payment_method'] ?? '',
+        'transactionNumber': payload['transaction_number'] ?? '',
+        'receiptNumber': payload['receipt_number'] ?? '',
+        'tinNumber': payload['tin_number'] ?? '',
+        'vat': payload['vat'] ?? 0,
+        'supplierName': payload['supplier_name'] ?? '',
+        'supplierAddress': payload['supplier_address'] ?? '',
+      });
+
+      final index = _transactions.indexWhere((t) => t.id == transaction.id);
+      if (index != -1) {
+        _transactions[index] = transaction;
+        _saveToStorage();
+        notifyListeners();
+        debugPrint('🔔 Realtime: Transaction updated');
+      }
+    } catch (e) {
+      debugPrint('❌ Error handling realtime update: $e');
+    }
+  }
+
+  /// Handle realtime transaction delete
+  void _handleRealtimeTransactionDelete(Map<String, dynamic> payload) {
+    try {
+      final id = payload['id'] as int;
+      _transactions.removeWhere((t) => t.id == id);
+      _saveToStorage();
+      notifyListeners();
+      debugPrint('🔔 Realtime: Transaction deleted');
+    } catch (e) {
+      debugPrint('❌ Error handling realtime delete: $e');
+    }
+  }
+
+  /// Handle realtime inventory insert
+  void _handleRealtimeInventoryInsert(Map<String, dynamic> payload) {
+    if (!_inventory.any((item) => item['id'] == payload['id'])) {
+      _inventory.insert(0, payload);
+      _saveInventoryToStorage();
+      notifyListeners();
+      debugPrint('🔔 Realtime: New inventory item added');
+    }
+  }
+
+  /// Handle realtime inventory update
+  void _handleRealtimeInventoryUpdate(Map<String, dynamic> payload) {
+    final index = _inventory.indexWhere((item) => item['id'] == payload['id']);
+    if (index != -1) {
+      _inventory[index] = payload;
+      _saveInventoryToStorage();
+      notifyListeners();
+      debugPrint('🔔 Realtime: Inventory item updated');
+    }
+  }
+
+  /// Handle realtime inventory delete
+  void _handleRealtimeInventoryDelete(Map<String, dynamic> payload) {
+    _inventory.removeWhere((item) => item['id'] == payload['id']);
+    _saveInventoryToStorage();
+    notifyListeners();
+    debugPrint('🔔 Realtime: Inventory item deleted');
+  }
+
+  /// Handle realtime staff insert
+  void _handleRealtimeStaffInsert(Map<String, dynamic> payload) {
+    if (!_staff.any((member) => member['id'] == payload['id'])) {
+      _staff.insert(0, payload);
+      _saveStaffToStorage();
+      notifyListeners();
+      debugPrint('🔔 Realtime: New staff member added');
+    }
+  }
+
+  /// Handle realtime staff update
+  void _handleRealtimeStaffUpdate(Map<String, dynamic> payload) {
+    final index = _staff.indexWhere((member) => member['id'] == payload['id']);
+    if (index != -1) {
+      _staff[index] = payload;
+      _saveStaffToStorage();
+      notifyListeners();
+      debugPrint('🔔 Realtime: Staff member updated');
+    }
+  }
+
+  /// Handle realtime staff delete
+  void _handleRealtimeStaffDelete(Map<String, dynamic> payload) {
+    _staff.removeWhere((member) => member['id'] == payload['id']);
+    _saveStaffToStorage();
+    notifyListeners();
+    debugPrint('🔔 Realtime: Staff member deleted');
+  }
+
+  @override
+  void dispose() {
+    // Clean up realtime subscriptions
+    _transactionsSubscription?.unsubscribe();
+    _inventorySubscription?.unsubscribe();
+    _staffSubscription?.unsubscribe();
+    debugPrint('🔌 Realtime subscriptions closed');
+    super.dispose();
+  }
+
+  /// Load initial inventory data - try Supabase first, then local storage
   Future<void> _loadInventoryData() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final String? inventoryJson = prefs.getString('inventory_data');
-      if (inventoryJson != null) {
-        _inventory = List<Map<String, dynamic>>.from(json.decode(inventoryJson));
-      } else {
+      // Try loading from Supabase first
+      _inventory = await _supabaseService.fetchInventory();
+      await _saveInventoryToStorage(); // Cache locally
+      notifyListeners();
+      debugPrint('✅ Loaded ${_inventory.length} inventory items from Supabase');
+    } catch (e) {
+      debugPrint('⚠️ Failed to load from Supabase, trying local storage: $e');
+      // Fall back to local storage
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final String? inventoryJson = prefs.getString('inventory_data');
+        if (inventoryJson != null) {
+          _inventory = List<Map<String, dynamic>>.from(json.decode(inventoryJson));
+        } else {
+          _inventory = [];
+        }
+        notifyListeners();
+      } catch (e) {
+        debugPrint('Error loading inventory from local storage: $e');
         _inventory = [];
       }
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Error loading inventory from local storage: $e');
-      _inventory = [];
     }
   }
 
-  /// Load initial staff data from local storage
+  /// Load initial staff data - try Supabase first, then local storage
   Future<void> _loadStaffData() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final String? staffJson = prefs.getString('staff_data');
-      if (staffJson != null) {
-        _staff = List<Map<String, dynamic>>.from(json.decode(staffJson));
-      } else {
+      // Try loading from Supabase first
+      _staff = await _supabaseService.fetchStaff();
+      await _saveStaffToStorage(); // Cache locally
+      notifyListeners();
+      debugPrint('✅ Loaded ${_staff.length} staff members from Supabase');
+    } catch (e) {
+      debugPrint('⚠️ Failed to load from Supabase, trying local storage: $e');
+      // Fall back to local storage
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final String? staffJson = prefs.getString('staff_data');
+        if (staffJson != null) {
+          _staff = List<Map<String, dynamic>>.from(json.decode(staffJson));
+        } else {
+          _staff = [];
+        }
+        notifyListeners();
+      } catch (e) {
+        debugPrint('Error loading staff from local storage: $e');
         _staff = [];
       }
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Error loading staff from local storage: $e');
-      _staff = [];
     }
   }
 
-  /// Load initial data from local storage
+  /// Load initial data - try Supabase first, then local storage
   Future<void> _loadInitialData() async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final String? transactionsJson = prefs.getString('transactions');
+      // Try loading from Supabase first
+      debugPrint('📥 Fetching transactions from Supabase cloud...');
+      _transactions = await _supabaseService.fetchTransactions();
+      await _saveToStorage(); // Cache locally
+      debugPrint('✅ SUCCESS: Loaded ${_transactions.length} transactions from CLOUD');
+    } catch (e) {
+      debugPrint('❌ CLOUD FETCH FAILED: $e');
+      debugPrint('⚠️ Loading from LOCAL storage instead');
+      // Fall back to local storage
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final String? transactionsJson = prefs.getString('transactions');
 
-      if (transactionsJson != null) {
-        final List<dynamic> decoded = json.decode(transactionsJson);
-        _transactions = decoded.map((t) => Transaction.fromJson(t)).toList();
-      } else {
+        if (transactionsJson != null) {
+          final List<dynamic> decoded = json.decode(transactionsJson);
+          _transactions = decoded.map((t) => Transaction.fromJson(t)).toList();
+        } else {
+          _transactions = [];
+        }
+      } catch (e) {
+        debugPrint('Error loading transactions from local storage: $e');
         _transactions = [];
       }
-    } catch (e) {
-      debugPrint('Error loading transactions from local storage: $e');
-      _transactions = [];
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -199,10 +430,20 @@ class TransactionProvider with ChangeNotifier {
     }
   }
 
-  /// Add transaction - saves to local storage only
+  /// Add transaction - saves to Supabase AND local storage
   Future<void> addTransaction(Transaction transaction) async {
     try {
-      // Generate new ID
+      // Save to Supabase first
+      debugPrint('💾 Attempting to save transaction to Supabase...');
+      final savedTransaction = await _supabaseService.addTransaction(transaction);
+      
+      // Don't add locally here - realtime subscription will handle it to prevent duplicates
+      debugPrint('✅ SUCCESS: Transaction saved to CLOUD (Supabase ID: ${savedTransaction.id})');
+      debugPrint('🔔 Waiting for realtime to sync...');
+    } catch (e) {
+      debugPrint('❌ CLOUD SAVE FAILED: $e');
+      debugPrint('⚠️ Falling back to LOCAL-ONLY storage');
+      // Fall back to local-only save
       final int newId = _transactions.isEmpty
           ? 1
           : _transactions.map((t) => t.id).reduce((a, b) => a > b ? a : b) + 1;
@@ -215,39 +456,48 @@ class TransactionProvider with ChangeNotifier {
       _transactions.insert(0, newTransaction);
       await _saveToStorage();
       notifyListeners();
-      debugPrint('✅ Transaction added to local storage');
-    } catch (e) {
-      debugPrint('❌ Failed to add transaction: $e');
-      rethrow;
+      debugPrint('✅ Transaction added to local storage only');
     }
   }
 
-  /// Delete transaction - deletes from local storage only
+  /// Delete transaction - deletes from Supabase AND local storage
   Future<void> deleteTransaction(int id) async {
     try {
+      // Delete from Supabase first
+      await _supabaseService.deleteTransaction(id);
+      
+      // Don't remove locally here - realtime subscription will handle it to prevent race conditions
+      debugPrint('✅ Transaction deleted from CLOUD (ID: $id)');
+      debugPrint('🔔 Waiting for realtime to sync...');
+    } catch (e) {
+      debugPrint('⚠️ Failed to delete from Supabase, deleting locally only: $e');
+      // Fall back to local-only delete
       _transactions.removeWhere((t) => t.id == id);
       await _saveToStorage();
       notifyListeners();
-      debugPrint('✅ Transaction deleted from local storage');
-    } catch (e) {
-      debugPrint('❌ Failed to delete transaction: $e');
-      rethrow;
+      debugPrint('✅ Transaction deleted from local storage only');
     }
   }
 
-  /// Update transaction - updates in local storage only
+  /// Update transaction - updates in Supabase AND local storage
   Future<void> updateTransaction(Transaction transaction) async {
     try {
+      // Update in Supabase first
+      await _supabaseService.updateTransaction(transaction);
+      
+      // Don't update locally here - realtime subscription will handle it
+      debugPrint('✅ Transaction updated in CLOUD (ID: ${transaction.id})');
+      debugPrint('🔔 Waiting for realtime to sync...');
+    } catch (e) {
+      debugPrint('⚠️ Failed to update in Supabase, updating locally only: $e');
+      // Fall back to local-only update
       final index = _transactions.indexWhere((t) => t.id == transaction.id);
       if (index != -1) {
         _transactions[index] = transaction;
         await _saveToStorage();
         notifyListeners();
-        debugPrint('✅ Transaction updated in local storage');
+        debugPrint('✅ Transaction updated in local storage only');
       }
-    } catch (e) {
-      debugPrint('❌ Failed to update transaction: $e');
-      rethrow;
     }
   }
 
@@ -500,5 +750,13 @@ class TransactionProvider with ChangeNotifier {
       final vat = calculateVAT(amount, vatRate: vatRate);
       return amount + vat;
     }
+  }
+
+  /// Refresh all data from Supabase
+  Future<void> refreshAllData() async {
+    await _loadInitialData();
+    await _loadInventoryData();
+    await _loadStaffData();
+    debugPrint('✅ All data refreshed from Supabase');
   }
 }
