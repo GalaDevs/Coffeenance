@@ -15,5 +15,5 @@ class SupabaseConfig {
   
   // ✅ Real anon key from Supabase dashboard
   // Get it from: https://supabase.com/dashboard/project/tpejvjznleoinsanrgut/settings/api
-  static const String supabaseAnonKey = 'sb_publishable_91ARAF5ONwbPSAdtqa7Emg_seW4F75r';
+  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRwZWp2anpubGVvaW5zYW5yZ3V0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5NTc2OTIsImV4cCI6MjA4MDUzMzY5Mn0.JW4-JjGmUZ29m0jPyHBccM-kjechpsu5FCirU4buF9U';
 }

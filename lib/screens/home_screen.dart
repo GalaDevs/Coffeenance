@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../screens/dashboard_screen.dart';
 import '../screens/revenue_screen.dart';
 import '../screens/transactions_screen.dart';
 import '../screens/settings_screen.dart';
 import '../widgets/transaction_modal.dart';
 import '../models/transaction.dart';
+import '../providers/auth_provider.dart';
+import '../models/user_profile.dart';
 
 /// Home Screen with Bottom Navigation
 /// Matches page.tsx with BottomNav component
@@ -21,20 +24,6 @@ class _HomeScreenState extends State<HomeScreen>
   late AnimationController _fabAnimationController;
   late Animation<double> _fabScaleAnimation;
 
-  final List<Widget> _screens = const [
-    DashboardScreen(),
-    RevenueScreen(),
-    TransactionsScreen(),
-    SettingsScreen(),
-  ];
-
-  final List<_NavItem> _navItems = const [
-    _NavItem(icon: Icons.dashboard_customize_rounded, label: 'Dashboard'),
-    _NavItem(icon: Icons.account_balance_wallet_rounded, label: 'Revenue'),
-    _NavItem(icon: Icons.swap_horiz_rounded, label: 'Transactions'),
-    _NavItem(icon: Icons.tune_rounded, label: 'Settings'),
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -48,6 +37,45 @@ class _HomeScreenState extends State<HomeScreen>
         curve: Curves.easeInOut,
       ),
     );
+  }
+
+  List<Widget> _getScreensForRole(UserRole? role) {
+    if (role == UserRole.staff) {
+      // Staff only sees Transactions
+      return const [
+        TransactionsScreen(),
+      ];
+    }
+    // Admin and Manager see all except Settings for Manager
+    return const [
+      DashboardScreen(),
+      RevenueScreen(),
+      TransactionsScreen(),
+      SettingsScreen(),
+    ];
+  }
+
+  List<_NavItem> _getNavItemsForRole(UserRole? role) {
+    if (role == UserRole.staff) {
+      // Staff only has Transactions tab
+      return const [
+        _NavItem(icon: Icons.swap_horiz_rounded, label: 'Transactions'),
+      ];
+    } else if (role == UserRole.manager) {
+      // Manager has all tabs except Settings
+      return const [
+        _NavItem(icon: Icons.dashboard_customize_rounded, label: 'Dashboard'),
+        _NavItem(icon: Icons.account_balance_wallet_rounded, label: 'Revenue'),
+        _NavItem(icon: Icons.swap_horiz_rounded, label: 'Transactions'),
+      ];
+    }
+    // Admin has all tabs
+    return const [
+      _NavItem(icon: Icons.dashboard_customize_rounded, label: 'Dashboard'),
+      _NavItem(icon: Icons.account_balance_wallet_rounded, label: 'Revenue'),
+      _NavItem(icon: Icons.swap_horiz_rounded, label: 'Transactions'),
+      _NavItem(icon: Icons.tune_rounded, label: 'Settings'),
+    ];
   }
 
   @override
@@ -83,12 +111,17 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final authProvider = context.watch<AuthProvider>();
+    final userRole = authProvider.userRole;
+    
+    final screens = _getScreensForRole(userRole);
+    final navItems = _getNavItemsForRole(userRole);
 
     return Scaffold(
       body: SafeArea(
         child: IndexedStack(
           index: _currentIndex,
-          children: _screens,
+          children: screens,
         ),
       ),
       floatingActionButton: Padding(
@@ -126,8 +159,8 @@ class _HomeScreenState extends State<HomeScreen>
         child: SafeArea(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(_navItems.length, (index) {
-              return _buildNavItem(index, theme);
+            children: List.generate(navItems.length, (index) {
+              return _buildNavItem(index, theme, navItems);
             }),
           ),
         ),
@@ -135,8 +168,8 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildNavItem(int index, ThemeData theme) {
-    final navItem = _navItems[index];
+  Widget _buildNavItem(int index, ThemeData theme, List<_NavItem> navItems) {
+    final navItem = navItems[index];
     final isSelected = _currentIndex == index;
 
     return InkWell(

@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
-import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_filex/open_filex.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/theme_provider.dart';
+import '../providers/auth_provider.dart';
+import '../models/user_profile.dart';
+import '../theme/app_theme.dart';
 import 'supabase_test_screen.dart';
 import 'connection_debug_screen.dart';
+import 'user_management_screen.dart';
 
 /// Settings Page Screen - Matches settings-page.tsx
 /// Shows app settings and preferences
@@ -24,6 +27,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final authProvider = Provider.of<AuthProvider>(context);
+    final currentUser = authProvider.currentUser;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.only(
@@ -35,19 +40,86 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
-          Text(
-            'Settings',
-            style: theme.textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Manage your preferences',
-            style: theme.textTheme.bodySmall,
+          // Header with User Info
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Settings',
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    if (currentUser != null)
+                      Text(
+                        '${currentUser.fullName} • ${currentUser.role.displayName}',
+                        style: theme.textTheme.bodySmall,
+                      )
+                    else
+                      Text(
+                        'Manage your preferences',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                  ],
+                ),
+              ),
+              if (currentUser != null)
+                CircleAvatar(
+                  backgroundColor: _getRoleColor(currentUser.role).withAlpha(51),
+                  child: Icon(
+                    _getRoleIcon(currentUser.role),
+                    color: _getRoleColor(currentUser.role),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 24),
+
+          // Account Section (for authenticated users)
+          if (currentUser != null) ...[
+            _buildSectionTitle('Account', theme),
+            Card(
+              child: Column(
+                children: [
+                  if (authProvider.canManageUsers) ...[
+                    ListTile(
+                      leading: Icon(
+                        Icons.people,
+                        color: theme.colorScheme.primary,
+                      ),
+                      title: const Text('User Management'),
+                      subtitle: const Text('Manage staff and manager accounts'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const UserManagementScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    const Divider(height: 1),
+                  ],
+                  ListTile(
+                    leading: Icon(
+                      Icons.logout,
+                      color: Colors.red,
+                    ),
+                    title: const Text('Sign Out'),
+                    subtitle: Text('Logged in as ${currentUser.email}'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _showLogoutDialog(context, authProvider),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
 
           // Appearance Section
           _buildSectionTitle('Appearance', theme),
@@ -227,6 +299,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Text(
         title,
         style: theme.textTheme.headlineMedium,
+      ),
+    );
+  }
+
+  Color _getRoleColor(UserRole role) {
+    switch (role) {
+      case UserRole.admin:
+        return AppColors.chart1;
+      case UserRole.manager:
+        return AppColors.chart2;
+      case UserRole.staff:
+        return AppColors.chart3;
+    }
+  }
+
+  IconData _getRoleIcon(UserRole role) {
+    switch (role) {
+      case UserRole.admin:
+        return Icons.admin_panel_settings;
+      case UserRole.manager:
+        return Icons.supervisor_account;
+      case UserRole.staff:
+        return Icons.person;
+    }
+  }
+
+  void _showLogoutDialog(BuildContext context, AuthProvider authProvider) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sign Out'),
+        content: const Text('Are you sure you want to sign out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await authProvider.signOut();
+              if (context.mounted) {
+                // Navigate to login screen and clear navigation stack
+                Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Sign Out'),
+          ),
+        ],
       ),
     );
   }
