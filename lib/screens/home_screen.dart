@@ -66,21 +66,23 @@ class _HomeScreenState extends State<HomeScreen>
 
   List<_NavItem> _getNavItemsForRole(UserRole? role) {
     if (role == UserRole.staff) {
-      // Staff has Dashboard, Revenue, and Transactions tabs
+      // Staff has Dashboard, Revenue, Transactions, and Logout
       return const [
         _NavItem(icon: Icons.dashboard_customize_rounded, label: 'Dashboard'),
         _NavItem(icon: Icons.account_balance_wallet_rounded, label: 'Revenue'),
         _NavItem(icon: Icons.swap_horiz_rounded, label: 'Transactions'),
+        _NavItem(icon: Icons.logout_rounded, label: 'Logout', isLogout: true),
       ];
     } else if (role == UserRole.manager) {
-      // Manager has all tabs except Settings
+      // Manager has Dashboard, Revenue, Transactions, and Logout
       return const [
         _NavItem(icon: Icons.dashboard_customize_rounded, label: 'Dashboard'),
         _NavItem(icon: Icons.account_balance_wallet_rounded, label: 'Revenue'),
         _NavItem(icon: Icons.swap_horiz_rounded, label: 'Transactions'),
+        _NavItem(icon: Icons.logout_rounded, label: 'Logout', isLogout: true),
       ];
     }
-    // Admin has all tabs
+    // Admin has all tabs including Settings
     return const [
       _NavItem(icon: Icons.dashboard_customize_rounded, label: 'Dashboard'),
       _NavItem(icon: Icons.account_balance_wallet_rounded, label: 'Revenue'),
@@ -99,6 +101,38 @@ class _HomeScreenState extends State<HomeScreen>
     setState(() {
       _currentIndex = index;
     });
+  }
+
+  Future<void> _handleLogout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final authProvider = context.read<AuthProvider>();
+      await authProvider.signOut();
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed('/login');
+      }
+    }
   }
 
   void _showTransactionModal() {
@@ -184,7 +218,7 @@ class _HomeScreenState extends State<HomeScreen>
     final isSelected = _currentIndex == index;
 
     return InkWell(
-      onTap: () => _onTabChanged(index),
+      onTap: navItem.isLogout ? _handleLogout : () => _onTabChanged(index),
       borderRadius: BorderRadius.circular(12),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -235,9 +269,11 @@ class _HomeScreenState extends State<HomeScreen>
 class _NavItem {
   final IconData icon;
   final String label;
+  final bool isLogout;
 
   const _NavItem({
     required this.icon,
     required this.label,
+    this.isLogout = false,
   });
 }

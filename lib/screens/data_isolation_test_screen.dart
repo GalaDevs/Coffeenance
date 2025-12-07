@@ -236,6 +236,21 @@ class _DataIsolationTestScreenState extends State<DataIsolationTestScreen> {
       _addLog('', emoji: '');
       _addLog('🔍 INSERT TEST:', emoji: '📝');
       _addLog('Inserting test transaction...', emoji: '📝');
+      
+      // Get user's admin_id for team-based access
+      final userProfile = await supabase
+          .from('user_profiles')
+          .select('role, admin_id')
+          .eq('id', user.id)
+          .single();
+      
+      final String adminId = userProfile['role'] == 'admin' 
+          ? user.id 
+          : (userProfile['admin_id'] ?? user.id);
+      
+      _addLog('User role: ${userProfile['role']}', emoji: '👤');
+      _addLog('Admin ID: $adminId', emoji: '🏢');
+      
       final insertResult = await supabase.from('transactions').insert({
         'description': '🧪 ISOLATION TEST - ${user.email}',
         'amount': 0.99,
@@ -250,6 +265,7 @@ class _DataIsolationTestScreenState extends State<DataIsolationTestScreen> {
         'supplier_name': '',
         'supplier_address': '',
         'owner_id': user.id,
+        'admin_id': adminId, // Required for team-based RLS
       }).select().single();
       
       final insertedId = insertResult['id'];

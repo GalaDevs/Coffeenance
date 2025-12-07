@@ -116,6 +116,7 @@ class _TransactionModalState extends State<TransactionModal>
   final TextEditingController _supplierNameController = TextEditingController();
   final TextEditingController _supplierAddressController = TextEditingController();
   final FocusNode _amountFocusNode = FocusNode();
+  final ScrollController _scrollController = ScrollController();
   int _vat = 0; // 0 or 12
   DateTime _selectedDate = DateTime.now();
 
@@ -153,6 +154,7 @@ class _TransactionModalState extends State<TransactionModal>
   void dispose() {
     _animationController.dispose();
     _amountFocusNode.dispose();
+    _scrollController.dispose();
     _descriptionController.dispose();
     _amountController.dispose();
     _paymentMethodController.dispose();
@@ -342,14 +344,87 @@ class _TransactionModalState extends State<TransactionModal>
     );
 
     context.read<TransactionProvider>().addTransaction(transaction);
-    Navigator.of(context).pop();
-
+    
+    // Reset all fields for next entry
+    setState(() {
+      _category = null;
+      _productType = null;
+      _descriptionController.clear();
+      _amountController.clear();
+      _paymentMethodController.clear();
+      _transactionNumberController.clear();
+      _receiptNumberController.clear();
+      _tinNumberController.clear();
+      _supplierNameController.clear();
+      _supplierAddressController.clear();
+      _vat = 0;
+      _selectedDate = DateTime.now();
+      _isCategoryDropdownOpen = false;
+      _isProductDropdownOpen = false;
+    });
+    
+    // Scroll to top of modal
+    _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+    
+    // Show first toast: "Transaction successful"
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Transaction added successfully'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        content: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.white),
+            SizedBox(width: 12),
+            Expanded(child: Text('Transaction successful')),
+          ],
+        ),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.only(
+          top: MediaQuery.of(context).padding.top + 16,
+          left: 16,
+          right: 16,
+          bottom: MediaQuery.of(context).size.height - 150,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        duration: const Duration(seconds: 2),
+        elevation: 20,
       ),
     );
+    
+    // Show second toast after first one: "Transaction added successfully"
+    Future.delayed(const Duration(milliseconds: 2100), () {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(child: Text('Transaction added successfully')),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.only(
+              top: MediaQuery.of(context).padding.top + 16,
+              left: 16,
+              right: 16,
+              bottom: MediaQuery.of(context).size.height - 150,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            duration: const Duration(seconds: 2),
+            elevation: 20,
+          ),
+        );
+      }
+    });
   }
 
   @override
@@ -378,6 +453,7 @@ class _TransactionModalState extends State<TransactionModal>
             ),
             child: SafeArea(
               child: SingleChildScrollView(
+                controller: _scrollController,
                 padding: EdgeInsets.only(
                   bottom: MediaQuery.of(context).viewInsets.bottom,
                 ),
@@ -431,96 +507,6 @@ class _TransactionModalState extends State<TransactionModal>
                               theme,
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Amount - Unique Design
-                    Text(
-                      'Amount (₱)',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            theme.colorScheme.primary.withValues(alpha: 0.05),
-                            theme.colorScheme.primary.withValues(alpha: 0.1),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: theme.colorScheme.primary.withValues(alpha: 0.3),
-                          width: 2,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(left: 20),
-                            child: Text(
-                              '₱',
-                              style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: theme.colorScheme.primary,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: TextField(
-                              controller: _amountController,
-                              focusNode: _amountFocusNode,
-                              keyboardType: const TextInputType.numberWithOptions(
-                                decimal: true,
-                              ),
-                              inputFormatters: [
-                                CurrencyInputFormatter(),
-                              ],
-                              decoration: InputDecoration(
-                                hintText: '0.00',
-                                hintStyle: TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                  borderSide: BorderSide.none,
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                  borderSide: BorderSide.none,
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                  borderSide: BorderSide.none,
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 18),
-                                filled: true,
-                                fillColor: Colors.transparent,
-                              ),
-                              style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: theme.colorScheme.primary,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 20),
                         ],
                       ),
                     ),
@@ -617,6 +603,96 @@ class _TransactionModalState extends State<TransactionModal>
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Amount - Unique Design
+                    Text(
+                      'Amount (₱)',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            theme.colorScheme.primary.withValues(alpha: 0.05),
+                            theme.colorScheme.primary.withValues(alpha: 0.1),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                          width: 2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(left: 20),
+                            child: Text(
+                              '₱',
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: _amountController,
+                              focusNode: _amountFocusNode,
+                              keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true,
+                              ),
+                              inputFormatters: [
+                                CurrencyInputFormatter(),
+                              ],
+                              decoration: InputDecoration(
+                                hintText: '0.00',
+                                hintStyle: TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                  color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide.none,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide.none,
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide.none,
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 18),
+                                filled: true,
+                                fillColor: Colors.transparent,
+                              ),
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 20),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 16),
 

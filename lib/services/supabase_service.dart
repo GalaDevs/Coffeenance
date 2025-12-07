@@ -17,6 +17,8 @@ class SupabaseService {
     required void Function(Map<String, dynamic> payload) onUpdate,
     required void Function(Map<String, dynamic> payload) onDelete,
   }) {
+    // RLS policies automatically filter realtime events
+    // Only transactions matching team_select_transactions policy will be received
     final channel = _client
         .channel('transactions_channel')
         .onPostgresChanges(
@@ -158,6 +160,22 @@ class SupabaseService {
         throw Exception('User must be authenticated to add transactions');
       }
       
+      // Get current user's admin_id for team-based isolation
+      final userProfile = await _client
+          .from('user_profiles')
+          .select('role, admin_id')
+          .eq('id', currentUserId)
+          .single();
+      
+      // Determine admin_id: if user is admin, use their own ID; otherwise use their admin_id
+      final String adminId = userProfile['role'] == 'admin' 
+          ? currentUserId 
+          : (userProfile['admin_id'] ?? currentUserId);
+      
+      print('📝 Adding transaction:');
+      print('   owner_id: $currentUserId');
+      print('   admin_id: $adminId');
+      
       final response = await _client.from('transactions').insert({
         'date': transaction.date,
         'type': transaction.type.toString().split('.').last,
@@ -171,7 +189,8 @@ class SupabaseService {
         'vat': transaction.vat,
         'supplier_name': transaction.supplierName,
         'supplier_address': transaction.supplierAddress,
-        'owner_id': currentUserId, // STRICT ISOLATION: Current user owns this record
+        'owner_id': currentUserId, // Current user owns this record
+        'admin_id': adminId, // Team-based isolation: links to admin
       }).select().single();
 
       print('✅ Transaction added to Supabase: ${response['id']}');
@@ -261,8 +280,24 @@ class SupabaseService {
         throw Exception('User must be authenticated to add inventory');
       }
       
-      // Ensure owner_id is set
-      final itemWithOwner = {...item, 'owner_id': currentUserId};
+      // Get current user's admin_id for team-based isolation
+      final userProfile = await _client
+          .from('user_profiles')
+          .select('role, admin_id')
+          .eq('id', currentUserId)
+          .single();
+      
+      // Determine admin_id: if user is admin, use their own ID; otherwise use their admin_id
+      final String adminId = userProfile['role'] == 'admin' 
+          ? currentUserId 
+          : (userProfile['admin_id'] ?? currentUserId);
+      
+      // Ensure owner_id and admin_id are set
+      final itemWithOwner = {
+        ...item,
+        'owner_id': currentUserId,
+        'admin_id': adminId,
+      };
       
       final response = await _client
           .from('inventory')
@@ -328,8 +363,24 @@ class SupabaseService {
         throw Exception('User must be authenticated to add staff');
       }
       
-      // Ensure owner_id is set
-      final staffWithOwner = {...staff, 'owner_id': currentUserId};
+      // Get current user's admin_id for team-based isolation
+      final userProfile = await _client
+          .from('user_profiles')
+          .select('role, admin_id')
+          .eq('id', currentUserId)
+          .single();
+      
+      // Determine admin_id: if user is admin, use their own ID; otherwise use their admin_id
+      final String adminId = userProfile['role'] == 'admin' 
+          ? currentUserId 
+          : (userProfile['admin_id'] ?? currentUserId);
+      
+      // Ensure owner_id and admin_id are set
+      final staffWithOwner = {
+        ...staff,
+        'owner_id': currentUserId,
+        'admin_id': adminId,
+      };
       
       final response = await _client
           .from('staff')

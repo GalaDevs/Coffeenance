@@ -99,16 +99,17 @@ class DashboardScreen extends StatelessWidget {
                             'Revenue Trends',
                             'revenue_trends',
                           ),
-                          _buildPopupMenuItem(
-                            Icons.inventory_2_rounded,
-                            'Inventory Status',
-                            'inventory',
-                          ),
-                          _buildPopupMenuItem(
-                            Icons.people_rounded,
-                            'Staff Payroll',
-                            'payroll',
-                          ),
+                          // Temporarily hidden - will be added later
+                          // _buildPopupMenuItem(
+                          //   Icons.inventory_2_rounded,
+                          //   'Inventory Status',
+                          //   'inventory',
+                          // ),
+                          // _buildPopupMenuItem(
+                          //   Icons.people_rounded,
+                          //   'Staff Payroll',
+                          //   'payroll',
+                          // ),
                           _buildPopupMenuItem(
                             Icons.dashboard_customize_rounded,
                             'KPI Dashboard',
@@ -126,17 +127,20 @@ class DashboardScreen extends StatelessWidget {
                               context: context,
                               builder: (context) => const RevenueTrendsModal(),
                             );
-                          } else if (value == 'inventory') {
-                            showDialog(
-                              context: context,
-                              builder: (context) => const InventoryModal(),
-                            );
-                          } else if (value == 'payroll') {
-                            showDialog(
-                              context: context,
-                              builder: (context) => const PayrollModal(),
-                            );
-                          } else if (value == 'kpi') {
+                          } 
+                          // Temporarily hidden features
+                          // else if (value == 'inventory') {
+                          //   showDialog(
+                          //     context: context,
+                          //     builder: (context) => const InventoryModal(),
+                          //   );
+                          // } else if (value == 'payroll') {
+                          //   showDialog(
+                          //     context: context,
+                          //     builder: (context) => const PayrollModal(),
+                          //   );
+                          // } 
+                          else if (value == 'kpi') {
                             showDialog(
                               context: context,
                               builder: (context) => const KPIDashboardModal(),

@@ -911,15 +911,236 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             ),
           ],
         ),
-        trailing: user.role != UserRole.admin && !isCurrentUser
-            ? IconButton(
-                icon: const Icon(Icons.delete_outline),
-                color: Colors.red,
-                onPressed: () => _showDeleteUserDialog(user),
-                tooltip: 'Delete user',
+        trailing: !isCurrentUser
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Login As button for staff/manager
+                  if (user.role != UserRole.admin)
+                    IconButton(
+                      icon: const Icon(Icons.login),
+                      color: AppColors.chart1,
+                      onPressed: () => _loginAsUser(user),
+                      tooltip: 'Login as ${user.fullName}',
+                    ),
+                  // Delete button
+                  if (user.role != UserRole.admin)
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      color: Colors.red,
+                      onPressed: () => _showDeleteUserDialog(user),
+                      tooltip: 'Delete user',
+                    ),
+                ],
               )
             : null,
       ),
     );
+  }
+
+  Future<void> _loginAsUser(UserProfile user) async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Login As User'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Login as ${user.fullName}?'),
+            const SizedBox(height: 8),
+            Text(
+              'Email: ${user.email}',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, size: 16, color: Colors.orange.shade700),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'You will be logged out and logged in as this user.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.orange.shade700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.chart1,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Login As'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Switching user...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      // Unfortunately, we can't log in as another user without their password
+      // We need to store the password when creating the user or use a different method
+      // For now, show an error message explaining this limitation
+      
+      Navigator.of(context).pop(); // Close loading dialog
+      
+      if (!mounted) return;
+      
+      // Show password input dialog
+      final passwordController = TextEditingController();
+      final passwordEntered = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Enter Password for ${user.fullName}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Enter the password you created for ${user.email}:',
+                style: const TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: passwordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Password',
+                  prefixIcon: Icon(Icons.lock_outline),
+                  border: OutlineInputBorder(),
+                ),
+                autofocus: true,
+                onSubmitted: (value) => Navigator.of(context).pop(value),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(passwordController.text),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.chart1,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Login'),
+            ),
+          ],
+        ),
+      );
+
+      if (passwordEntered == null || passwordEntered.isEmpty || !mounted) return;
+
+      // Show loading again
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Logging in...'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final authProvider = context.read<AuthProvider>();
+      
+      // Sign out current user
+      await authProvider.signOut();
+      
+      // Sign in as the selected user
+      final success = await authProvider.signIn(
+        email: user.email,
+        password: passwordEntered,
+      );
+
+      if (!mounted) return;
+      Navigator.of(context).pop(); // Close loading dialog
+
+      if (success) {
+        // Navigate back to home
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Logged in as ${user.fullName}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Invalid password for ${user.email}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop(); // Close any open dialogs
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

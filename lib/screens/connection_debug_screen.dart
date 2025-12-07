@@ -71,6 +71,20 @@ class _ConnectionDebugScreenState extends State<ConnectionDebugScreen> {
       if (currentUserId == null) {
         _addLog('⚠️ Skipping INSERT test - user not authenticated');
       } else {
+        // Get user's admin_id for team-based access
+        final userProfile = await supabase
+            .from('user_profiles')
+            .select('role, admin_id')
+            .eq('id', currentUserId)
+            .single();
+        
+        final String adminId = userProfile['role'] == 'admin' 
+            ? currentUserId 
+            : (userProfile['admin_id'] ?? currentUserId);
+        
+        _addLog('👤 User role: ${userProfile['role']}');
+        _addLog('🏢 Admin ID: $adminId');
+        
         final insertResponse = await supabase.from('transactions').insert({
           'date': DateTime.now().toIso8601String().split('T')[0],
           'type': 'revenue',
@@ -79,6 +93,7 @@ class _ConnectionDebugScreenState extends State<ConnectionDebugScreen> {
           'amount': 0.01,
           'payment_method': 'test',
           'owner_id': currentUserId, // Required for RLS
+          'admin_id': adminId, // Required for team-based RLS
         }).select().single();
         
         _addLog('✅ INSERT successful! ID: ${insertResponse['id']}');

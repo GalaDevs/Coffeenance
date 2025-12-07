@@ -254,21 +254,89 @@ class AuthService {
         return profile;
         
       } else {
-        // Normal admin creating user: Only create profile (auth user created manually)
-        const uuid = Uuid();
-        final newUserId = uuid.v4();
-        debugPrint('🆔 Generated UUID: $newUserId');
-        
-        debugPrint('📝 Creating user profile in database...');
-        debugPrint('📋 Data to insert:');
-        debugPrint('   - id: $newUserId');
+        // Normal admin creating user: Create BOTH auth user and profile using signUp
+        debugPrint('📝 ADMIN CREATING USER: Using signUp to create auth + profile...');
+        debugPrint('📋 Creating auth user:');
         debugPrint('   - email: $email');
         debugPrint('   - full_name: $fullName');
         debugPrint('   - role: ${role.name}');
         debugPrint('   - created_by: $createdByUserId');
         debugPrint('   - admin_id: ${assignedAdminId ?? "NULL"} (MULTI-TENANCY)');
         
-        final insertResponse = await _supabase!.from('user_profiles').insert({
+        String? newUserId;
+        
+        try {
+          // Try to create auth user using signUp
+          final authResponse = await _supabase!.auth.signUp(
+            email: email,
+            password: password,
+            data: {
+              'full_name': fullName,
+              'role': role.name,
+              'admin_id': assignedAdminId,  // Pass admin_id to trigger
+              'created_by': createdByUserId,  // Pass created_by to trigger
+            },
+            emailRedirectTo: null, // Disable email confirmation redirect
+          );
+
+          if (authResponse.user == null) {
+            throw Exception('Failed to create auth user - no user returned');
+          }
+
+          newUserId = authResponse.user!.id;
+          debugPrint('✅ Auth user created with ID: $newUserId');
+        } on AuthApiException catch (authError) {
+          // If user already exists in auth.users, check if profile exists
+          if (authError.code == 'user_already_exists' || authError.statusCode == 422) {
+            debugPrint('⚠️ Auth user already exists, checking for profile...');
+            
+            // Check if profile exists for this email
+            final existingProfile = await _supabase!
+                .from('user_profiles')
+                .select()
+                .eq('email', email)
+                .maybeSingle();
+            
+            if (existingProfile != null) {
+              // Profile exists - update it with new admin_id
+              debugPrint('📝 Profile exists, updating with new team info...');
+              final updateResponse = await _supabase!
+                  .from('user_profiles')
+                  .update({
+                    'full_name': fullName,
+                    'role': role.name,
+                    'admin_id': assignedAdminId,
+                    'created_by': createdByUserId,
+                    'is_active': true,
+                    'updated_at': DateTime.now().toIso8601String(),
+                  })
+                  .eq('email', email)
+                  .select();
+              
+              if (updateResponse == null || updateResponse.isEmpty) {
+                throw Exception('Failed to update existing profile');
+              }
+              
+              final profile = UserProfile.fromJson(updateResponse[0]);
+              debugPrint('✅ Existing user updated to team!');
+              debugPrint('   📧 Email: ${profile.email}');
+              debugPrint('   🎭 Role: ${profile.role}');
+              debugPrint('   🏢 Admin ID: ${assignedAdminId ?? "NULL"}');
+              
+              return profile;
+            } else {
+              // Auth exists but no profile - this shouldn't happen, but handle it
+              throw Exception('User exists in auth but missing profile. Please contact support.');
+            }
+          } else {
+            // Some other auth error
+            throw Exception('Auth error: ${authError.message}');
+          }
+        }
+
+        // Auth user created successfully, now create/update the profile
+        debugPrint('📝 Creating/updating user profile with team info...');
+        final upsertResponse = await _supabase!.from('user_profiles').upsert({
           'id': newUserId,
           'email': email,
           'full_name': fullName,
@@ -280,19 +348,17 @@ class AuthService {
           'updated_at': DateTime.now().toIso8601String(),
         }).select();
 
-        if (insertResponse == null || insertResponse.isEmpty) {
+        if (upsertResponse == null || upsertResponse.isEmpty) {
           throw Exception('Failed to create user profile - no data returned');
         }
         
-        final profile = UserProfile.fromJson(insertResponse[0]);
-        debugPrint('✅ User profile created: ${profile.email}, role: ${profile.role}');
-        debugPrint('ℹ️ IMPORTANT: User must be created in Supabase Auth Dashboard:');
-        debugPrint('   1. Go to: https://supabase.com/dashboard/project/tpejvjznleoinsanrgut/auth/users');
-        debugPrint('   2. Click "Add User"');
-        debugPrint('   3. Email: $email');
-        debugPrint('   4. Password: $password');
-        debugPrint('   5. User ID: $newUserId');
-        debugPrint('   6. Auto Confirm: YES');
+        final profile = UserProfile.fromJson(upsertResponse[0]);
+        debugPrint('✅ User created successfully!');
+        debugPrint('   📧 Email: ${profile.email}');
+        debugPrint('   🎭 Role: ${profile.role}');
+        debugPrint('   🆔 ID: ${profile.id}');
+        debugPrint('   🏢 Admin ID: ${assignedAdminId ?? "NULL (is admin)"}');
+        debugPrint('   ✅ User can now login with email: $email and password');
         
         return profile;
       }
