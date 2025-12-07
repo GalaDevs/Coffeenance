@@ -3,15 +3,22 @@ import 'package:provider/provider.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/user_profile.dart';
+import '../models/shop_settings.dart';
+import '../services/shop_settings_service.dart';
 import '../theme/app_theme.dart';
 import 'supabase_test_screen.dart';
 import 'connection_debug_screen.dart';
 import 'data_isolation_test_screen.dart';
 import 'user_management_screen.dart';
+import '../widgets/map_location_picker.dart';
 
 /// Settings Page Screen - Matches settings-page.tsx
 /// Shows app settings and preferences
@@ -23,6 +30,51 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  ShopSettings? _shopSettings;
+  bool _loadingSettings = true;
+  late ShopSettingsService _shopSettingsService;
+
+  @override
+  void initState() {
+    super.initState();
+    _shopSettingsService = ShopSettingsService(Supabase.instance.client);
+    _loadShopSettings();
+  }
+
+  Future<void> _loadShopSettings() async {
+    final authProvider = context.read<AuthProvider>();
+    final currentUser = authProvider.currentUser;
+    if (currentUser == null) {
+      setState(() => _loadingSettings = false);
+      return;
+    }
+
+    // Get admin ID (use current user's ID if admin, or their admin_id if staff/manager)
+    final adminId = currentUser.role == UserRole.admin
+        ? currentUser.id
+        : currentUser.adminId ?? currentUser.id;
+
+    try {
+      final settings = await _shopSettingsService.getShopSettings(adminId);
+      if (settings == null) {
+        // Initialize default settings if none exist
+        final newSettings =
+            await _shopSettingsService.initializeSettings(adminId);
+        setState(() {
+          _shopSettings = newSettings;
+          _loadingSettings = false;
+        });
+      } else {
+        setState(() {
+          _shopSettings = settings;
+          _loadingSettings = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading shop settings: $e');
+      setState(() => _loadingSettings = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -249,9 +301,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     color: theme.colorScheme.primary,
                   ),
                   title: const Text('Shop Name'),
-                  subtitle: const Text('CoffeeFlow Coffee Shop'),
+                  subtitle: Text(_loadingSettings
+                      ? 'Loading...'
+                      : _shopSettings?.shopName ?? 'CoffeeFlow Coffee Shop'),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _showComingSoon(context),
+                  onTap: () => _showEditShopNameDialog(context),
                 ),
                 const Divider(height: 1),
                 ListTile(
@@ -260,9 +314,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     color: theme.colorScheme.primary,
                   ),
                   title: const Text('Location'),
-                  subtitle: const Text('Not set'),
+                  subtitle: Text(_loadingSettings
+                      ? 'Loading...'
+                      : _shopSettings?.displayLocation ?? 'Not set'),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _showComingSoon(context),
+                  onTap: () => _showLocationOptions(context),
                 ),
                 const Divider(height: 1),
                 ListTile(
@@ -381,6 +437,400 @@ class _SettingsScreenState extends State<SettingsScreen> {
         content: Text('Feature coming soon'),
       ),
     );
+  }
+
+  void _showEditShopNameDialog(BuildContext context) {
+    final controller = TextEditingController(
+      text: _shopSettings?.shopName ?? 'CoffeeFlow Coffee Shop',
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Shop Name'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'Shop Name',
+            border: OutlineInputBorder(),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newName = controller.text.trim();
+              if (newName.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Shop name cannot be empty')),
+                );
+                return;
+              }
+
+              try {
+                final authProvider = context.read<AuthProvider>();
+                final currentUser = authProvider.currentUser;
+                if (currentUser == null) return;
+
+                final adminId = currentUser.role == UserRole.admin
+                    ? currentUser.id
+                    : currentUser.adminId ?? currentUser.id;
+
+                final updated = await _shopSettingsService.updateShopName(
+                  adminId: adminId,
+                  shopName: newName,
+                );
+
+                setState(() => _shopSettings = updated);
+
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Shop name updated successfully')),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: ${e.toString()}')),
+                  );
+                }
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLocationOptions(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Update Location'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.location_searching),
+              title: const Text('Pick on Map'),
+              subtitle: const Text('Select location with map pin'),
+              onTap: () {
+                Navigator.pop(context);
+                _showMapPicker(context);
+              },
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.my_location),
+              title: const Text('Use Current Location'),
+              subtitle: const Text('Get GPS coordinates'),
+              onTap: () {
+                Navigator.pop(context);
+                _getCurrentLocation(context);
+              },
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.edit_location),
+              title: const Text('Enter Address'),
+              subtitle: const Text('Type location manually'),
+              onTap: () {
+                Navigator.pop(context);
+                _showEnterAddressDialog(context);
+              },
+            ),
+            if (_shopSettings?.hasLocation == true) ...[
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.map),
+                title: const Text('Open in Maps'),
+                subtitle: const Text('View on map app'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _openInMaps();
+                },
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showMapPicker(BuildContext context) async {
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MapLocationPicker(
+          initialLatitude: _shopSettings?.locationLatitude,
+          initialLongitude: _shopSettings?.locationLongitude,
+          initialAddress: _shopSettings?.locationAddress,
+        ),
+      ),
+    );
+
+    if (result != null && context.mounted) {
+      try {
+        final authProvider = context.read<AuthProvider>();
+        final currentUser = authProvider.currentUser;
+        if (currentUser == null) return;
+
+        final adminId = currentUser.role == UserRole.admin
+            ? currentUser.id
+            : currentUser.adminId ?? currentUser.id;
+
+        final updated = await _shopSettingsService.updateLocation(
+          adminId: adminId,
+          locationAddress: result['address'] as String?,
+          locationLatitude: result['latitude'] as double?,
+          locationLongitude: result['longitude'] as double?,
+        );
+
+        setState(() => _shopSettings = updated);
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Location updated successfully')),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error updating location: ${e.toString()}')),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _getCurrentLocation(BuildContext context) async {
+    try {
+      // Check if location services are enabled
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Location services are disabled. Please enable them in settings.')),
+          );
+        }
+        return;
+      }
+
+      // Check location permissions
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Location permissions are denied')),
+            );
+          }
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Location permissions are permanently denied. Please enable them in settings.')),
+          );
+        }
+        return;
+      }
+
+      // Show loading
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Getting current location...'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+
+      // Get current position
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      // Try to get address from coordinates
+      String? address;
+      try {
+        List<Placemark> placemarks = await placemarkFromCoordinates(
+          position.latitude,
+          position.longitude,
+        );
+        if (placemarks.isNotEmpty) {
+          final place = placemarks.first;
+          address = [place.street, place.locality, place.country]
+              .where((e) => e != null && e.isNotEmpty)
+              .join(', ');
+        }
+      } catch (e) {
+        print('Error getting address: $e');
+      }
+
+      // Update location in database
+      final authProvider = context.read<AuthProvider>();
+      final currentUser = authProvider.currentUser;
+      if (currentUser == null) return;
+
+      final adminId = currentUser.role == UserRole.admin
+          ? currentUser.id
+          : currentUser.adminId ?? currentUser.id;
+
+      final updated = await _shopSettingsService.updateLocation(
+        adminId: adminId,
+        locationAddress: address,
+        locationLatitude: position.latitude,
+        locationLongitude: position.longitude,
+      );
+
+      setState(() => _shopSettings = updated);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Location updated successfully')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error getting location: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  void _showEnterAddressDialog(BuildContext context) {
+    final controller = TextEditingController(
+      text: _shopSettings?.locationAddress ?? '',
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Enter Address'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'Address',
+            border: OutlineInputBorder(),
+            hintText: 'Street, City, Country',
+          ),
+          maxLines: 3,
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final address = controller.text.trim();
+              if (address.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Address cannot be empty')),
+                );
+                return;
+              }
+
+              try {
+                // Try to geocode the address to get coordinates
+                double? latitude;
+                double? longitude;
+                try {
+                  List<Location> locations =
+                      await locationFromAddress(address);
+                  if (locations.isNotEmpty) {
+                    latitude = locations.first.latitude;
+                    longitude = locations.first.longitude;
+                  }
+                } catch (e) {
+                  print('Could not geocode address: $e');
+                }
+
+                final authProvider = context.read<AuthProvider>();
+                final currentUser = authProvider.currentUser;
+                if (currentUser == null) return;
+
+                final adminId = currentUser.role == UserRole.admin
+                    ? currentUser.id
+                    : currentUser.adminId ?? currentUser.id;
+
+                final updated = await _shopSettingsService.updateLocation(
+                  adminId: adminId,
+                  locationAddress: address,
+                  locationLatitude: latitude,
+                  locationLongitude: longitude,
+                );
+
+                setState(() => _shopSettings = updated);
+
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Address updated successfully')),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: ${e.toString()}')),
+                  );
+                }
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openInMaps() async {
+    if (_shopSettings?.hasLocation != true) return;
+
+    final lat = _shopSettings!.locationLatitude!;
+    final lng = _shopSettings!.locationLongitude!;
+
+    // Try different map URLs
+    final urls = [
+      'https://maps.apple.com/?q=$lat,$lng', // Apple Maps
+      'https://www.google.com/maps/search/?api=1&query=$lat,$lng', // Google Maps
+    ];
+
+    for (final urlString in urls) {
+      final uri = Uri.parse(urlString);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        return;
+      }
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open maps application')),
+      );
+    }
   }
 
   void _showTaxSettings(BuildContext context) {

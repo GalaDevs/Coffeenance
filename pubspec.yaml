@@ -44,6 +44,13 @@ dependencies:
   path_provider: ^2.1.1
   share_plus: ^7.2.1
   open_filex: ^4.5.0
+  
+  # Location & Maps
+  geolocator: ^13.0.2
+  geocoding: ^3.0.0
+  url_launcher: ^6.3.1
+  permission_handler: ^11.3.1
+  google_maps_flutter: ^2.5.0
 
 dev_dependencies:
   flutter_test:
