@@ -59,4 +59,3 @@ echo ""
 
 # Run the app
 flutter run
-

@@ -76,15 +76,15 @@ class CafenanceApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => TransactionProvider()),
       ],
-      child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, child) {
+      child: Consumer2<ThemeProvider, AuthProvider>(
+        builder: (context, themeProvider, authProvider, child) {
           return MaterialApp(
             title: 'Coffeenance - Coffee Shop Tracker',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: themeProvider.themeMode,
-            home: const _AuthGate(),
+            home: _buildHome(authProvider),
             builder: (context, widget) {
               // Add error boundary
               ErrorWidget.builder = (FlutterErrorDetails details) {
@@ -112,47 +112,10 @@ class CafenanceApp extends StatelessWidget {
       ),
     );
   }
-}
 
-/// Auth Gate - Shows initial screen based on auth state AT STARTUP ONLY
-/// After initial load, all navigation is handled MANUALLY to prevent reactive loops
-class _AuthGate extends StatefulWidget {
-  const _AuthGate({super.key});
-  
-  @override
-  State<_AuthGate> createState() => _AuthGateState();
-}
-
-class _AuthGateState extends State<_AuthGate> {
-  bool _checkedInitialAuth = false;
-  bool _isAuthenticated = false;
-  
-  @override
-  void initState() {
-    super.initState();
-    _checkInitialAuth();
-  }
-  
-  Future<void> _checkInitialAuth() async {
-    final authProvider = context.read<AuthProvider>();
-    
-    // Wait a bit for auth to initialize
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    if (mounted) {
-      setState(() {
-        _isAuthenticated = authProvider.isAuthenticated && authProvider.currentUser != null;
-        _checkedInitialAuth = true;
-      });
-      
-      debugPrint('AuthGate: Initial auth check complete. Authenticated: $_isAuthenticated');
-    }
-  }
-  
-  @override
-  Widget build(BuildContext context) {
-    // Show loading while checking initial auth
-    if (!_checkedInitialAuth) {
+  Widget _buildHome(AuthProvider authProvider) {
+    // Show loading while checking auth
+    if (authProvider.isLoading) {
       return const Scaffold(
         body: Center(
           child: CircularProgressIndicator(),
@@ -160,13 +123,13 @@ class _AuthGateState extends State<_AuthGate> {
       );
     }
 
-    // Show appropriate screen based on initial auth check
-    // This widget will NOT rebuild when auth state changes - navigation is manual!
-    if (_isAuthenticated) {
-      debugPrint('AuthGate: Showing HomeScreen (user was authenticated on startup)');
+    // If authenticated, show home screen
+    // Otherwise, show login screen
+    if (authProvider.isAuthenticated && authProvider.currentUser != null) {
+      debugPrint('✅ User authenticated: ${authProvider.currentUser?.email}, showing HomeScreen');
       return const HomeScreen();
     } else {
-      debugPrint('AuthGate: Showing LoginScreen (no user on startup)');
+      debugPrint('❌ No user authenticated, showing LoginScreen');
       return const LoginScreen();
     }
   }

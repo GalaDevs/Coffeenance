@@ -117,6 +117,74 @@ class TransactionProvider with ChangeNotifier {
     _loadKPISettings();
     _loadTaxSettings();
     _setupRealtimeSubscriptions();
+    _setupAuthListener();
+  }
+
+  /// CRITICAL: Listen to auth state changes to clear cache on user switch
+  void _setupAuthListener() {
+    Supabase.instance.client.auth.onAuthStateChange.listen((authState) {
+      if (authState.event == AuthChangeEvent.signedIn) {
+        debugPrint('🔐 TransactionProvider: User signed in - force reloading data');
+        // Force fresh data load on sign in
+        forceReloadAllData();
+      } else if (authState.event == AuthChangeEvent.signedOut) {
+        debugPrint('🔐 TransactionProvider: User signed out - clearing data');
+        // Clear all data on sign out
+        clearAllLocalData();
+      }
+    });
+  }
+
+  /// Clear ALL local storage - CRITICAL for user switching
+  Future<void> clearAllLocalData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('transactions_data');
+      await prefs.remove('inventory_data');
+      await prefs.remove('staff_data');
+      await prefs.remove('kpi_settings');
+      await prefs.remove('tax_settings');
+      
+      _transactions = [];
+      _inventory = [];
+      _staff = [];
+      _kpiSettings = {};
+      _taxSettings = {};
+      
+      notifyListeners();
+      debugPrint('🗑️ ALL local storage cleared - ready for new user');
+    } catch (e) {
+      debugPrint('Error clearing local storage: $e');
+    }
+  }
+
+  /// Reload all data from Supabase (ignoring cache) - for user switching
+  Future<void> forceReloadAllData() async {
+    debugPrint('🔄 FORCE RELOAD: Fetching fresh data for current user');
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      // Fetch fresh data from Supabase
+      _transactions = await _supabaseService.fetchTransactions();
+      _inventory = await _supabaseService.fetchInventory();
+      _staff = await _supabaseService.fetchStaff();
+      
+      // Save to local storage
+      await _saveToStorage();
+      await _saveInventoryToStorage();
+      await _saveStaffToStorage();
+      
+      debugPrint('✅ RELOAD COMPLETE:');
+      debugPrint('   Transactions: ${_transactions.length}');
+      debugPrint('   Inventory: ${_inventory.length}');
+      debugPrint('   Staff: ${_staff.length}');
+    } catch (e) {
+      debugPrint('❌ Force reload failed: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   /// Setup realtime subscriptions for live updates

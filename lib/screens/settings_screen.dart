@@ -10,6 +10,7 @@ import '../models/user_profile.dart';
 import '../theme/app_theme.dart';
 import 'supabase_test_screen.dart';
 import 'connection_debug_screen.dart';
+import 'data_isolation_test_screen.dart';
 import 'user_management_screen.dart';
 
 /// Settings Page Screen - Matches settings-page.tsx
@@ -146,6 +147,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Card(
             child: Column(
               children: [
+                ListTile(
+                  leading: Icon(
+                    Icons.security,
+                    color: theme.colorScheme.primary,
+                  ),
+                  title: const Text('Data Isolation Test'),
+                  subtitle: const Text('Verify user data separation'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const DataIsolationTestScreen(),
+                      ),
+                    );
+                  },
+                ),
+                const Divider(height: 1),
                 ListTile(
                   leading: Icon(
                     Icons.bug_report,

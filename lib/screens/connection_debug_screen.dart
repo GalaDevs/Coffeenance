@@ -65,25 +65,34 @@ class _ConnectionDebugScreenState extends State<ConnectionDebugScreen> {
       
       // Test 5: Try to insert a test transaction
       _addLog('💾 Testing INSERT operation...');
-      final insertResponse = await supabase.from('transactions').insert({
-        'date': DateTime.now().toIso8601String().split('T')[0],
-        'type': 'revenue',
-        'category': 'Cash',
-        'description': 'CONNECTION TEST - DELETE ME',
-        'amount': 0.01,
-        'payment_method': 'test',
-      }).select().single();
       
-      _addLog('✅ INSERT successful! ID: ${insertResponse['id']}');
+      // Get current user ID for owner_id
+      final currentUserId = supabase.auth.currentUser?.id;
+      if (currentUserId == null) {
+        _addLog('⚠️ Skipping INSERT test - user not authenticated');
+      } else {
+        final insertResponse = await supabase.from('transactions').insert({
+          'date': DateTime.now().toIso8601String().split('T')[0],
+          'type': 'revenue',
+          'category': 'Cash',
+          'description': 'CONNECTION TEST - DELETE ME',
+          'amount': 0.01,
+          'payment_method': 'test',
+          'owner_id': currentUserId, // Required for RLS
+        }).select().single();
+        
+        _addLog('✅ INSERT successful! ID: ${insertResponse['id']}');
+        
+        // Test 6: Delete the test transaction
+        _addLog('🗑️ Cleaning up test data...');
+        await supabase
+            .from('transactions')
+            .delete()
+            .eq('id', insertResponse['id']);
+        
+        _addLog('✅ DELETE successful!');
+      }
       
-      // Test 6: Delete the test transaction
-      _addLog('🗑️ Cleaning up test data...');
-      await supabase
-          .from('transactions')
-          .delete()
-          .eq('id', insertResponse['id']);
-      
-      _addLog('✅ DELETE successful!');
       _addLog('');
       _addLog('🎉 ALL TESTS PASSED! Cloud connection working!');
       

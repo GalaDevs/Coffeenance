@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_profile.dart';
 import '../services/auth_service.dart';
@@ -167,8 +169,16 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      debugPrint('🔓 SIGNING OUT - Clearing local storage...');
+      
+      // CRITICAL: Clear ALL cached data before signing out
+      // This prevents the next user from seeing cached data
+      await _clearAllLocalStorage();
+      
       await _authService.signOut();
       _currentUser = null;
+      
+      debugPrint('✅ Sign out complete - all data cleared');
     } catch (e) {
       _error = e.toString();
       debugPrint('Sign out error: $e');
@@ -178,14 +188,34 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Create new user (Admin only)
+  /// Clear all local storage (SharedPreferences)
+  Future<void> _clearAllLocalStorage() async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      
+      // Clear all transaction-related data
+      await prefs.remove('transactions_data');
+      await prefs.remove('inventory_data');
+      await prefs.remove('staff_data');
+      await prefs.remove('kpi_settings');
+      await prefs.remove('tax_settings');
+      
+      debugPrint('🗑️ Local storage cleared');
+    } catch (e) {
+      debugPrint('❌ Error clearing local storage: $e');
+    }
+  }
+
+  /// Create new user (Admin only, OR registration for admin accounts)
   Future<UserProfile?> createUser({
     required String email,
     required String password,
     required String fullName,
     required UserRole role,
+    bool isRegistration = false, // Allow registration without being logged in
   }) async {
-    if (_currentUser?.role != UserRole.admin) {
+    // Allow registration for admin accounts OR require admin privileges
+    if (!isRegistration && _currentUser?.role != UserRole.admin) {
       _error = 'Only admins can create users';
       notifyListeners();
       return null;
@@ -196,18 +226,32 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      debugPrint('🔐 AuthProvider: Starting user creation with 10s timeout...');
       final newUser = await _authService.createUser(
         email: email,
         password: password,
         fullName: fullName,
         role: role,
-        createdByUserId: _currentUser!.id,
+        createdByUserId: isRegistration ? '' : _currentUser!.id,
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw TimeoutException('User creation timed out after 10 seconds');
+        },
       );
 
+      debugPrint('✅ AuthProvider: User created successfully');
       _isLoading = false;
       notifyListeners();
       return newUser;
+    } on TimeoutException catch (e) {
+      debugPrint('⏱️ AuthProvider: Timeout - $e');
+      _error = 'Request timed out. Please check your connection.';
+      _isLoading = false;
+      notifyListeners();
+      return null;
     } catch (e) {
+      debugPrint('❌ AuthProvider: Error creating user - $e');
       _error = e.toString();
       _isLoading = false;
       notifyListeners();
@@ -218,13 +262,24 @@ class AuthProvider extends ChangeNotifier {
   /// Get all users (Admin only)
   Future<List<UserProfile>> getAllUsers() async {
     if (_currentUser?.role != UserRole.admin) {
+      debugPrint('⚠️ getAllUsers: User is not admin, returning empty list');
       return [];
     }
 
+    _isLoading = true;
+    notifyListeners();
+
     try {
-      return await _authService.getAllUsers();
+      debugPrint('📋 getAllUsers: Fetching all users...');
+      final users = await _authService.getAllUsers();
+      debugPrint('✅ getAllUsers: Successfully fetched ${users.length} users');
+      _isLoading = false;
+      notifyListeners();
+      return users;
     } catch (e) {
+      debugPrint('❌ getAllUsers: Error fetching users: $e');
       _error = e.toString();
+      _isLoading = false;
       notifyListeners();
       return [];
     }
@@ -265,8 +320,12 @@ class AuthProvider extends ChangeNotifier {
     }
 
     try {
-      await _authService.deleteUser(userId);
-      return true;
+      final success = await _authService.deleteUser(userId);
+      if (!success) {
+        _error = _authService.error ?? 'Failed to delete user';
+        notifyListeners();
+      }
+      return success;
     } catch (e) {
       _error = e.toString();
       notifyListeners();

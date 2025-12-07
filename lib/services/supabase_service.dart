@@ -151,6 +151,13 @@ class SupabaseService {
   /// Add a transaction to Supabase
   Future<Transaction> addTransaction(Transaction transaction) async {
     try {
+      // Get current user's ID for owner-based isolation
+      final currentUserId = _client.auth.currentUser?.id;
+      
+      if (currentUserId == null) {
+        throw Exception('User must be authenticated to add transactions');
+      }
+      
       final response = await _client.from('transactions').insert({
         'date': transaction.date,
         'type': transaction.type.toString().split('.').last,
@@ -164,6 +171,7 @@ class SupabaseService {
         'vat': transaction.vat,
         'supplier_name': transaction.supplierName,
         'supplier_address': transaction.supplierAddress,
+        'owner_id': currentUserId, // STRICT ISOLATION: Current user owns this record
       }).select().single();
 
       print('✅ Transaction added to Supabase: ${response['id']}');
@@ -247,9 +255,18 @@ class SupabaseService {
   /// Add an inventory item to Supabase
   Future<Map<String, dynamic>> addInventoryItem(Map<String, dynamic> item) async {
     try {
+      final currentUserId = _client.auth.currentUser?.id;
+      
+      if (currentUserId == null) {
+        throw Exception('User must be authenticated to add inventory');
+      }
+      
+      // Ensure owner_id is set
+      final itemWithOwner = {...item, 'owner_id': currentUserId};
+      
       final response = await _client
           .from('inventory')
-          .insert(item)
+          .insert(itemWithOwner)
           .select()
           .single();
       
@@ -305,9 +322,18 @@ class SupabaseService {
   /// Add a staff member to Supabase
   Future<Map<String, dynamic>> addStaffMember(Map<String, dynamic> staff) async {
     try {
+      final currentUserId = _client.auth.currentUser?.id;
+      
+      if (currentUserId == null) {
+        throw Exception('User must be authenticated to add staff');
+      }
+      
+      // Ensure owner_id is set
+      final staffWithOwner = {...staff, 'owner_id': currentUserId};
+      
       final response = await _client
           .from('staff')
-          .insert(staff)
+          .insert(staffWithOwner)
           .select()
           .single();
       
@@ -364,10 +390,17 @@ class SupabaseService {
   /// Save KPI settings to Supabase
   Future<void> saveKPISettings(Map<String, dynamic> settings) async {
     try {
+      final currentUserId = _client.auth.currentUser?.id;
+      
+      if (currentUserId == null) {
+        throw Exception('User must be authenticated to save settings');
+      }
+      
       for (var entry in settings.entries) {
         await _client.from('kpi_settings').upsert({
           'setting_key': entry.key,
           'setting_value': entry.value,
+          'owner_id': currentUserId, // Ensure owner_id is always set
         }, onConflict: 'setting_key');
       }
       print('✅ KPI settings saved to Supabase');
@@ -400,10 +433,17 @@ class SupabaseService {
   /// Save tax settings to Supabase
   Future<void> saveTaxSettings(Map<String, dynamic> settings) async {
     try {
+      final currentUserId = _client.auth.currentUser?.id;
+      
+      if (currentUserId == null) {
+        throw Exception('User must be authenticated to save settings');
+      }
+      
       for (var entry in settings.entries) {
         await _client.from('tax_settings').upsert({
           'setting_key': entry.key,
           'setting_value': entry.value,
+          'owner_id': currentUserId, // Ensure owner_id is always set
         }, onConflict: 'setting_key');
       }
       print('✅ Tax settings saved to Supabase');

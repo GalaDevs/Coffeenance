@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/auth_provider.dart';
 import '../models/user_profile.dart';
 import '../theme/app_theme.dart';
@@ -16,21 +17,151 @@ class UserManagementScreen extends StatefulWidget {
 class _UserManagementScreenState extends State<UserManagementScreen> {
   List<UserProfile> _users = [];
   bool _isLoading = true;
+  RealtimeChannel? _usersSubscription;
 
   @override
   void initState() {
     super.initState();
     _loadUsers();
+    _setupRealtimeSubscription();
+  }
+
+  @override
+  void dispose() {
+    _usersSubscription?.unsubscribe();
+    super.dispose();
+  }
+
+  void _setupRealtimeSubscription() {
+    try {
+      final supabase = Supabase.instance.client;
+      
+      debugPrint('🔌 Setting up realtime subscription for user_profiles...');
+      
+      // Subscribe to user_profiles table changes with detailed event handling
+      _usersSubscription = supabase
+          .channel('user_profiles_changes_${DateTime.now().millisecondsSinceEpoch}')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'user_profiles',
+            callback: (payload) {
+              debugPrint('═══════════════════════════════════════');
+              debugPrint('🔄 REALTIME EVENT RECEIVED');
+              debugPrint('   Event Type: ${payload.eventType}');
+              debugPrint('   Table: ${payload.table}');
+              debugPrint('   Schema: ${payload.schema}');
+              
+              if (payload.newRecord != null) {
+                debugPrint('   New Data: ${payload.newRecord}');
+              }
+              if (payload.oldRecord != null) {
+                debugPrint('   Old Data: ${payload.oldRecord}');
+              }
+              
+              debugPrint('   → Triggering user list reload...');
+              debugPrint('═══════════════════════════════════════');
+              
+              // Reload users when any change occurs
+              _loadUsers();
+            },
+          )
+          .subscribe((status, error) {
+            if (status == RealtimeSubscribeStatus.subscribed) {
+              debugPrint('✅ Realtime subscription ACTIVE for user_profiles');
+            } else if (status == RealtimeSubscribeStatus.closed) {
+              debugPrint('⚠️ Realtime subscription CLOSED');
+            } else if (error != null) {
+              debugPrint('❌ Realtime subscription ERROR: $error');
+            }
+          });
+      
+    } catch (e) {
+      debugPrint('❌ Failed to setup realtime subscription: $e');
+    }
   }
 
   Future<void> _loadUsers() async {
+    if (!mounted) return;
+    
+    debugPrint('========================================');
+    debugPrint('📥 LOAD USERS STARTED');
+    debugPrint('========================================');
+    
+    // Test Supabase connection first
+    try {
+      final supabase = Supabase.instance.client;
+      debugPrint('🔗 Supabase client available');
+      debugPrint('🔗 Attempting direct database query...');
+      
+      // Direct test query
+      final testResponse = await supabase
+          .from('user_profiles')
+          .select('id, email, role')
+          .limit(5);
+      
+      debugPrint('📊 DIRECT QUERY RESULT:');
+      debugPrint('   Type: ${testResponse.runtimeType}');
+      debugPrint('   Is List: ${testResponse is List}');
+      debugPrint('   Data: $testResponse');
+      
+      if (testResponse is List && testResponse.isNotEmpty) {
+        debugPrint('✅ Direct query SUCCESS - found ${testResponse.length} users');
+        for (var user in testResponse) {
+          debugPrint('   - ${user['email']} (${user['role']})');
+        }
+      } else {
+        debugPrint('⚠️ Direct query returned empty or wrong type');
+      }
+    } catch (e, stack) {
+      debugPrint('❌ Direct query FAILED: $e');
+      debugPrint('Stack: $stack');
+    }
+    
+    debugPrint('----------------------------------------');
+    debugPrint('📋 Now calling authProvider.getAllUsers()...');
+    
     setState(() => _isLoading = true);
-    final authProvider = context.read<AuthProvider>();
-    final users = await authProvider.getAllUsers();
-    setState(() {
-      _users = users;
-      _isLoading = false;
-    });
+    
+    try {
+      final authProvider = context.read<AuthProvider>();
+      
+      // Add a small delay to ensure database has processed any recent changes
+      await Future.delayed(const Duration(milliseconds: 300));
+      
+      final users = await authProvider.getAllUsers();
+      
+      debugPrint('👥 Loaded ${users.length} users from database');
+      for (var user in users) {
+        debugPrint('   - ${user.fullName} (${user.email}) - Role: ${user.role.name}, Active: ${user.isActive}');
+      }
+      
+      if (mounted) {
+        setState(() {
+          _users = users;
+          _isLoading = false;
+        });
+        debugPrint('✅ Users list updated in UI');
+        debugPrint('📊 FINAL STATE: _users.length = ${_users.length}');
+        debugPrint('📊 Users currently in _users list:');
+        for (int i = 0; i < _users.length; i++) {
+          debugPrint('   [$i] ${_users[i].email} - ${_users[i].role.name} - Active: ${_users[i].isActive}');
+        }
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error loading users: $e');
+      debugPrint('Stack trace: $stackTrace');
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load users: ${e.toString().replaceAll('Exception: ', '')}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
   }
 
   void _showCreateUserDialog() {
@@ -117,6 +248,16 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     ),
                     items: [
                       DropdownMenuItem(
+                        value: UserRole.admin,
+                        child: Row(
+                          children: [
+                            Icon(Icons.admin_panel_settings, size: 20, color: AppColors.lightPrimary),
+                            const SizedBox(width: 8),
+                            const Text('Admin (unlimited)'),
+                          ],
+                        ),
+                      ),
+                      DropdownMenuItem(
                         value: UserRole.manager,
                         child: Row(
                           children: [
@@ -158,45 +299,140 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               onPressed: () async {
                 if (!formKey.currentState!.validate()) return;
 
+                // Store scaffoldMessenger before async operations
+                final scaffoldMessenger = ScaffoldMessenger.of(context);
+                
+                // Close the create user dialog first
                 Navigator.of(context).pop();
 
-                // Show loading
+                // Show loading with overlay
+                bool isLoading = true;
+                BuildContext? loadingDialogContext;
                 showDialog(
                   context: context,
                   barrierDismissible: false,
-                  builder: (context) => const Center(
-                    child: CircularProgressIndicator(),
-                  ),
+                  builder: (BuildContext dialogContext) {
+                    loadingDialogContext = dialogContext;
+                    return WillPopScope(
+                      onWillPop: () async => false,
+                      child: const Center(
+                        child: Card(
+                          child: Padding(
+                            padding: EdgeInsets.all(20),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                CircularProgressIndicator(),
+                                SizedBox(height: 16),
+                                Text('Creating user...'),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 );
 
-                final authProvider = context.read<AuthProvider>();
-                final newUser = await authProvider.createUser(
-                  email: emailController.text.trim(),
-                  password: passwordController.text,
-                  fullName: nameController.text.trim(),
-                  role: selectedRole,
-                );
+                try {
+                  final authProvider = context.read<AuthProvider>();
+                  
+                  debugPrint('========================================');
+                  debugPrint('🔐 USER CREATION STARTED');
+                  debugPrint('📧 Email: ${emailController.text.trim()}');
+                  debugPrint('👤 Name: ${nameController.text.trim()}');
+                  debugPrint('🎭 Role: ${selectedRole.name}');
+                  debugPrint('========================================');
+                  
+                  final newUser = await authProvider.createUser(
+                    email: emailController.text.trim(),
+                    password: passwordController.text,
+                    fullName: nameController.text.trim(),
+                    role: selectedRole,
+                  ).timeout(
+                    const Duration(seconds: 15),
+                    onTimeout: () {
+                      debugPrint('⏱️ User creation timed out after 15 seconds');
+                      return null;
+                    },
+                  );
+                  
+                  debugPrint('========================================');
+                  debugPrint('📊 CREATE USER RESULT:');
+                  debugPrint('   Result: ${newUser != null ? "SUCCESS" : "FAILED"}');
+                  if (newUser != null) {
+                    debugPrint('   Created User ID: ${newUser.id}');
+                    debugPrint('   Created User Email: ${newUser.email}');
+                    debugPrint('   Created User Role: ${newUser.role.name}');
+                  } else {
+                    debugPrint('   Error: ${authProvider.error}');
+                  }
+                  debugPrint('========================================');
 
-                // Close loading dialog
-                if (mounted) Navigator.of(context).pop();
+                  // ALWAYS close loading dialog
+                  if (isLoading && loadingDialogContext != null && loadingDialogContext!.mounted) {
+                    try {
+                      Navigator.of(loadingDialogContext!, rootNavigator: true).pop();
+                      isLoading = false;
+                    } catch (navError) {
+                      debugPrint('⚠️ Could not close loading dialog: $navError');
+                    }
+                  }
 
-                if (newUser != null) {
-                  _loadUsers();
+                  if (newUser != null) {
+                    debugPrint('✅ User created successfully: ${newUser.email}');
+                    
+                    debugPrint('🔄 Reloading users list...');
+                    // Reload users list to show the new user
+                    await _loadUsers();
+                    debugPrint('✅ Users list reloaded. Current count: ${_users.length}');
+                    debugPrint('📋 Users in list:');
+                    for (var user in _users) {
+                      debugPrint('   - ${user.email} (${user.role.name})');
+                    }
+                    
+                    if (mounted) {
+                      // Show success message
+                      scaffoldMessenger.showSnackBar(
+                        SnackBar(
+                          content: Text('✅ User created: ${newUser.email}'),
+                          backgroundColor: Colors.green,
+                          duration: const Duration(seconds: 3),
+                        ),
+                      );
+                    }
+                  } else {
+                    debugPrint('❌ User creation failed');
+                    if (mounted) {
+                      scaffoldMessenger.showSnackBar(
+                        SnackBar(
+                          content: Text('❌ Failed: ${authProvider.error ?? "Unknown error"}'),
+                          backgroundColor: Colors.red,
+                          duration: const Duration(seconds: 5),
+                        ),
+                      );
+                    }
+                  }
+                } catch (e) {
+                  // Ensure loading dialog is closed on error
+                  debugPrint('❌ Exception during user creation: $e');
+                  if (isLoading && loadingDialogContext != null && loadingDialogContext!.mounted) {
+                    try {
+                      Navigator.of(loadingDialogContext!, rootNavigator: true).pop();
+                      isLoading = false;
+                    } catch (navError) {
+                      debugPrint('⚠️ Could not close dialog: $navError');
+                    }
+                  }
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    scaffoldMessenger.showSnackBar(
                       SnackBar(
-                        content: Text('User ${newUser.email} created successfully'),
-                        backgroundColor: Colors.green,
+                        content: Text('❌ Error: ${e.toString().replaceAll('Exception: ', '')}'),
+                        backgroundColor: Colors.red,
+                        duration: const Duration(seconds: 5),
                       ),
                     );
                   }
-                } else if (mounted && authProvider.error != null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(authProvider.error!.replaceAll('Exception: ', '')),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
                 }
               },
               style: ElevatedButton.styleFrom(
@@ -224,40 +460,108 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.of(context).pop();
+              // Store context before async
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              final navigator = Navigator.of(context);
+              
+              navigator.pop(); // Close delete confirmation dialog
 
-              // Show loading
+              // Show loading with rootNavigator
+              bool isLoading = true;
+              BuildContext? loadingDialogContext;
               showDialog(
                 context: context,
                 barrierDismissible: false,
-                builder: (context) => const Center(
-                  child: CircularProgressIndicator(),
-                ),
+                builder: (BuildContext dialogContext) {
+                  loadingDialogContext = dialogContext;
+                  return WillPopScope(
+                    onWillPop: () async => false,
+                    child: const Center(
+                      child: Card(
+                        child: Padding(
+                          padding: EdgeInsets.all(20),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              CircularProgressIndicator(),
+                              SizedBox(height: 16),
+                              Text('Deleting user...'),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
               );
 
-              final authProvider = context.read<AuthProvider>();
-              final success = await authProvider.deleteUser(user.id);
+              try {
+                final authProvider = context.read<AuthProvider>();
+                final success = await authProvider.deleteUser(user.id).timeout(
+                  const Duration(seconds: 15),
+                  onTimeout: () {
+                    debugPrint('⏱️ User deletion timed out');
+                    return false;
+                  },
+                );
 
-              // Close loading dialog
-              if (mounted) Navigator.of(context).pop();
+                // Close loading dialog
+                if (isLoading && loadingDialogContext != null && loadingDialogContext!.mounted) {
+                  try {
+                    Navigator.of(loadingDialogContext!, rootNavigator: true).pop();
+                    isLoading = false;
+                  } catch (navError) {
+                    debugPrint('⚠️ Could not close loading dialog: $navError');
+                  }
+                }
 
-              if (success) {
-                _loadUsers();
+                if (success) {
+                  debugPrint('✅ User deleted successfully, reloading list...');
+                  await _loadUsers();
+                  
+                  if (mounted) {
+                    scaffoldMessenger.showSnackBar(
+                      const SnackBar(
+                        content: Text('✅ User deleted successfully'),
+                        backgroundColor: Colors.green,
+                        duration: Duration(seconds: 3),
+                      ),
+                    );
+                  }
+                } else {
+                  debugPrint('❌ User deletion failed');
+                  if (mounted) {
+                    scaffoldMessenger.showSnackBar(
+                      SnackBar(
+                        content: Text('❌ Failed: ${authProvider.error ?? "Unknown error"}'),
+                        backgroundColor: Colors.red,
+                        duration: const Duration(seconds: 5),
+                      ),
+                    );
+                  }
+                }
+              } catch (e) {
+                debugPrint('❌ Exception during user deletion: $e');
+                
+                // Ensure loading dialog is closed
+                if (isLoading && loadingDialogContext != null && loadingDialogContext!.mounted) {
+                  try {
+                    Navigator.of(loadingDialogContext!, rootNavigator: true).pop();
+                    isLoading = false;
+                  } catch (navError) {
+                    debugPrint('⚠️ Could not close dialog: $navError');
+                  }
+                }
+                
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('User deleted successfully'),
-                      backgroundColor: Colors.green,
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(
+                      content: Text('❌ Error: ${e.toString().replaceAll('Exception: ', '')}'),
+                      backgroundColor: Colors.red,
+                      duration: const Duration(seconds: 5),
                     ),
                   );
                 }
-              } else if (mounted && authProvider.error != null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(authProvider.error!.replaceAll('Exception: ', '')),
-                    backgroundColor: Colors.red,
-                  ),
-                );
               }
             },
             style: ElevatedButton.styleFrom(
@@ -295,6 +599,24 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       appBar: AppBar(
         title: const Text('User Management'),
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () async {
+              await _loadUsers();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('User list refreshed'),
+                    duration: Duration(seconds: 1),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
+            },
+            tooltip: 'Refresh user list',
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -304,26 +626,54 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   color: theme.colorScheme.surface,
-                  child: Row(
+                  child: Column(
                     children: [
-                      Expanded(
-                        child: _buildSummaryCard(
-                          context,
-                          'Managers',
-                          '$managerCount / 1',
-                          Icons.supervisor_account,
-                          AppColors.chart2,
+                      // Debug info banner
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.blue.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline, size: 16, color: Colors.blue.shade700),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Total Users Loaded: ${_users.length}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.blue.shade700,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildSummaryCard(
-                          context,
-                          'Staff',
-                          '$staffCount / 2',
-                          Icons.people,
-                          AppColors.chart3,
-                        ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildSummaryCard(
+                              context,
+                              'Managers',
+                              '$managerCount / 1',
+                              Icons.supervisor_account,
+                              AppColors.chart2,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildSummaryCard(
+                              context,
+                              'Staff',
+                              '$staffCount / 2',
+                              Icons.people,
+                              AppColors.chart3,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -359,7 +709,18 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           ),
                         )
                       : RefreshIndicator(
-                          onRefresh: _loadUsers,
+                          onRefresh: () async {
+                            await _loadUsers();
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('User list refreshed'),
+                                  duration: Duration(seconds: 1),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            }
+                          },
                           child: ListView.builder(
                             padding: const EdgeInsets.all(16),
                             itemCount: _users.length,
@@ -419,27 +780,34 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
     Color roleColor;
     IconData roleIcon;
+    String roleLabel;
     switch (user.role) {
       case UserRole.admin:
         roleColor = AppColors.chart1;
         roleIcon = Icons.admin_panel_settings;
+        roleLabel = 'Admin';
         break;
       case UserRole.manager:
         roleColor = AppColors.chart2;
         roleIcon = Icons.supervisor_account;
+        roleLabel = 'Manager';
         break;
       case UserRole.staff:
         roleColor = AppColors.chart3;
         roleIcon = Icons.person;
+        roleLabel = 'Staff';
         break;
     }
 
     return Card(
+      elevation: 2,
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CircleAvatar(
           backgroundColor: roleColor.withAlpha(51),
-          child: Icon(roleIcon, color: roleColor),
+          radius: 24,
+          child: Icon(roleIcon, color: roleColor, size: 28),
         ),
         title: Row(
           children: [
@@ -448,6 +816,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 user.fullName,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
+                  fontSize: 16,
                 ),
               ),
             ),
@@ -471,40 +840,73 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 4),
-            Text(user.email),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(Icons.email_outlined, size: 14, color: Colors.grey.shade600),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    user.email,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: roleColor.withAlpha(51),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(
-                    user.role.displayName,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: roleColor,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(roleIcon, size: 14, color: roleColor),
+                      const SizedBox(width: 4),
+                      Text(
+                        roleLabel,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: roleColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 8),
-                if (!user.isActive)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.withAlpha(51),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      'Inactive',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: Colors.grey,
-                      ),
-                    ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: user.isActive 
+                        ? Colors.green.withAlpha(51) 
+                        : Colors.grey.withAlpha(51),
+                    borderRadius: BorderRadius.circular(8),
                   ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        user.isActive ? Icons.check_circle : Icons.cancel,
+                        size: 14,
+                        color: user.isActive ? Colors.green : Colors.grey,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        user.isActive ? 'Active' : 'Inactive',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: user.isActive ? Colors.green : Colors.grey,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ],
@@ -514,6 +916,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 icon: const Icon(Icons.delete_outline),
                 color: Colors.red,
                 onPressed: () => _showDeleteUserDialog(user),
+                tooltip: 'Delete user',
               )
             : null,
       ),

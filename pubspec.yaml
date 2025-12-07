@@ -18,6 +18,7 @@ dependencies:
   
   # Supabase
   supabase_flutter: ^2.8.0
+  uuid: ^4.5.1
   
   # Networking (if needed for future API integration)
   http: ^1.2.2

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../models/user_profile.dart';
 import '../theme/app_theme.dart';
-import 'home_screen.dart';
 
 /// Login Screen - Beautiful authentication UI
 class LoginScreen extends StatefulWidget {
@@ -29,44 +29,23 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (!mounted) return;
     setState(() => _isLoading = true);
 
     final authProvider = context.read<AuthProvider>();
-    
-    debugPrint('🔐 LoginScreen: Starting login for ${_emailController.text.trim()}');
-    
     final success = await authProvider.signIn(
       email: _emailController.text.trim(),
       password: _passwordController.text,
     );
 
-    debugPrint('🔐 LoginScreen: Login result: $success');
-    debugPrint('🔐 LoginScreen: Auth state - isAuthenticated: ${authProvider.isAuthenticated}, user: ${authProvider.currentUser?.email}');
-
     if (!mounted) return;
-
     setState(() => _isLoading = false);
 
-    if (!success) {
-      final error = authProvider.error ?? 'Login failed - please check your credentials';
-      debugPrint('❌ LoginScreen: Showing error: $error');
-      _showErrorDialog(error);
-    } else {
-      debugPrint('✅ LoginScreen: Login successful!');
-      debugPrint('✅ LoginScreen: User authenticated: ${authProvider.currentUser?.email}');
-      
-      // Small delay to ensure auth state is fully updated
-      await Future.delayed(const Duration(milliseconds: 100));
-      
-      if (!mounted) return;
-      
-      // Navigate to home screen, removing all previous routes
-      debugPrint('✅ LoginScreen: Navigating to HomeScreen...');
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
-        (route) => false,
-      );
+    if (!success && mounted && authProvider.error != null) {
+      _showErrorDialog(authProvider.error!);
     }
+    // Navigation is handled automatically by main.dart based on auth state
+    // No need to manually navigate - the app will rebuild with HomeScreen
   }
 
   void _showErrorDialog(String message) {
@@ -79,6 +58,248 @@ class _LoginScreenState extends State<LoginScreen> {
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRegisterDialog() {
+    final formKey = GlobalKey<FormState>();
+    final nameController = TextEditingController();
+    final emailController = TextEditingController();
+    final passwordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    final coffeeShopNameController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.store_outlined, color: AppColors.chart1),
+            SizedBox(width: 8),
+            Text('Register Coffee Shop'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Coffee Shop Name
+                TextFormField(
+                  controller: coffeeShopNameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Coffee Shop Name',
+                    prefixIcon: Icon(Icons.store),
+                    helperText: 'Your business name',
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your coffee shop name';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Admin Name
+                TextFormField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Your Name',
+                    prefixIcon: Icon(Icons.person_outline),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your name';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Email
+                TextFormField(
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    prefixIcon: Icon(Icons.email_outlined),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter email';
+                    }
+                    if (!value.contains('@')) {
+                      return 'Please enter a valid email';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Password
+                TextFormField(
+                  controller: passwordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Password',
+                    prefixIcon: Icon(Icons.lock_outline),
+                    helperText: 'Min. 6 characters',
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter password';
+                    }
+                    if (value.length < 6) {
+                      return 'Password must be at least 6 characters';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Confirm Password
+                TextFormField(
+                  controller: confirmPasswordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Confirm Password',
+                    prefixIcon: Icon(Icons.lock_outline),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please confirm password';
+                    }
+                    if (value != passwordController.text) {
+                      return 'Passwords do not match';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              final navigator = Navigator.of(context);
+              
+              // Close register dialog
+              navigator.pop();
+
+              // Show loading
+              bool isLoading = true;
+              BuildContext? loadingDialogContext;
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (BuildContext dialogContext) {
+                  loadingDialogContext = dialogContext;
+                  return WillPopScope(
+                    onWillPop: () async => false,
+                    child: const Center(
+                      child: Card(
+                        child: Padding(
+                          padding: EdgeInsets.all(20),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              CircularProgressIndicator(),
+                              SizedBox(height: 16),
+                              Text('Registering coffee shop...'),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              );
+
+              try {
+                final authProvider = context.read<AuthProvider>();
+                
+                // Create admin account (registration mode - no auth required)
+                final newUser = await authProvider.createUser(
+                  email: emailController.text.trim(),
+                  password: passwordController.text,
+                  fullName: '${coffeeShopNameController.text.trim()} - ${nameController.text.trim()}',
+                  role: UserRole.admin,
+                  isRegistration: true, // Allow creation without being logged in
+                ).timeout(
+                  const Duration(seconds: 15),
+                  onTimeout: () => null,
+                );
+
+                // Close loading dialog
+                if (isLoading && loadingDialogContext != null && loadingDialogContext!.mounted) {
+                  try {
+                    Navigator.of(loadingDialogContext!, rootNavigator: true).pop();
+                    isLoading = false;
+                  } catch (navError) {
+                    debugPrint('⚠️ Could not close loading dialog: $navError');
+                  }
+                }
+
+                if (newUser != null) {
+                  if (mounted) {
+                    scaffoldMessenger.showSnackBar(
+                      SnackBar(
+                        content: Text('✅ Coffee shop registered! Please login with ${emailController.text}'),
+                        backgroundColor: Colors.green,
+                        duration: const Duration(seconds: 5),
+                      ),
+                    );
+                  }
+                } else {
+                  if (mounted) {
+                    scaffoldMessenger.showSnackBar(
+                      SnackBar(
+                        content: Text('❌ Error: ${authProvider.error ?? "Unknown error"}'),
+                        backgroundColor: Colors.red,
+                        duration: const Duration(seconds: 5),
+                      ),
+                    );
+                  }
+                }
+              } catch (e) {
+                debugPrint('❌ Exception during registration: $e');
+                if (isLoading && loadingDialogContext != null && loadingDialogContext!.mounted) {
+                  try {
+                    Navigator.of(loadingDialogContext!, rootNavigator: true).pop();
+                    isLoading = false;
+                  } catch (navError) {
+                    debugPrint('⚠️ Could not close dialog: $navError');
+                  }
+                }
+                if (mounted) {
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(
+                      content: Text('❌ Error: ${e.toString().replaceAll('Exception: ', '')}'),
+                      backgroundColor: Colors.red,
+                      duration: const Duration(seconds: 5),
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.chart1,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Register'),
           ),
         ],
       ),
@@ -259,6 +480,22 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 16),
 
+                        // Register Button
+                        OutlinedButton.icon(
+                          onPressed: _isLoading ? null : _showRegisterDialog,
+                          icon: const Icon(Icons.store_outlined),
+                          label: const Text('Register Coffee Shop'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            side: BorderSide(color: AppColors.chart1, width: 2),
+                            foregroundColor: AppColors.chart1,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
                         // Info Text
                         Container(
                           padding: const EdgeInsets.all(12),
@@ -276,7 +513,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'Contact your administrator for login credentials',
+                                  'New to Coffeenance? Register your coffee shop above',
                                   style: theme.textTheme.bodySmall?.copyWith(
                                     color: isDark
                                         ? Colors.white70

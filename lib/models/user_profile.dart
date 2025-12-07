@@ -36,6 +36,7 @@ class UserProfile {
   final String fullName;
   final UserRole role;
   final String? createdBy;
+  final String? adminId; // Multi-tenancy: NULL for admin, admin's ID for manager/staff
   final bool isActive;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -46,6 +47,7 @@ class UserProfile {
     required this.fullName,
     required this.role,
     this.createdBy,
+    this.adminId,
     this.isActive = true,
     required this.createdAt,
     required this.updatedAt,
@@ -69,12 +71,12 @@ class UserProfile {
       fullName: json['full_name'] as String,
       role: UserRole.fromString(json['role'] as String),
       createdBy: json['created_by'] as String?,
+      adminId: json['admin_id'] as String?,
       isActive: json['is_active'] as bool? ?? true,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );
   }
-
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -82,6 +84,7 @@ class UserProfile {
       'full_name': fullName,
       'role': role.name,
       'created_by': createdBy,
+      'admin_id': adminId,
       'is_active': isActive,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
@@ -94,6 +97,7 @@ class UserProfile {
     String? fullName,
     UserRole? role,
     String? createdBy,
+    String? adminId,
     bool? isActive,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -104,6 +108,7 @@ class UserProfile {
       fullName: fullName ?? this.fullName,
       role: role ?? this.role,
       createdBy: createdBy ?? this.createdBy,
+      adminId: adminId ?? this.adminId,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

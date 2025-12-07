@@ -41,12 +41,21 @@ class _HomeScreenState extends State<HomeScreen>
 
   List<Widget> _getScreensForRole(UserRole? role) {
     if (role == UserRole.staff) {
-      // Staff only sees Transactions
+      // Staff sees Dashboard, Revenue, and Transactions (no Settings)
       return const [
+        DashboardScreen(),
+        RevenueScreen(),
+        TransactionsScreen(),
+      ];
+    } else if (role == UserRole.manager) {
+      // Manager sees all except Settings
+      return const [
+        DashboardScreen(),
+        RevenueScreen(),
         TransactionsScreen(),
       ];
     }
-    // Admin and Manager see all except Settings for Manager
+    // Admin sees all screens including Settings
     return const [
       DashboardScreen(),
       RevenueScreen(),
@@ -57,8 +66,10 @@ class _HomeScreenState extends State<HomeScreen>
 
   List<_NavItem> _getNavItemsForRole(UserRole? role) {
     if (role == UserRole.staff) {
-      // Staff only has Transactions tab
+      // Staff has Dashboard, Revenue, and Transactions tabs
       return const [
+        _NavItem(icon: Icons.dashboard_customize_rounded, label: 'Dashboard'),
+        _NavItem(icon: Icons.account_balance_wallet_rounded, label: 'Revenue'),
         _NavItem(icon: Icons.swap_horiz_rounded, label: 'Transactions'),
       ];
     } else if (role == UserRole.manager) {
