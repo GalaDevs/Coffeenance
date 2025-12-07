@@ -334,25 +334,26 @@ class AuthService {
           }
         }
 
-        // Auth user created successfully, now create/update the profile
-        debugPrint('📝 Creating/updating user profile with team info...');
-        final upsertResponse = await _supabase!.from('user_profiles').upsert({
-          'id': newUserId,
-          'email': email,
-          'full_name': fullName,
-          'role': role.name,
-          'created_by': createdByUserId,
-          'admin_id': assignedAdminId,
-          'is_active': true,
-          'created_at': DateTime.now().toIso8601String(),
-          'updated_at': DateTime.now().toIso8601String(),
-        }).select();
+        // Auth user created successfully
+        // The trigger (handle_new_user) automatically creates the profile
+        // We just need to fetch it to return
+        debugPrint('📝 Waiting for trigger to create profile...');
+        
+        // Small delay to ensure trigger completes
+        await Future.delayed(const Duration(milliseconds: 500));
+        
+        debugPrint('📝 Fetching created profile...');
+        final profileResponse = await _supabase!
+            .from('user_profiles')
+            .select()
+            .eq('id', newUserId)
+            .maybeSingle();
 
-        if (upsertResponse == null || upsertResponse.isEmpty) {
-          throw Exception('Failed to create user profile - no data returned');
+        if (profileResponse == null) {
+          throw Exception('Failed to fetch user profile after creation');
         }
         
-        final profile = UserProfile.fromJson(upsertResponse[0]);
+        final profile = UserProfile.fromJson(profileResponse);
         debugPrint('✅ User created successfully!');
         debugPrint('   📧 Email: ${profile.email}');
         debugPrint('   🎭 Role: ${profile.role}');

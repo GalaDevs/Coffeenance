@@ -1278,6 +1278,10 @@ class _TransactionModalState extends State<TransactionModal>
     ThemeData theme,
   ) {
     final isSelected = _type == type;
+    // Use blue/indigo color for Revenue/Expense buttons to distinguish from Date buttons
+    final buttonColor = type == TransactionType.revenue 
+        ? Colors.green.shade600 
+        : Colors.red.shade600;
 
     return GestureDetector(
       onTap: () {
@@ -1291,13 +1295,13 @@ class _TransactionModalState extends State<TransactionModal>
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
           color: isSelected
-              ? theme.colorScheme.primary
+              ? buttonColor
               : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                    color: buttonColor.withValues(alpha: 0.3),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -1310,7 +1314,7 @@ class _TransactionModalState extends State<TransactionModal>
           style: theme.textTheme.bodyMedium?.copyWith(
             fontWeight: FontWeight.w600,
             color: isSelected
-                ? theme.colorScheme.onPrimary
+                ? Colors.white
                 : theme.colorScheme.onSurface,
           ),
         ),

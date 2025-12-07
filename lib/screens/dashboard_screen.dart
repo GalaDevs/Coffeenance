@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/transaction_provider.dart';
+import '../providers/auth_provider.dart';
+import '../models/user_profile.dart';
 import '../widgets/balance_card.dart';
 import '../widgets/revenue_breakdown.dart';
 import '../widgets/recent_transactions.dart';
@@ -20,6 +22,8 @@ class DashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final authProvider = Provider.of<AuthProvider>(context);
+    final isStaff = authProvider.currentUser?.role == UserRole.staff;
 
     return Consumer<TransactionProvider>(
       builder: (context, provider, child) {
@@ -83,8 +87,9 @@ class DashboardScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_vert_rounded),
+                      if (!isStaff) // Hide 3-dot menu for staff
+                        PopupMenuButton<String>(
+                          icon: const Icon(Icons.more_vert_rounded),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
