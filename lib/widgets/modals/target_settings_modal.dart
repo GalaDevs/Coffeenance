@@ -17,10 +17,52 @@ class _TargetSettingsModalState extends State<TargetSettingsModal> {
   final Map<String, TextEditingController> _controllers = {};
   bool _isSaving = false;
   bool _isInitialized = false;
+  
+  // Selected month and year (separate)
+  late int _selectedMonth;
+  late int _selectedYear;
+  
+  // Available months (1-12)
+  final List<int> _months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  
+  // Available years (current and next year)
+  List<int> get _years {
+    final now = DateTime.now();
+    return [now.year, now.year + 1];
+  }
+  
+  DateTime get _selectedDate => DateTime(_selectedYear, _selectedMonth, 1);
+  
+  // Generate list of available months (next 12 months) for initialization
+  List<DateTime> get _availableMonths {
+    final now = DateTime.now();
+    final List<DateTime> months = [];
+    
+    for (int i = 1; i <= 12; i++) {
+      final monthDate = DateTime(now.year, now.month + i, 1);
+      months.add(monthDate);
+    }
+    
+    return months;
+  }
+  
+  String _getMonthKey(DateTime date) {
+    return 'target_${date.year}_${date.month}';
+  }
+  
+  String _getMonthName(int month) {
+    return DateFormat('MMMM').format(DateTime(2000, month, 1));
+  }
 
   @override
   void initState() {
     super.initState();
+    // Set initial selected date to next month
+    final now = DateTime.now();
+    final nextMonth = DateTime(now.year, now.month + 1, 1);
+    _selectedMonth = nextMonth.month;
+    _selectedYear = nextMonth.year;
+    
     // Initialize controllers immediately with current target values
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -31,29 +73,72 @@ class _TargetSettingsModalState extends State<TargetSettingsModal> {
   }
 
   void _initializeControllers(TransactionProvider provider) {
-    final targets = [
-      // Daily Targets
-      {'key': 'dailyRevenueTarget', 'label': 'Daily Revenue Target'},
-      {'key': 'dailyTransactionsTarget', 'label': 'Daily Transactions Target'},
-      // Weekly Targets
-      {'key': 'weeklyRevenueTarget', 'label': 'Weekly Revenue Target'},
-      {'key': 'weeklyTransactionsTarget', 'label': 'Weekly Transactions Target'},
-      // Monthly Targets
-      {'key': 'monthlyRevenueTarget', 'label': 'Monthly Revenue Target'},
-      {'key': 'monthlyTransactionsTarget', 'label': 'Monthly Transactions Target'},
-    ];
-
-    for (var target in targets) {
-      final key = target['key']!;
-      final value = provider.getKPITarget(key);
-      _controllers[key] = TextEditingController(
-        text: _formatNumber(value),
+    // Initialize controllers for all available months
+    for (var monthDate in _availableMonths) {
+      final monthKey = _getMonthKey(monthDate);
+      final revenueKey = '${monthKey}_revenue';
+      final transactionsKey = '${monthKey}_transactions';
+      
+      final revenueValue = provider.getKPITarget(revenueKey);
+      final transactionsValue = provider.getKPITarget(transactionsKey);
+      
+      _controllers[revenueKey] = TextEditingController(
+        text: _formatNumber(revenueValue > 0 ? revenueValue : 300000.0),
       );
+      _controllers[transactionsKey] = TextEditingController(
+        text: _formatNumber(transactionsValue > 0 ? transactionsValue : 1500.0),
+      );
+    }
+    
+    // Also initialize controllers for all possible month/year combinations in the dropdowns
+    for (var year in _years) {
+      for (var month in _months) {
+        final monthDate = DateTime(year, month, 1);
+        final monthKey = _getMonthKey(monthDate);
+        final revenueKey = '${monthKey}_revenue';
+        final transactionsKey = '${monthKey}_transactions';
+        
+        // Only create if not already created
+        if (!_controllers.containsKey(revenueKey)) {
+          final revenueValue = provider.getKPITarget(revenueKey);
+          final transactionsValue = provider.getKPITarget(transactionsKey);
+          
+          _controllers[revenueKey] = TextEditingController(
+            text: _formatNumber(revenueValue > 0 ? revenueValue : 300000.0),
+          );
+          _controllers[transactionsKey] = TextEditingController(
+            text: _formatNumber(transactionsValue > 0 ? transactionsValue : 1500.0),
+          );
+        }
+      }
     }
     
     setState(() {
       _isInitialized = true;
     });
+  }
+  
+  void _changeMonth(int month) {
+    setState(() {
+      _selectedMonth = month;
+    });
+  }
+  
+  void _changeYear(int year) {
+    setState(() {
+      _selectedYear = year;
+    });
+  }
+  
+  // Helper method to safely get or create a controller
+  TextEditingController _getOrCreateController(String key, TransactionProvider provider) {
+    if (!_controllers.containsKey(key)) {
+      final value = provider.getKPITarget(key);
+      _controllers[key] = TextEditingController(
+        text: _formatNumber(value > 0 ? value : (key.contains('revenue') ? 300000.0 : 1500.0)),
+      );
+    }
+    return _controllers[key]!;
   }
 
   @override
@@ -89,8 +174,17 @@ class _TargetSettingsModalState extends State<TargetSettingsModal> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Targets updated successfully'),
+            content: Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text('Targets applied to all dashboards successfully!'),
+                ),
+              ],
+            ),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
           ),
         );
       }
@@ -168,6 +262,222 @@ class _TargetSettingsModalState extends State<TargetSettingsModal> {
     );
   }
 
+  void _showAllTargets() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final theme = Theme.of(context);
+        final provider = Provider.of<TransactionProvider>(context, listen: false);
+        
+        // Get all targets for available months
+        final targets = <Map<String, dynamic>>[];
+        for (var year in _years) {
+          for (var month in _months) {
+            final monthDate = DateTime(year, month, 1);
+            final monthKey = _getMonthKey(monthDate);
+            final revenueValue = provider.getKPITarget('${monthKey}_revenue');
+            final transactionsValue = provider.getKPITarget('${monthKey}_transactions');
+            
+            if (revenueValue > 0 || transactionsValue > 0) {
+              targets.add({
+                'date': monthDate,
+                'revenue': revenueValue,
+                'transactions': transactionsValue,
+              });
+            }
+          }
+        }
+        
+        return Dialog(
+          child: Container(
+            constraints: BoxConstraints(
+              maxWidth: 500,
+              maxHeight: MediaQuery.of(context).size.height * 0.8,
+            ),
+            child: Column(
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(28),
+                      topRight: Radius.circular(28),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.bar_chart_rounded, color: Colors.white, size: 24),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'All Targets Overview',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close_rounded, color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+                // Content
+                Expanded(
+                  child: targets.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.calendar_today_outlined,
+                                size: 64,
+                                color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No Targets Set Yet',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Start by setting targets for each month',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.all(20),
+                          itemCount: targets.length,
+                          separatorBuilder: (context, index) => const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            final target = targets[index];
+                            final date = target['date'] as DateTime;
+                            final revenue = target['revenue'] as double;
+                            final transactions = target['transactions'] as double;
+                            
+                            return Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: theme.colorScheme.outline.withValues(alpha: 0.2),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: theme.colorScheme.primaryContainer,
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          DateFormat('MMMM yyyy').format(date),
+                                          style: theme.textTheme.titleSmall?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: theme.colorScheme.primary,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.payments_rounded,
+                                                  size: 16,
+                                                  color: Colors.green.shade700,
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Text(
+                                                  'Revenue',
+                                                  style: theme.textTheme.bodySmall?.copyWith(
+                                                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              '₱${_formatNumber(revenue)}',
+                                              style: theme.textTheme.titleMedium?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.green.shade700,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.receipt_long_rounded,
+                                                  size: 16,
+                                                  color: Colors.blue.shade700,
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Text(
+                                                  'Transactions',
+                                                  style: theme.textTheme.bodySmall?.copyWith(
+                                                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              _formatNumber(transactions),
+                                              style: theme.textTheme.titleMedium?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.blue.shade700,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _showTargetInfo() {
     showDialog(
       context: context,
@@ -185,33 +495,34 @@ class _TargetSettingsModalState extends State<TargetSettingsModal> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Target Settings Information',
+                'Monthly Target Planning',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               SizedBox(height: 12),
               Text(
-                'Daily Targets:',
+                'Plan Ahead:',
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
-              Text('• Track your daily revenue and transaction goals\n'
-                  '• Updates automatically every day at midnight'),
+              Text('• Set targets for the next 12 months in advance\n'
+                  '• Helps with long-term business planning\n'
+                  '• Adjust targets based on seasonal trends'),
               SizedBox(height: 12),
               Text(
-                'Weekly Targets:',
+                'Revenue Targets:',
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
-              Text('• Monitor performance over a 7-day period\n'
-                  '• Helps identify weekly trends and patterns'),
+              Text('• Set monthly revenue goals for each month\n'
+                  '• Track progress against your targets'),
               SizedBox(height: 12),
               Text(
-                'Monthly Targets:',
+                'Transaction Targets:',
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
-              Text('• Long-term goals for the entire month\n'
-                  '• Essential for business planning and growth'),
+              Text('• Set monthly transaction count goals\n'
+                  '• Monitor customer traffic and sales volume'),
               SizedBox(height: 16),
               Text(
-                'These targets are used across all dashboards to show your progress and help you make informed business decisions.',
+                'These targets are used in your Monthly P&L Summary to show performance percentages and help you make informed business decisions.',
                 style: TextStyle(fontStyle: FontStyle.italic),
               ),
             ],
@@ -241,15 +552,12 @@ class _TargetSettingsModalState extends State<TargetSettingsModal> {
           TextButton(
             onPressed: () {
               setState(() {
-                // Daily targets
-                _controllers['dailyRevenueTarget']?.text = _formatNumber(10000.0);
-                _controllers['dailyTransactionsTarget']?.text = _formatNumber(50.0);
-                // Weekly targets (7x daily)
-                _controllers['weeklyRevenueTarget']?.text = _formatNumber(70000.0);
-                _controllers['weeklyTransactionsTarget']?.text = _formatNumber(350.0);
-                // Monthly targets (30x daily)
-                _controllers['monthlyRevenueTarget']?.text = _formatNumber(300000.0);
-                _controllers['monthlyTransactionsTarget']?.text = _formatNumber(1500.0);
+                // Reset all monthly targets to defaults
+                for (var monthDate in _availableMonths) {
+                  final monthKey = _getMonthKey(monthDate);
+                  _controllers['${monthKey}_revenue']?.text = _formatNumber(300000.0);
+                  _controllers['${monthKey}_transactions']?.text = _formatNumber(1500.0);
+                }
               });
               Navigator.pop(context);
             },
@@ -312,7 +620,7 @@ class _TargetSettingsModalState extends State<TargetSettingsModal> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Set your KPI targets',
+                          'Plan your monthly targets ahead',
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.white.withValues(alpha: 0.9),
@@ -391,7 +699,7 @@ class _TargetSettingsModalState extends State<TargetSettingsModal> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              'Set realistic targets to track your business performance',
+                              'Set monthly targets for the next 12 months to plan your business growth',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
                               ),
@@ -400,77 +708,240 @@ class _TargetSettingsModalState extends State<TargetSettingsModal> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 24),
-
-                    // Daily Targets Section
-                    _SectionHeader(
-                      icon: Icons.today_rounded,
-                      title: 'Daily Targets',
-                      subtitle: 'Set your daily revenue and transaction goals',
-                    ),
                     const SizedBox(height: 16),
-                    _TargetInputField(
-                      label: 'Daily Revenue Target',
-                      icon: Icons.payments_rounded,
-                      controller: _controllers['dailyRevenueTarget']!,
-                      hint: 'e.g., 10,000',
-                      prefix: '₱',
-                    ),
-                    const SizedBox(height: 12),
-                    _TargetInputField(
-                      label: 'Daily Transactions Target',
-                      icon: Icons.receipt_long_rounded,
-                      controller: _controllers['dailyTransactionsTarget']!,
-                      hint: 'e.g., 50',
-                      suffix: 'transactions',
+
+                    // View All Targets Button
+                    OutlinedButton.icon(
+                      onPressed: _showAllTargets,
+                      icon: const Icon(Icons.visibility_rounded),
+                      label: const Text('View All Targets'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        side: BorderSide(
+                          color: theme.colorScheme.primary,
+                          width: 1.5,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 24),
 
-                    // Weekly Targets Section
-                    _SectionHeader(
-                      icon: Icons.calendar_view_week_rounded,
-                      title: 'Weekly Targets',
-                      subtitle: 'Set your weekly revenue and transaction goals',
-                    ),
-                    const SizedBox(height: 16),
-                    _TargetInputField(
-                      label: 'Weekly Revenue Target',
-                      icon: Icons.payments_rounded,
-                      controller: _controllers['weeklyRevenueTarget']!,
-                      hint: 'e.g., 70,000',
-                      prefix: '₱',
-                    ),
-                    const SizedBox(height: 12),
-                    _TargetInputField(
-                      label: 'Weekly Transactions Target',
-                      icon: Icons.receipt_long_rounded,
-                      controller: _controllers['weeklyTransactionsTarget']!,
-                      hint: 'e.g., 350',
-                      suffix: 'transactions',
+                    // Month and Year Selector
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.calendar_month_rounded,
+                                color: theme.colorScheme.primary,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Select Target Period',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              // Month Selector
+                              Expanded(
+                                flex: 2,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Month',
+                                      style: theme.textTheme.labelSmall?.copyWith(
+                                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: theme.colorScheme.outline.withValues(alpha: 0.3),
+                                        ),
+                                      ),
+                                      child: DropdownButtonHideUnderline(
+                                        child: DropdownButton<int>(
+                                          value: _selectedMonth,
+                                          isExpanded: true,
+                                          icon: Icon(Icons.arrow_drop_down_rounded, color: theme.colorScheme.primary),
+                                          style: theme.textTheme.bodyMedium?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                            color: theme.colorScheme.onSurface,
+                                          ),
+                                          items: _months.map((int month) {
+                                            return DropdownMenuItem<int>(
+                                              value: month,
+                                              child: Text(_getMonthName(month)),
+                                            );
+                                          }).toList(),
+                                          onChanged: (int? newMonth) {
+                                            if (newMonth != null) {
+                                              _changeMonth(newMonth);
+                                            }
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              // Year Selector
+                              Expanded(
+                                flex: 1,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Year',
+                                      style: theme.textTheme.labelSmall?.copyWith(
+                                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: theme.colorScheme.outline.withValues(alpha: 0.3),
+                                        ),
+                                      ),
+                                      child: DropdownButtonHideUnderline(
+                                        child: DropdownButton<int>(
+                                          value: _selectedYear,
+                                          isExpanded: true,
+                                          icon: Icon(Icons.arrow_drop_down_rounded, color: theme.colorScheme.primary),
+                                          style: theme.textTheme.bodyMedium?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                            color: theme.colorScheme.onSurface,
+                                          ),
+                                          items: _years.map((int year) {
+                                            return DropdownMenuItem<int>(
+                                              value: year,
+                                              child: Text(year.toString()),
+                                            );
+                                          }).toList(),
+                                          onChanged: (int? newYear) {
+                                            if (newYear != null) {
+                                              _changeYear(newYear);
+                                            }
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 24),
 
-                    // Monthly Targets Section
-                    _SectionHeader(
-                      icon: Icons.calendar_month_rounded,
-                      title: 'Monthly Targets',
-                      subtitle: 'Set your monthly revenue and transaction goals',
-                    ),
-                    const SizedBox(height: 16),
-                    _TargetInputField(
-                      label: 'Monthly Revenue Target',
-                      icon: Icons.payments_rounded,
-                      controller: _controllers['monthlyRevenueTarget']!,
-                      hint: 'e.g., 300,000',
-                      prefix: '₱',
-                    ),
-                    const SizedBox(height: 12),
-                    _TargetInputField(
-                      label: 'Monthly Transactions Target',
-                      icon: Icons.receipt_long_rounded,
-                      controller: _controllers['monthlyTransactionsTarget']!,
-                      hint: 'e.g., 1,500',
-                      suffix: 'transactions',
+                    // Selected Month Targets
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: theme.colorScheme.outline.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primaryContainer,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.flag_rounded,
+                                  color: theme.colorScheme.primary,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Targets for ${DateFormat('MMMM yyyy').format(_selectedDate)}',
+                                      style: theme.textTheme.titleMedium?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Set your revenue and transaction goals',
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          Consumer<TransactionProvider>(
+                            builder: (context, provider, child) {
+                              final revenueKey = '${_getMonthKey(_selectedDate)}_revenue';
+                              final transactionsKey = '${_getMonthKey(_selectedDate)}_transactions';
+                              
+                              return Column(
+                                children: [
+                                  _TargetInputField(
+                                    label: 'Revenue Target',
+                                    icon: Icons.payments_rounded,
+                                    controller: _getOrCreateController(revenueKey, provider),
+                                    hint: 'e.g., 300,000',
+                                    prefix: '₱',
+                                  ),
+                                  const SizedBox(height: 16),
+                                  _TargetInputField(
+                                    label: 'Transactions Target',
+                                    icon: Icons.receipt_long_rounded,
+                                    controller: _getOrCreateController(transactionsKey, provider),
+                                    hint: 'e.g., 1,500',
+                                    suffix: 'transactions',
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 24),
 
@@ -532,6 +1003,145 @@ class _TargetSettingsModalState extends State<TargetSettingsModal> {
                     ),
                   ),
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ExpandableSectionHeader extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool isExpanded;
+  final VoidCallback onTap;
+
+  const _ExpandableSectionHeader({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.isExpanded,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.primaryContainer.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: theme.colorScheme.primary.withValues(alpha: 0.2),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                icon,
+                color: theme.colorScheme.primary,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              isExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+              color: theme.colorScheme.primary,
+              size: 24,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TargetTab extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _TargetTab({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? theme.colorScheme.primary
+              : theme.colorScheme.primaryContainer.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected
+                ? theme.colorScheme.primary
+                : theme.colorScheme.primary.withValues(alpha: 0.2),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              color: isSelected
+                  ? Colors.white
+                  : theme.colorScheme.primary,
+              size: 24,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                color: isSelected
+                    ? Colors.white
+                    : theme.colorScheme.primary,
               ),
             ),
           ],

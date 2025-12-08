@@ -344,7 +344,80 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+
+              // Sync Status Indicator
+              Consumer<TransactionProvider>(
+                builder: (context, provider, child) {
+                  if (provider.pendingSyncCount == 0 && !provider.isSyncing) {
+                    return const SizedBox.shrink();
+                  }
+                  
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: provider.isSyncing
+                          ? Colors.blue.withValues(alpha: 0.1)
+                          : Colors.orange.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: provider.isSyncing
+                            ? Colors.blue.withValues(alpha: 0.3)
+                            : Colors.orange.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        if (provider.isSyncing)
+                          SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.blue.shade700),
+                            ),
+                          )
+                        else
+                          Icon(
+                            Icons.cloud_upload_rounded,
+                            color: Colors.orange.shade700,
+                            size: 20,
+                          ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            provider.isSyncing
+                                ? 'Syncing ${provider.pendingSyncCount} transaction${provider.pendingSyncCount > 1 ? 's' : ''}...'
+                                : '${provider.pendingSyncCount} transaction${provider.pendingSyncCount > 1 ? 's' : ''} pending sync',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: provider.isSyncing ? Colors.blue.shade700 : Colors.orange.shade700,
+                            ),
+                          ),
+                        ),
+                        if (!provider.isSyncing)
+                          TextButton(
+                            onPressed: () => provider.syncPendingTransactions(),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: Text(
+                              'Sync Now',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange.shade700,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
 
               // Date Range Selector
               Container(

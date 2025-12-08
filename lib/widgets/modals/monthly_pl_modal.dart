@@ -594,8 +594,8 @@ class MonthlyPLModal extends StatelessWidget {
                           ? ((expenses / expensesBudget) * 100).toStringAsFixed(0)
                           : '0';
                       
-                      final isRevenueGood = (double.tryParse(revenuePercent) ?? 0) >= 80;
-                      final isExpensesGood = (double.tryParse(expensesPercent) ?? 0) <= 100;
+                      final isRevenueGood = (double.tryParse(revenuePercent) ?? 0) >= 100;
+                      final isExpensesGood = (double.tryParse(expensesPercent) ?? 0) < 100;
 
                       return DataRow(
                         cells: [
@@ -615,7 +615,7 @@ class MonthlyPLModal extends StatelessWidget {
                               decoration: BoxDecoration(
                                 color: isRevenueGood 
                                     ? Colors.green.withValues(alpha: 0.1)
-                                    : Colors.orange.withValues(alpha: 0.1),
+                                    : Colors.red.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
@@ -623,7 +623,7 @@ class MonthlyPLModal extends StatelessWidget {
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
-                                  color: isRevenueGood ? Colors.green.shade700 : Colors.orange.shade700,
+                                  color: isRevenueGood ? Colors.green.shade700 : Colors.red.shade700,
                                 ),
                               ),
                             ),

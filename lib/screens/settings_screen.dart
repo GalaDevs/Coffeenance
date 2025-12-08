@@ -235,6 +235,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                 ),
                 const Divider(height: 1),
+                Consumer<TransactionProvider>(
+                  builder: (context, provider, child) {
+                    return ListTile(
+                      leading: Icon(
+                        provider.isOnline ? Icons.cloud_done : Icons.cloud_off,
+                        color: provider.isOnline ? Colors.green : Colors.red,
+                      ),
+                      title: Text(
+                        provider.isOnline ? 'Online - Auto Sync Active' : 'Offline Mode',
+                      ),
+                      subtitle: Text(
+                        provider.pendingSyncCount > 0
+                            ? '${provider.pendingSyncCount} transaction${provider.pendingSyncCount > 1 ? 's' : ''} pending sync'
+                            : 'All data synced',
+                      ),
+                      trailing: provider.pendingSyncCount > 0
+                          ? ElevatedButton.icon(
+                              onPressed: provider.isSyncing
+                                  ? null
+                                  : () => provider.syncPendingTransactions(),
+                              icon: provider.isSyncing
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : const Icon(Icons.sync, size: 18),
+                              label: Text(provider.isSyncing ? 'Syncing...' : 'Sync Now'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.orange.shade700,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              ),
+                            )
+                          : Icon(
+                              Icons.check_circle,
+                              color: Colors.green.shade700,
+                            ),
+                    );
+                  },
+                ),
+                const Divider(height: 1),
                 ListTile(
                   leading: Icon(
                     Icons.cloud_done,

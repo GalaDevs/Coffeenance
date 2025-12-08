@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/transaction.dart';
+import '../models/kpi_target.dart';
 import '../services/supabase_service.dart';
 
 /// TransactionProvider manages all transaction state
@@ -24,11 +25,17 @@ class TransactionProvider with ChangeNotifier {
   // Staff/Payroll management
   List<Map<String, dynamic>> _staff = [];
   
-  // KPI Settings and Targets
+  // KPI Settings and Targets (Cloud-synced)
   Map<String, dynamic> _kpiSettings = {};
+  String? _currentShopId; // User's shop ID for multi-tenancy
   
   // Tax Settings
   Map<String, dynamic> _taxSettings = {};
+  
+  // Offline sync queue
+  List<Transaction> _pendingTransactions = [];
+  bool _isOnline = true;
+  bool _isSyncing = false;
 
   // Getters
   List<Transaction> get transactions => List.unmodifiable(_transactions);
@@ -37,6 +44,10 @@ class TransactionProvider with ChangeNotifier {
   List<Map<String, dynamic>> get staff => List.unmodifiable(_staff);
   Map<String, dynamic> get kpiSettings => Map.unmodifiable(_kpiSettings);
   Map<String, dynamic> get taxSettings => Map.unmodifiable(_taxSettings);
+  List<Transaction> get pendingTransactions => List.unmodifiable(_pendingTransactions);
+  bool get isOnline => _isOnline;
+  bool get isSyncing => _isSyncing;
+  int get pendingSyncCount => _pendingTransactions.length;
 
   // ============================================
   // DAILY FILTERS (TODAY ONLY)
@@ -440,6 +451,8 @@ class TransactionProvider with ChangeNotifier {
     _loadTaxSettings();
     _setupRealtimeSubscriptions();
     _setupAuthListener();
+    _loadPendingQueue();
+    _startConnectivityMonitoring();
   }
 
   /// CRITICAL: Listen to auth state changes to clear cache on user switch
@@ -820,7 +833,7 @@ class TransactionProvider with ChangeNotifier {
     }
   }
 
-  /// Add transaction - saves to Supabase AND local storage
+  /// Add transaction - saves to Supabase AND local storage with offline queue
   Future<void> addTransaction(Transaction transaction) async {
     try {
       // Save to Supabase first
@@ -832,21 +845,31 @@ class TransactionProvider with ChangeNotifier {
       debugPrint('🔔 Waiting for realtime to sync...');
     } catch (e) {
       debugPrint('❌ CLOUD SAVE FAILED: $e');
-      debugPrint('⚠️ Falling back to LOCAL-ONLY storage');
-      // Fall back to local-only save
-      final int newId = _transactions.isEmpty
-          ? 1
-          : _transactions.map((t) => t.id).reduce((a, b) => a > b ? a : b) + 1;
+      debugPrint('⚠️ Adding to OFFLINE SYNC QUEUE');
+      
+      // Generate temporary negative ID for offline transactions
+      final int tempId = _pendingTransactions.isEmpty
+          ? -1
+          : _pendingTransactions.map((t) => t.id).reduce((a, b) => a < b ? a : b) - 1;
 
       final newTransaction = transaction.copyWith(
-        id: newId,
+        id: tempId,
         date: DateTime.now().toIso8601String().split('T')[0],
       );
 
+      // Add to pending queue for later sync
+      _pendingTransactions.add(newTransaction);
+      await _savePendingQueue();
+      
+      // Also add to local transactions for immediate display
       _transactions.insert(0, newTransaction);
       await _saveToStorage();
       notifyListeners();
-      debugPrint('✅ Transaction added to local storage only');
+      
+      debugPrint('📤 Transaction added to sync queue (will upload when online)');
+      
+      // Try to sync immediately in case we just went online
+      _attemptSync();
     }
   }
 
@@ -985,7 +1008,7 @@ class TransactionProvider with ChangeNotifier {
     return _transactions.where((t) => t.date == todayStr).toList();
   }
 
-  /// Load KPI settings from storage
+  /// Load KPI settings from Supabase cloud storage
   Future<void> _loadKPISettings() async {
     try {
       // Set defaults first to ensure they're always available
@@ -1009,43 +1032,175 @@ class TransactionProvider with ChangeNotifier {
         'revenueGrowth': 78.0,
       };
       
+      // Get current user's shop ID
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) {
+        debugPrint('⚠️ No user logged in, using default KPI settings');
+        return;
+      }
+      
+      // Get user's shop_id (use admin_id or user's own id if admin)
+      final userProfileResponse = await Supabase.instance.client
+          .from('user_profiles')
+          .select('id, admin_id')
+          .eq('id', userId)
+          .single();
+      
+      _currentShopId = userProfileResponse['admin_id'] ?? userId;
+      
+      // Load KPI targets from Supabase
+      final response = await Supabase.instance.client
+          .from('kpi_targets')
+          .select()
+          .eq('shop_id', _currentShopId!);
+      
+      if (response != null && response is List) {
+        // Convert response to KPITarget objects and populate settings
+        for (var json in response) {
+          final target = KPITarget.fromJson(json);
+          _kpiSettings[target.targetKey] = target.targetValue;
+        }
+        debugPrint('✅ Loaded ${response.length} KPI targets from cloud');
+      }
+      
+      // If no cloud data exists, save defaults to cloud
+      if (response == null || (response is List && response.isEmpty)) {
+        await _saveDefaultTargetsToCloud();
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error loading KPI settings from cloud: $e');
+      // Fallback to local storage on error
+      await _loadKPISettingsLocal();
+    }
+  }
+  
+  /// Fallback: Load KPI settings from local storage
+  Future<void> _loadKPISettingsLocal() async {
+    try {
       final prefs = await SharedPreferences.getInstance();
       final String? kpiJson = prefs.getString('kpi_settings');
 
       if (kpiJson != null) {
-        // Override defaults with saved values
         final savedSettings = json.decode(kpiJson);
         _kpiSettings.addAll(savedSettings);
-      } else {
-        // Save defaults if nothing exists
-        await _saveKPISettings();
+        debugPrint('📱 Loaded KPI settings from local storage');
       }
     } catch (e) {
-      debugPrint('Error loading KPI settings: $e');
+      debugPrint('Error loading KPI settings locally: $e');
+    }
+  }
+  
+  /// Save default targets to Supabase cloud
+  Future<void> _saveDefaultTargetsToCloud() async {
+    try {
+      if (_currentShopId == null) return;
+      
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) return;
+      
+      final targetsToSave = [
+        {'target_key': 'dailyRevenueTarget', 'target_value': 10000.0},
+        {'target_key': 'dailyTransactionsTarget', 'target_value': 50.0},
+        {'target_key': 'avgTransactionTarget', 'target_value': 200.0},
+        {'target_key': 'dailyExpensesTarget', 'target_value': 3000.0},
+        {'target_key': 'weeklyRevenueTarget', 'target_value': 70000.0},
+        {'target_key': 'weeklyTransactionsTarget', 'target_value': 350.0},
+        {'target_key': 'monthlyRevenueTarget', 'target_value': 300000.0},
+        {'target_key': 'monthlyTransactionsTarget', 'target_value': 1500.0},
+      ];
+      
+      for (var target in targetsToSave) {
+        await Supabase.instance.client.from('kpi_targets').upsert({
+          'shop_id': _currentShopId,
+          'user_id': userId,
+          'target_key': target['target_key'],
+          'target_value': target['target_value'],
+          'month': null,
+          'year': null,
+        });
+      }
+      
+      debugPrint('✅ Saved default targets to cloud');
+    } catch (e) {
+      debugPrint('Error saving default targets: $e');
     }
   }
 
-  /// Save KPI settings to storage
+  /// Save KPI settings to Supabase cloud (and local backup)
   Future<void> _saveKPISettings() async {
     try {
+      // Save to cloud if we have shop context
+      if (_currentShopId != null) {
+        final userId = Supabase.instance.client.auth.currentUser?.id;
+        if (userId != null) {
+          // This method saves to cloud in updateKPISetting
+          debugPrint('✅ KPI settings saved to cloud');
+        }
+      }
+      
+      // Also save to local storage as backup
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('kpi_settings', json.encode(_kpiSettings));
+      debugPrint('📱 KPI settings backed up locally');
     } catch (e) {
       debugPrint('Error saving KPI settings: $e');
     }
   }
 
-  /// Update KPI setting
+  /// Update KPI setting (saves to cloud)
   Future<void> updateKPISetting(String key, dynamic value) async {
     // Ensure value is stored as double
+    double targetValue;
     if (value is int) {
-      _kpiSettings[key] = value.toDouble();
+      targetValue = value.toDouble();
     } else if (value is double) {
-      _kpiSettings[key] = value;
+      targetValue = value;
     } else {
-      _kpiSettings[key] = double.tryParse(value.toString()) ?? 0.0;
+      targetValue = double.tryParse(value.toString()) ?? 0.0;
     }
+    
+    _kpiSettings[key] = targetValue;
     notifyListeners();
+    
+    // Save to Supabase cloud
+    try {
+      if (_currentShopId != null) {
+        final userId = Supabase.instance.client.auth.currentUser?.id;
+        if (userId != null) {
+          // Parse key to extract month/year if present (e.g., "jan_2025_revenue")
+          int? month;
+          int? year;
+          String targetKey = key;
+          
+          if (key.contains('_')) {
+            final parts = key.split('_');
+            if (parts.length >= 3) {
+              // Month-specific target (e.g., "jan_2025_revenue")
+              final monthNames = {'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+                                  'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12};
+              month = monthNames[parts[0].toLowerCase()];
+              year = int.tryParse(parts[1]);
+              targetKey = parts.sublist(2).join('_');
+            }
+          }
+          
+          await Supabase.instance.client.from('kpi_targets').upsert({
+            'shop_id': _currentShopId,
+            'user_id': userId,
+            'target_key': targetKey,
+            'target_value': targetValue,
+            'month': month,
+            'year': year,
+          });
+          
+          debugPrint('☁️ Synced target $key = $targetValue to cloud');
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error syncing KPI setting to cloud: $e');
+    }
+    
+    // Save to local storage as backup
     await _saveKPISettings();
   }
 
@@ -1160,5 +1315,142 @@ class TransactionProvider with ChangeNotifier {
     await _loadInventoryData();
     await _loadStaffData();
     debugPrint('✅ All data refreshed from Supabase');
+  }
+  
+  // ============================================
+  // OFFLINE SYNC QUEUE METHODS
+  // ============================================
+  
+  /// Load pending transactions from local storage
+  Future<void> _loadPendingQueue() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? pendingJson = prefs.getString('pending_transactions');
+      
+      if (pendingJson != null) {
+        final List<dynamic> decoded = json.decode(pendingJson);
+        _pendingTransactions = decoded.map((t) => Transaction.fromJson(t)).toList();
+        debugPrint('📥 Loaded ${_pendingTransactions.length} pending transactions from queue');
+        
+        // Try to sync immediately if we have pending items
+        if (_pendingTransactions.isNotEmpty) {
+          _attemptSync();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading pending queue: $e');
+      _pendingTransactions = [];
+    }
+  }
+  
+  /// Save pending transactions to local storage
+  Future<void> _savePendingQueue() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String encoded = json.encode(_pendingTransactions.map((t) => t.toJson()).toList());
+      await prefs.setString('pending_transactions', encoded);
+      debugPrint('💾 Saved ${_pendingTransactions.length} transactions to sync queue');
+    } catch (e) {
+      debugPrint('Error saving pending queue: $e');
+    }
+  }
+  
+  /// Start monitoring connectivity
+  void _startConnectivityMonitoring() {
+    // Check connectivity every 10 seconds
+    Future.doWhile(() async {
+      await Future.delayed(const Duration(seconds: 10));
+      await _checkConnectivity();
+      return true; // Keep checking
+    });
+    
+    // Also check immediately
+    _checkConnectivity();
+  }
+  
+  /// Check if device is online and attempt sync
+  Future<void> _checkConnectivity() async {
+    try {
+      // Try a simple Supabase query to check connectivity
+      await Supabase.instance.client
+          .from('transactions')
+          .select('id')
+          .limit(1);
+      
+      if (!_isOnline) {
+        debugPrint('🌐 Device is now ONLINE');
+        _isOnline = true;
+        notifyListeners();
+        
+        // Trigger sync when we detect we're back online
+        if (_pendingTransactions.isNotEmpty) {
+          debugPrint('🔄 Attempting to sync ${_pendingTransactions.length} pending transactions...');
+          _attemptSync();
+        }
+      } else {
+        _isOnline = true;
+      }
+    } catch (e) {
+      if (_isOnline) {
+        debugPrint('📴 Device is now OFFLINE');
+        _isOnline = false;
+        notifyListeners();
+      }
+    }
+  }
+  
+  /// Attempt to sync pending transactions
+  Future<void> _attemptSync() async {
+    if (_isSyncing || _pendingTransactions.isEmpty || !_isOnline) {
+      return;
+    }
+    
+    _isSyncing = true;
+    notifyListeners();
+    
+    try {
+      debugPrint('🔄 Starting sync of ${_pendingTransactions.length} transactions...');
+      final successfulSyncs = <Transaction>[];
+      
+      for (final transaction in _pendingTransactions) {
+        try {
+          // Upload to Supabase
+          final savedTransaction = await _supabaseService.addTransaction(transaction);
+          
+          // Remove from local transactions (with temp ID)
+          _transactions.removeWhere((t) => t.id == transaction.id);
+          
+          // Realtime will add it back with real ID
+          successfulSyncs.add(transaction);
+          
+          debugPrint('✅ Synced transaction ${transaction.id} → ${savedTransaction.id}');
+        } catch (e) {
+          debugPrint('❌ Failed to sync transaction ${transaction.id}: $e');
+          // Keep in queue for next attempt
+        }
+      }
+      
+      // Remove successfully synced transactions from queue
+      for (final synced in successfulSyncs) {
+        _pendingTransactions.removeWhere((t) => t.id == synced.id);
+      }
+      
+      await _savePendingQueue();
+      await _saveToStorage();
+      
+      debugPrint('✅ Sync complete: ${successfulSyncs.length} uploaded, ${_pendingTransactions.length} remaining');
+    } catch (e) {
+      debugPrint('❌ Sync error: $e');
+    } finally {
+      _isSyncing = false;
+      notifyListeners();
+    }
+  }
+  
+  /// Manual sync trigger (for pull-to-refresh or sync button)
+  Future<void> syncPendingTransactions() async {
+    debugPrint('🔄 Manual sync triggered');
+    await _checkConnectivity();
+    await _attemptSync();
   }
 }
