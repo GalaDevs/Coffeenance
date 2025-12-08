@@ -988,32 +988,36 @@ class TransactionProvider with ChangeNotifier {
   /// Load KPI settings from storage
   Future<void> _loadKPISettings() async {
     try {
+      // Set defaults first to ensure they're always available
+      _kpiSettings = {
+        // Daily targets
+        'dailyRevenueTarget': 10000.0,
+        'dailyTransactionsTarget': 50.0,
+        'avgTransactionTarget': 200.0,
+        'dailyExpensesTarget': 3000.0,
+        // Weekly targets
+        'weeklyRevenueTarget': 70000.0,
+        'weeklyTransactionsTarget': 350.0,
+        // Monthly targets
+        'monthlyRevenueTarget': 300000.0,
+        'monthlyTransactionsTarget': 1500.0,
+        // Performance metrics
+        'customerSatisfaction': 91.0,
+        'operationalEfficiency': 88.0,
+        'staffRetention': 95.0,
+        'inventoryTurnover': 82.0,
+        'revenueGrowth': 78.0,
+      };
+      
       final prefs = await SharedPreferences.getInstance();
       final String? kpiJson = prefs.getString('kpi_settings');
 
       if (kpiJson != null) {
-        _kpiSettings = json.decode(kpiJson);
+        // Override defaults with saved values
+        final savedSettings = json.decode(kpiJson);
+        _kpiSettings.addAll(savedSettings);
       } else {
-        // Default KPI targets
-        _kpiSettings = {
-          // Daily targets
-          'dailyRevenueTarget': 10000.0,
-          'dailyTransactionsTarget': 50.0,
-          'avgTransactionTarget': 200.0,
-          'dailyExpensesTarget': 3000.0,
-          // Weekly targets
-          'weeklyRevenueTarget': 70000.0,
-          'weeklyTransactionsTarget': 350.0,
-          // Monthly targets
-          'monthlyRevenueTarget': 300000.0,
-          'monthlyTransactionsTarget': 1500.0,
-          // Performance metrics
-          'customerSatisfaction': 91.0,
-          'operationalEfficiency': 88.0,
-          'staffRetention': 95.0,
-          'inventoryTurnover': 82.0,
-          'revenueGrowth': 78.0,
-        };
+        // Save defaults if nothing exists
         await _saveKPISettings();
       }
     } catch (e) {

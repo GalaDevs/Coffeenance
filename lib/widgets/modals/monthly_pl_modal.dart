@@ -519,83 +519,157 @@ class MonthlyPLModal extends StatelessWidget {
             const SizedBox(height: 16),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columns: [
-                  DataColumn(
-                    label: Text(
-                      'Month',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  DataColumn(
-                    label: Text(
-                      'Revenue',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  DataColumn(
-                    label: Text(
-                      'Expenses',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  DataColumn(
-                    label: Text(
-                      'Profit',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  DataColumn(
-                    label: Text(
-                      'Margin',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-                rows: monthlyData.map((data) {
-                  final month = data['month'] as String;
-                  final revenue = data['revenue'] as double;
-                  final expenses = data['expenses'] as double;
-                  final profit = data['profit'] as double;
-                  final margin = ((profit / revenue) * 100).toStringAsFixed(1);
-
-                  return DataRow(
-                    cells: [
-                      DataCell(Text(month)),
-                      DataCell(
-                        Text(
-                          '₱${revenue.toInt().toStringAsFixed(0)}',
-                          style: const TextStyle(color: Colors.green),
-                        ),
-                      ),
-                      DataCell(
-                        Text(
-                          '₱${expenses.toInt().toStringAsFixed(0)}',
-                          style: const TextStyle(color: Colors.red),
-                        ),
-                      ),
-                      DataCell(
-                        Text(
-                          '₱${profit.toInt().toStringAsFixed(0)}',
+              child: Consumer<TransactionProvider>(
+                builder: (context, provider, child) {
+                  final monthlyRevenueTarget = provider.getKPITarget('monthlyRevenueTarget');
+                  final monthlyTransactionsTarget = provider.getKPITarget('monthlyTransactionsTarget');
+                  
+                  return DataTable(
+                    columnSpacing: 24,
+                    horizontalMargin: 12,
+                    columns: [
+                      DataColumn(
+                        label: Text(
+                          'Month',
                           style: theme.textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
-                      DataCell(Text('$margin%')),
+                      DataColumn(
+                        label: Text(
+                          'Revenue',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      DataColumn(
+                        label: Text(
+                          'Target %',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                      DataColumn(
+                        label: Text(
+                          'Expenses',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      DataColumn(
+                        label: Text(
+                          'Budget %',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                      DataColumn(
+                        label: Text(
+                          'Profit',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
                     ],
+                    rows: monthlyData.map((data) {
+                      final month = data['month'] as String;
+                      final revenue = data['revenue'] as double;
+                      final expenses = data['expenses'] as double;
+                      final profit = data['profit'] as double;
+                      
+                      // Calculate target percentages
+                      final revenuePercent = monthlyRevenueTarget > 0 
+                          ? ((revenue / monthlyRevenueTarget) * 100).toStringAsFixed(0)
+                          : '0';
+                      final expensesBudget = monthlyRevenueTarget * 0.7; // 70% of revenue as budget
+                      final expensesPercent = expensesBudget > 0
+                          ? ((expenses / expensesBudget) * 100).toStringAsFixed(0)
+                          : '0';
+                      
+                      final isRevenueGood = (double.tryParse(revenuePercent) ?? 0) >= 80;
+                      final isExpensesGood = (double.tryParse(expensesPercent) ?? 0) <= 100;
+
+                      return DataRow(
+                        cells: [
+                          DataCell(Text(month, style: theme.textTheme.bodyMedium)),
+                          DataCell(
+                            Text(
+                              '₱${(revenue / 1000).toStringAsFixed(1)}K',
+                              style: TextStyle(
+                                color: Colors.green.shade700,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: isRevenueGood 
+                                    ? Colors.green.withValues(alpha: 0.1)
+                                    : Colors.orange.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                '$revenuePercent%',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: isRevenueGood ? Colors.green.shade700 : Colors.orange.shade700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Text(
+                              '₱${(expenses / 1000).toStringAsFixed(1)}K',
+                              style: TextStyle(
+                                color: Colors.red.shade700,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: isExpensesGood
+                                    ? Colors.green.withValues(alpha: 0.1)
+                                    : Colors.red.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                '$expensesPercent%',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: isExpensesGood ? Colors.green.shade700 : Colors.red.shade700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Text(
+                              '₱${(profit / 1000).toStringAsFixed(1)}K',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: profit >= 0 ? Colors.blue.shade700 : Colors.red.shade700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList(),
                   );
-                }).toList(),
+                }
               ),
             ),
           ],

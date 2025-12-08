@@ -15,6 +15,7 @@ class RevenueTrendsModal extends StatelessWidget {
     final now = DateTime.now();
     final weeklyData = <Map<String, dynamic>>[];
     final dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final dailyTarget = provider.getKPITarget('dailyRevenueTarget');
     
     for (int i = 6; i >= 0; i--) {
       final targetDate = now.subtract(Duration(days: i));
@@ -30,7 +31,7 @@ class RevenueTrendsModal extends StatelessWidget {
       weeklyData.add({
         'date': dayName,
         'sales': sales,
-        'target': 15000.0, // Target remains constant
+        'target': dailyTarget,
       });
     }
     
