@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -213,6 +214,7 @@ class AuthProvider extends ChangeNotifier {
     required String fullName,
     required UserRole role,
     bool isRegistration = false, // Allow registration without being logged in
+    File? profileImage, // Optional profile image
   }) async {
     // Allow registration for admin accounts OR require admin privileges
     if (!isRegistration && _currentUser?.role != UserRole.admin) {
@@ -226,17 +228,18 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      debugPrint('🔐 AuthProvider: Starting user creation with 10s timeout...');
+      debugPrint('🔐 AuthProvider: Starting user creation with 30s timeout...');
       final newUser = await _authService.createUser(
         email: email,
         password: password,
         fullName: fullName,
         role: role,
         createdByUserId: isRegistration ? '' : _currentUser!.id,
+        profileImage: profileImage,
       ).timeout(
-        const Duration(seconds: 10),
+        const Duration(seconds: 30),
         onTimeout: () {
-          throw TimeoutException('User creation timed out after 10 seconds');
+          throw TimeoutException('User creation timed out after 30 seconds');
         },
       );
 

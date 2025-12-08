@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_profile.dart';
 import '../config/supabase_config.dart';
@@ -95,6 +96,34 @@ class AuthService {
     }
   }
 
+  /// Upload profile image to Supabase Storage
+  Future<String?> uploadProfileImage(String userId, File imageFile) async {
+    if (_supabase == null) {
+      throw Exception('Supabase not initialized');
+    }
+    try {
+      final fileName = '${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final filePath = 'profile_images/$fileName';
+      
+      debugPrint('📤 Uploading profile image: $filePath');
+      
+      await _supabase!.storage
+          .from('profiles')
+          .upload(filePath, imageFile);
+      
+      final publicUrl = _supabase!.storage
+          .from('profiles')
+          .getPublicUrl(filePath);
+      
+      debugPrint('✅ Profile image uploaded: $publicUrl');
+      return publicUrl;
+    } catch (e) {
+      debugPrint('❌ Error uploading profile image: $e');
+      // Don't fail the entire registration if image upload fails
+      return null;
+    }
+  }
+
   /// Get user profile from database
   Future<UserProfile?> getUserProfile(String userId) async {
     if (_supabase == null) {
@@ -149,6 +178,7 @@ class AuthService {
     required String fullName,
     required UserRole role,
     required String createdByUserId,
+    File? profileImage, // Optional profile image
   }) async {
     if (_supabase == null) {
       throw Exception('Supabase not initialized');
@@ -231,6 +261,16 @@ class AuthService {
         final newUserId = authResponse.user!.id;
         debugPrint('✅ Auth user created with ID: $newUserId');
 
+        // Upload profile image if provided
+        String? profileImageUrl;
+        if (profileImage != null) {
+          debugPrint('📤 Uploading profile image...');
+          profileImageUrl = await uploadProfileImage(newUserId, profileImage);
+          if (profileImageUrl != null) {
+            debugPrint('✅ Profile image uploaded successfully');
+          }
+        }
+
         // Create profile in database
         debugPrint('📝 Creating user profile in database...');
         final insertResponse = await _supabase!.from('user_profiles').insert({
@@ -241,6 +281,7 @@ class AuthService {
           'created_by': '', // Empty for registration
           'admin_id': assignedAdminId,
           'is_active': true,
+          'profile_image_url': profileImageUrl,
           'created_at': DateTime.now().toIso8601String(),
           'updated_at': DateTime.now().toIso8601String(),
         }).select();

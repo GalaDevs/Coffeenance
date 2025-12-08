@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/user_profile.dart';
 import '../theme/app_theme.dart';
+import '../widgets/register_dialog.dart';
 
 /// Login Screen - Beautiful authentication UI
 class LoginScreen extends StatefulWidget {
@@ -65,6 +66,13 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showRegisterDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => const RegisterDialog(),
+    );
+  }
+
+  void _showRegisterDialogOld() {
     final formKey = GlobalKey<FormState>();
     final nameController = TextEditingController();
     final emailController = TextEditingController();

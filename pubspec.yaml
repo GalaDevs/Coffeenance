@@ -44,6 +44,8 @@ dependencies:
   path_provider: ^2.1.1
   share_plus: ^7.2.1
   open_filex: ^4.5.0
+  image_picker: ^1.0.7
+  cached_network_image: ^3.3.1
   
   # Location & Maps
   geolocator: ^13.0.2

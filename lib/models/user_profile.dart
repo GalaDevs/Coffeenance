@@ -38,6 +38,7 @@ class UserProfile {
   final String? createdBy;
   final String? adminId; // Multi-tenancy: NULL for admin, admin's ID for manager/staff
   final bool isActive;
+  final String? profileImageUrl; // Profile image URL from Supabase Storage
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -49,6 +50,7 @@ class UserProfile {
     this.createdBy,
     this.adminId,
     this.isActive = true,
+    this.profileImageUrl,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -73,6 +75,7 @@ class UserProfile {
       createdBy: json['created_by'] as String?,
       adminId: json['admin_id'] as String?,
       isActive: json['is_active'] as bool? ?? true,
+      profileImageUrl: json['profile_image_url'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );
@@ -86,6 +89,7 @@ class UserProfile {
       'created_by': createdBy,
       'admin_id': adminId,
       'is_active': isActive,
+      'profile_image_url': profileImageUrl,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -99,6 +103,7 @@ class UserProfile {
     String? createdBy,
     String? adminId,
     bool? isActive,
+    String? profileImageUrl,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -110,6 +115,7 @@ class UserProfile {
       createdBy: createdBy ?? this.createdBy,
       adminId: adminId ?? this.adminId,
       isActive: isActive ?? this.isActive,
+      profileImageUrl: profileImageUrl ?? this.profileImageUrl,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

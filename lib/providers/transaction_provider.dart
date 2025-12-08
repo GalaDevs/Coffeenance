@@ -38,12 +38,32 @@ class TransactionProvider with ChangeNotifier {
   Map<String, dynamic> get kpiSettings => Map.unmodifiable(_kpiSettings);
   Map<String, dynamic> get taxSettings => Map.unmodifiable(_taxSettings);
 
-  // Computed properties matching Next.js logic
+  // ============================================
+  // DAILY FILTERS (TODAY ONLY)
+  // ============================================
+
+  /// Filter transactions for today only
+  List<Transaction> _getTodayTransactions() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final tomorrow = today.add(const Duration(days: 1));
+
+    return _transactions.where((t) {
+      final transactionDate = DateTime.parse(t.date);
+      return transactionDate.isAfter(today.subtract(const Duration(days: 1))) &&
+          transactionDate.isBefore(tomorrow);
+    }).toList();
+  }
+
+  // Public method to get today's transactions list
+  List<Transaction> getTodayTransactionsList() => _getTodayTransactions();
+
+  // Computed properties matching Next.js logic - NOW FILTERED TO TODAY
   List<Transaction> get revenueTransactions =>
-      _transactions.where((t) => t.type == TransactionType.revenue).toList();
+      _getTodayTransactions().where((t) => t.type == TransactionType.revenue).toList();
 
   List<Transaction> get transactionList =>
-      _transactions.where((t) => t.type == TransactionType.transaction).toList();
+      _getTodayTransactions().where((t) => t.type == TransactionType.transaction).toList();
 
   List<Transaction> get transactionRecords => transactionList; // Alias
 
@@ -107,6 +127,308 @@ class TransactionProvider with ChangeNotifier {
       TransactionCategories.others: transactionList
           .where((t) => t.category == TransactionCategories.others)
           .fold(0.0, (sum, t) => sum + t.amount),
+    };
+  }
+
+  // ============================================
+  // WEEKLY FILTERS
+  // ============================================
+
+  /// Filter transactions for the current week (Monday to Sunday)
+  List<Transaction> _getWeekTransactions() {
+    final now = DateTime.now();
+    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+    final startDate = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
+    final endDate = startDate.add(const Duration(days: 7));
+
+    return _transactions.where((t) {
+      final transactionDate = DateTime.parse(t.date);
+      return transactionDate.isAfter(startDate.subtract(const Duration(days: 1))) &&
+          transactionDate.isBefore(endDate);
+    }).toList();
+  }
+
+  List<Transaction> getWeeklyTransactionsList() => _getWeekTransactions();
+
+  double getWeeklyRevenue() {
+    final weekTransactions = _getWeekTransactions();
+    return weekTransactions
+        .where((t) => t.type == TransactionType.revenue)
+        .fold(0.0, (sum, t) => sum + t.amount);
+  }
+
+  double getWeeklyTransactions() {
+    final weekTransactions = _getWeekTransactions();
+    return weekTransactions
+        .where((t) => t.type == TransactionType.transaction)
+        .fold(0.0, (sum, t) => sum + t.amount);
+  }
+
+  double getWeeklyBalance() => getWeeklyRevenue() - getWeeklyTransactions();
+
+  Map<String, double> getWeeklyRevenueByMethod() {
+    final weekTransactions = _getWeekTransactions();
+    final weekRevenue = weekTransactions.where((t) => t.type == TransactionType.revenue).toList();
+
+    return {
+      RevenueCategories.cash: weekRevenue
+          .where((t) => t.category == RevenueCategories.cash)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      RevenueCategories.gcash: weekRevenue
+          .where((t) => t.category == RevenueCategories.gcash)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      RevenueCategories.grab: weekRevenue
+          .where((t) => t.category == RevenueCategories.grab)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      RevenueCategories.paymaya: weekRevenue
+          .where((t) => t.category == RevenueCategories.paymaya)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      RevenueCategories.others: weekRevenue
+          .where((t) => t.category == RevenueCategories.others)
+          .fold(0.0, (sum, t) => sum + t.amount),
+    };
+  }
+
+  Map<String, double> getWeeklyTransactionsByCategory() {
+    final weekTransactions = _getWeekTransactions();
+    final weekExpenses = weekTransactions.where((t) => t.type == TransactionType.transaction).toList();
+
+    return {
+      TransactionCategories.supplies: weekExpenses
+          .where((t) => t.category == TransactionCategories.supplies)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      TransactionCategories.pastries: weekExpenses
+          .where((t) => t.category == TransactionCategories.pastries)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      TransactionCategories.rent: weekExpenses
+          .where((t) => t.category == TransactionCategories.rent)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      TransactionCategories.utilities: weekExpenses
+          .where((t) => t.category == TransactionCategories.utilities)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      TransactionCategories.manpower: weekExpenses
+          .where((t) => t.category == TransactionCategories.manpower)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      TransactionCategories.marketing: weekExpenses
+          .where((t) => t.category == TransactionCategories.marketing)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      TransactionCategories.others: weekExpenses
+          .where((t) => t.category == TransactionCategories.others)
+          .fold(0.0, (sum, t) => sum + t.amount),
+    };
+  }
+
+  // ============================================
+  // MONTHLY FILTERS
+  // ============================================
+
+  /// Filter transactions for the current month
+  List<Transaction> _getMonthTransactions() {
+    final now = DateTime.now();
+    final startDate = DateTime(now.year, now.month, 1);
+    final endDate = DateTime(now.year, now.month + 1, 1);
+
+    return _transactions.where((t) {
+      final transactionDate = DateTime.parse(t.date);
+      return transactionDate.isAfter(startDate.subtract(const Duration(days: 1))) &&
+          transactionDate.isBefore(endDate);
+    }).toList();
+  }
+
+  List<Transaction> getMonthlyTransactionsList() => _getMonthTransactions();
+
+  double getMonthlyRevenue() {
+    final monthTransactions = _getMonthTransactions();
+    return monthTransactions
+        .where((t) => t.type == TransactionType.revenue)
+        .fold(0.0, (sum, t) => sum + t.amount);
+  }
+
+  double getMonthlyTransactions() {
+    final monthTransactions = _getMonthTransactions();
+    return monthTransactions
+        .where((t) => t.type == TransactionType.transaction)
+        .fold(0.0, (sum, t) => sum + t.amount);
+  }
+
+  double getMonthlyBalance() => getMonthlyRevenue() - getMonthlyTransactions();
+
+  Map<String, double> getMonthlyRevenueByMethod() {
+    final monthTransactions = _getMonthTransactions();
+    final monthRevenue = monthTransactions.where((t) => t.type == TransactionType.revenue).toList();
+
+    return {
+      RevenueCategories.cash: monthRevenue
+          .where((t) => t.category == RevenueCategories.cash)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      RevenueCategories.gcash: monthRevenue
+          .where((t) => t.category == RevenueCategories.gcash)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      RevenueCategories.grab: monthRevenue
+          .where((t) => t.category == RevenueCategories.grab)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      RevenueCategories.paymaya: monthRevenue
+          .where((t) => t.category == RevenueCategories.paymaya)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      RevenueCategories.others: monthRevenue
+          .where((t) => t.category == RevenueCategories.others)
+          .fold(0.0, (sum, t) => sum + t.amount),
+    };
+  }
+
+  Map<String, double> getMonthlyTransactionsByCategory() {
+    final monthTransactions = _getMonthTransactions();
+    final monthExpenses = monthTransactions.where((t) => t.type == TransactionType.transaction).toList();
+
+    return {
+      TransactionCategories.supplies: monthExpenses
+          .where((t) => t.category == TransactionCategories.supplies)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      TransactionCategories.pastries: monthExpenses
+          .where((t) => t.category == TransactionCategories.pastries)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      TransactionCategories.rent: monthExpenses
+          .where((t) => t.category == TransactionCategories.rent)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      TransactionCategories.utilities: monthExpenses
+          .where((t) => t.category == TransactionCategories.utilities)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      TransactionCategories.manpower: monthExpenses
+          .where((t) => t.category == TransactionCategories.manpower)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      TransactionCategories.marketing: monthExpenses
+          .where((t) => t.category == TransactionCategories.marketing)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      TransactionCategories.others: monthExpenses
+          .where((t) => t.category == TransactionCategories.others)
+          .fold(0.0, (sum, t) => sum + t.amount),
+    };
+  }
+
+  // ============================================
+  // CUSTOM DATE RANGE FILTERS
+  // ============================================
+
+  /// Filter transactions for a custom date range
+  List<Transaction> _getCustomRangeTransactions(DateTime startDate, DateTime endDate) {
+    return _transactions.where((t) {
+      final transactionDate = DateTime.parse(t.date);
+      return transactionDate.isAfter(startDate.subtract(const Duration(milliseconds: 1))) &&
+          transactionDate.isBefore(endDate.add(const Duration(milliseconds: 1)));
+    }).toList();
+  }
+
+  List<Transaction> getCustomRangeTransactionsList(DateTime startDate, DateTime endDate) =>
+      _getCustomRangeTransactions(startDate, endDate);
+
+  double getCustomRangeRevenue(DateTime startDate, DateTime endDate) {
+    final rangeTransactions = _getCustomRangeTransactions(startDate, endDate);
+    return rangeTransactions
+        .where((t) => t.type == TransactionType.revenue)
+        .fold(0.0, (sum, t) => sum + t.amount);
+  }
+
+  double getCustomRangeTransactions(DateTime startDate, DateTime endDate) {
+    final rangeTransactions = _getCustomRangeTransactions(startDate, endDate);
+    return rangeTransactions
+        .where((t) => t.type == TransactionType.transaction)
+        .fold(0.0, (sum, t) => sum + t.amount);
+  }
+
+  double getCustomRangeBalance(DateTime startDate, DateTime endDate) =>
+      getCustomRangeRevenue(startDate, endDate) - getCustomRangeTransactions(startDate, endDate);
+
+  Map<String, double> getCustomRangeRevenueByMethod(DateTime startDate, DateTime endDate) {
+    final rangeTransactions = _getCustomRangeTransactions(startDate, endDate);
+    final rangeRevenue = rangeTransactions.where((t) => t.type == TransactionType.revenue).toList();
+
+    return {
+      RevenueCategories.cash: rangeRevenue
+          .where((t) => t.category == RevenueCategories.cash)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      RevenueCategories.gcash: rangeRevenue
+          .where((t) => t.category == RevenueCategories.gcash)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      RevenueCategories.grab: rangeRevenue
+          .where((t) => t.category == RevenueCategories.grab)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      RevenueCategories.paymaya: rangeRevenue
+          .where((t) => t.category == RevenueCategories.paymaya)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      RevenueCategories.others: rangeRevenue
+          .where((t) => t.category == RevenueCategories.others)
+          .fold(0.0, (sum, t) => sum + t.amount),
+    };
+  }
+
+  Map<String, double> getCustomRangeTransactionsByCategory(DateTime startDate, DateTime endDate) {
+    final rangeTransactions = _getCustomRangeTransactions(startDate, endDate);
+    final rangeExpenses = rangeTransactions.where((t) => t.type == TransactionType.transaction).toList();
+
+    return {
+      TransactionCategories.supplies: rangeExpenses
+          .where((t) => t.category == TransactionCategories.supplies)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      TransactionCategories.pastries: rangeExpenses
+          .where((t) => t.category == TransactionCategories.pastries)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      TransactionCategories.rent: rangeExpenses
+          .where((t) => t.category == TransactionCategories.rent)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      TransactionCategories.utilities: rangeExpenses
+          .where((t) => t.category == TransactionCategories.utilities)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      TransactionCategories.manpower: rangeExpenses
+          .where((t) => t.category == TransactionCategories.manpower)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      TransactionCategories.marketing: rangeExpenses
+          .where((t) => t.category == TransactionCategories.marketing)
+          .fold(0.0, (sum, t) => sum + t.amount),
+      TransactionCategories.others: rangeExpenses
+          .where((t) => t.category == TransactionCategories.others)
+          .fold(0.0, (sum, t) => sum + t.amount),
+    };
+  }
+
+  /// Get list of revenue transactions for custom date range
+  List<Transaction> getCustomRangeRevenueList(DateTime startDate, DateTime endDate) {
+    final rangeTransactions = _getCustomRangeTransactions(startDate, endDate);
+    return rangeTransactions.where((t) => t.type == TransactionType.revenue).toList();
+  }
+
+  /// Get list of expense transactions for custom date range
+  List<Transaction> getCustomRangeExpenseList(DateTime startDate, DateTime endDate) {
+    final rangeTransactions = _getCustomRangeTransactions(startDate, endDate);
+    return rangeTransactions.where((t) => t.type == TransactionType.transaction).toList();
+  }
+
+  /// Get transactions by category (returns lists of transactions per category) for custom date range
+  Map<String, List<Transaction>> getCustomRangeExpensesByCategory(DateTime startDate, DateTime endDate) {
+    final rangeTransactions = _getCustomRangeTransactions(startDate, endDate);
+    final rangeExpenses = rangeTransactions.where((t) => t.type == TransactionType.transaction).toList();
+
+    return {
+      TransactionCategories.supplies: rangeExpenses
+          .where((t) => t.category == TransactionCategories.supplies)
+          .toList(),
+      TransactionCategories.pastries: rangeExpenses
+          .where((t) => t.category == TransactionCategories.pastries)
+          .toList(),
+      TransactionCategories.rent: rangeExpenses
+          .where((t) => t.category == TransactionCategories.rent)
+          .toList(),
+      TransactionCategories.utilities: rangeExpenses
+          .where((t) => t.category == TransactionCategories.utilities)
+          .toList(),
+      TransactionCategories.manpower: rangeExpenses
+          .where((t) => t.category == TransactionCategories.manpower)
+          .toList(),
+      TransactionCategories.marketing: rangeExpenses
+          .where((t) => t.category == TransactionCategories.marketing)
+          .toList(),
+      TransactionCategories.others: rangeExpenses
+          .where((t) => t.category == TransactionCategories.others)
+          .toList(),
     };
   }
 
@@ -674,10 +996,18 @@ class TransactionProvider with ChangeNotifier {
       } else {
         // Default KPI targets
         _kpiSettings = {
-          'dailyRevenueTarget': 50000.0,
-          'dailyTransactionsTarget': 100,
-          'avgTransactionTarget': 500.0,
-          'dailyExpensesTarget': 20000.0,
+          // Daily targets
+          'dailyRevenueTarget': 10000.0,
+          'dailyTransactionsTarget': 50.0,
+          'avgTransactionTarget': 200.0,
+          'dailyExpensesTarget': 3000.0,
+          // Weekly targets
+          'weeklyRevenueTarget': 70000.0,
+          'weeklyTransactionsTarget': 350.0,
+          // Monthly targets
+          'monthlyRevenueTarget': 300000.0,
+          'monthlyTransactionsTarget': 1500.0,
+          // Performance metrics
           'customerSatisfaction': 91.0,
           'operationalEfficiency': 88.0,
           'staffRetention': 95.0,

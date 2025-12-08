@@ -151,18 +151,25 @@ class _KPIDashboardModalState extends State<KPIDashboardModal> {
   // KPI Trends Data - PULL from provider and calculate from real weekly data
   List<Map<String, dynamic>> _getWeeklyTrends(TransactionProvider provider) {
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     final List<Map<String, dynamic>> weeklyData = [];
     
     // Get data for last 4 weeks
     for (int i = 3; i >= 0; i--) {
-      final weekStart = now.subtract(Duration(days: 7 * i));
-      final weekEnd = weekStart.add(const Duration(days: 6));
+      // Calculate week boundaries properly
+      final weekEnd = today.subtract(Duration(days: 7 * i));
+      final weekStart = weekEnd.subtract(const Duration(days: 6));
       
-      // Get transactions for this week
+      // Get transactions for this week using date string comparison
       final weekTransactions = provider.transactions.where((t) {
-        final transactionDate = DateTime.parse(t.date);
-        return transactionDate.isAfter(weekStart.subtract(const Duration(days: 1))) &&
-               transactionDate.isBefore(weekEnd.add(const Duration(days: 1)));
+        try {
+          final transactionDate = DateTime.parse(t.date);
+          final dateOnly = DateTime(transactionDate.year, transactionDate.month, transactionDate.day);
+          // Check if date is within week range (inclusive)
+          return !dateOnly.isBefore(weekStart) && !dateOnly.isAfter(weekEnd);
+        } catch (e) {
+          return false;
+        }
       }).toList();
       
       final revenueTransactions = weekTransactions.where((t) => t.type == TransactionType.revenue).toList();
@@ -171,18 +178,18 @@ class _KPIDashboardModalState extends State<KPIDashboardModal> {
       final totalRevenue = revenueTransactions.fold(0.0, (sum, t) => sum + t.amount);
       final totalExpenses = expenseTransactions.fold(0.0, (sum, t) => sum + t.amount);
       
-      // Calculate metrics (0-100 scale)
-      // Revenue Growth
-      final revenueGrowth = (totalRevenue / 1000).clamp(0, 100);
+      // Calculate metrics (0-100 scale normalized to realistic values)
+      // Revenue - normalized to show meaningful growth (divide by 100 to get percentage scale)
+      final revenueGrowth = (totalRevenue / 100).clamp(0.0, 100.0);
       
       // Operational Efficiency (inverse of expense ratio)
       final efficiency = totalRevenue > 0 
-          ? (100 - ((totalExpenses / totalRevenue) * 100)).clamp(0, 100)
+          ? (100 - ((totalExpenses / totalRevenue) * 100)).clamp(0.0, 100.0)
           : 50.0;
       
       // Profit Margin
       final profitMargin = totalRevenue > 0
-          ? (((totalRevenue - totalExpenses) / totalRevenue) * 100).clamp(0, 100)
+          ? (((totalRevenue - totalExpenses) / totalRevenue) * 100).clamp(0.0, 100.0)
           : 0.0;
       
       weeklyData.add({
@@ -196,57 +203,7 @@ class _KPIDashboardModalState extends State<KPIDashboardModal> {
     return weeklyData;
   }
 
-  // Performance Radar Data - PULL from provider and calculate from real data
-  List<Map<String, dynamic>> _getPerformanceRadar(TransactionProvider provider) {
-    // Get all transactions for calculations
-    final allTransactions = provider.transactions;
-    final revenueTransactions = allTransactions.where((t) => t.type == TransactionType.revenue).toList();
-    final expenseTransactions = allTransactions.where((t) => t.type == TransactionType.transaction).toList();
-    
-    // Calculate total revenue and expenses
-    final totalRevenue = revenueTransactions.fold(0.0, (sum, t) => sum + t.amount);
-    final totalExpenses = expenseTransactions.fold(0.0, (sum, t) => sum + t.amount);
-    
-    // Calculate metrics (0-100 scale)
-    // Operational Efficiency: Based on expense ratio (lower expenses = higher efficiency)
-    final operationalEfficiency = totalRevenue > 0 
-        ? (100 - ((totalExpenses / totalRevenue) * 100)).clamp(0, 100)
-        : 50.0;
-    
-    // Revenue Growth: Based on total revenue achievement
-    final revenueGrowth = (totalRevenue / 1000).clamp(0, 100);
-    
-    // Transaction Volume: Based on number of transactions
-    final transactionVolume = (revenueTransactions.length / 2).clamp(0, 100).toDouble();
-    
-    // Profit Margin: Revenue minus expenses as percentage
-    final profitMargin = totalRevenue > 0
-        ? (((totalRevenue - totalExpenses) / totalRevenue) * 100).clamp(0, 100)
-        : 0.0;
-    
-    return [
-      {
-        'metric': 'Operational\nEfficiency',
-        'value': operationalEfficiency,
-        'key': 'operationalEfficiency',
-      },
-      {
-        'metric': 'Revenue\nGrowth',
-        'value': revenueGrowth,
-        'key': 'revenueGrowth',
-      },
-      {
-        'metric': 'Transaction\nVolume',
-        'value': transactionVolume,
-        'key': 'transactionVolume',
-      },
-      {
-        'metric': 'Profit\nMargin',
-        'value': profitMargin,
-        'key': 'profitMargin',
-      },
-    ];
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -255,7 +212,6 @@ class _KPIDashboardModalState extends State<KPIDashboardModal> {
     return Consumer<TransactionProvider>(
       builder: (context, provider, child) {
         final kpiCards = _generateKPICards(provider);
-        final performanceRadar = _getPerformanceRadar(provider);
         final weeklyTrends = _getWeeklyTrends(provider);
 
         return Dialog(
@@ -357,38 +313,6 @@ class _KPIDashboardModalState extends State<KPIDashboardModal> {
                   },
                 ),
                 const SizedBox(height: 24),
-
-                // Performance Score Radar Chart
-                Card(
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(
-                      color: theme.colorScheme.outline.withValues(alpha: 0.2),
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Performance Score',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          height: 240,
-                          child: _RadarChartWidget(data: performanceRadar),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
 
                 // Weekly Trends Line Chart
                 Card(
@@ -564,62 +488,6 @@ class _KPICard extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-// Radar Chart Widget
-class _RadarChartWidget extends StatelessWidget {
-  final List<Map<String, dynamic>> data;
-
-  const _RadarChartWidget({required this.data});
-
-  @override
-  Widget build(BuildContext context) {
-    return RadarChart(
-      RadarChartData(
-        radarShape: RadarShape.polygon,
-        tickCount: 5,
-        ticksTextStyle: const TextStyle(fontSize: 10, color: Colors.transparent),
-        radarBorderData: BorderSide(
-          color: Colors.grey.shade300,
-          width: 1,
-        ),
-        gridBorderData: BorderSide(
-          color: Colors.grey.shade300,
-          width: 1,
-        ),
-        tickBorderData: BorderSide(
-          color: Colors.grey.shade300,
-          width: 1,
-        ),
-        getTitle: (index, angle) {
-          if (index >= data.length) return const RadarChartTitle(text: '');
-          // Rotate Inventory Turnover 180 degrees
-          final adjustedAngle = data[index]['metric'] == 'Inventory\nTurnover' 
-              ? angle + 180 
-              : angle;
-          return RadarChartTitle(
-            text: data[index]['metric'],
-            angle: adjustedAngle,
-          );
-        },
-        dataSets: [
-          RadarDataSet(
-            fillColor: Colors.blue.withValues(alpha: 0.2),
-            borderColor: Colors.blue,
-            borderWidth: 2,
-            dataEntries: data.map((item) {
-              return RadarEntry(value: item['value'] as double);
-            }).toList(),
-          ),
-        ],
-        titleTextStyle: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-        ),
-        titlePositionPercentageOffset: 0.15,
       ),
     );
   }
