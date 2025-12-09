@@ -325,11 +325,15 @@ class TransactionProvider with ChangeNotifier {
 
   /// Filter transactions for a custom date range
   List<Transaction> _getCustomRangeTransactions(DateTime startDate, DateTime endDate) {
-    return _transactions.where((t) {
+    final filtered = _transactions.where((t) {
       final transactionDate = DateTime.parse(t.date);
       return transactionDate.isAfter(startDate.subtract(const Duration(milliseconds: 1))) &&
           transactionDate.isBefore(endDate.add(const Duration(milliseconds: 1)));
     }).toList();
+    
+    // Sort by date: latest → oldest
+    filtered.sort((a, b) => DateTime.parse(b.date).compareTo(DateTime.parse(a.date)));
+    return filtered;
   }
 
   List<Transaction> getCustomRangeTransactionsList(DateTime startDate, DateTime endDate) =>

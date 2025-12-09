@@ -19,11 +19,30 @@ class TransactionsScreen extends StatefulWidget {
 class _TransactionsScreenState extends State<TransactionsScreen> {
   DateTime? _startDate;
   DateTime? _endDate;
+  DateTime? _selectedSingleDate; // For single day picker
 
   @override
   void initState() {
     super.initState();
     _setToday();
+  }
+
+  void _selectSingleDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedSingleDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedSingleDate = picked;
+        // Set date range to cover the entire selected day
+        _startDate = DateTime(picked.year, picked.month, picked.day);
+        _endDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
+      });
+    }
   }
 
   void _selectDateRange() async {
@@ -38,6 +57,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
     if (picked != null) {
       setState(() {
+        _selectedSingleDate = null; // Clear single date selection
         _startDate = picked.start;
         _endDate = picked.end;
       });
@@ -47,6 +67,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   void _setToday() {
     final now = DateTime.now();
     setState(() {
+      _selectedSingleDate = null; // Clear single date
       _startDate = DateTime(now.year, now.month, now.day);
       _endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
     });
@@ -56,6 +77,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     final now = DateTime.now();
     final sevenDaysAgo = now.subtract(const Duration(days: 6));
     setState(() {
+      _selectedSingleDate = null; // Clear single date
       _startDate = DateTime(sevenDaysAgo.year, sevenDaysAgo.month, sevenDaysAgo.day);
       _endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
     });
@@ -64,6 +86,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   void _setThisMonth() {
     final now = DateTime.now();
     setState(() {
+      _selectedSingleDate = null; // Clear single date
       _startDate = DateTime(now.year, now.month, 1);
       _endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
     });
@@ -334,12 +357,34 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Transaction Records List
-              Text(
-                'All Transaction Records',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+              // Transaction Records List with Date Picker
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'All Transaction Records',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _selectSingleDate,
+                    icon: Icon(
+                      Icons.calendar_today,
+                      color: _selectedSingleDate != null
+                          ? Colors.red.shade600
+                          : theme.colorScheme.onSurface,
+                    ),
+                    tooltip: _selectedSingleDate != null
+                        ? 'Selected: ${DateFormat('MMM dd, yyyy').format(_selectedSingleDate!)}'
+                        : 'Select a specific day',
+                    style: IconButton.styleFrom(
+                      backgroundColor: _selectedSingleDate != null
+                          ? Colors.red.shade50
+                          : null,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
 
