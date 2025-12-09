@@ -119,6 +119,7 @@ class _TransactionModalState extends State<TransactionModal>
   final ScrollController _scrollController = ScrollController();
   int _vat = 0; // 0 or 12
   DateTime _selectedDate = DateTime.now();
+  bool _showSuccessToast = false;
 
   @override
   void initState() {
@@ -370,40 +371,37 @@ class _TransactionModalState extends State<TransactionModal>
       curve: Curves.easeOut,
     );
     
-    // Show success toast
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.white),
-            SizedBox(width: 12),
-            Expanded(child: Text('Transaction saved successfully! ✓')),
-          ],
-        ),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        duration: const Duration(seconds: 3),
-      ),
-    );
+    // Show success overlay toast
+    setState(() {
+      _showSuccessToast = true;
+    });
+    
+    // Hide toast after 2 seconds
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          _showSuccessToast = false;
+        });
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return GestureDetector(
-      onTap: () {
-        // Dismiss keyboard when tapping outside text fields
-        FocusScope.of(context).unfocus();
-      },
-      child: FadeTransition(
-        opacity: _fadeAnimation,
-        child: SlideTransition(
-          position: _slideAnimation,
-          child: Container(
+    return Stack(
+      children: [
+        GestureDetector(
+          onTap: () {
+            // Dismiss keyboard when tapping outside text fields
+            FocusScope.of(context).unfocus();
+          },
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: SlideTransition(
+              position: _slideAnimation,
+              child: Container(
             constraints: BoxConstraints(
               maxHeight: MediaQuery.of(context).size.height * 0.9,
             ),
@@ -1156,6 +1154,50 @@ class _TransactionModalState extends State<TransactionModal>
         ),
       ),
       ),
+        ),
+        // Success Toast Overlay - Always on top
+        if (_showSuccessToast)
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 16,
+            left: 16,
+            right: 16,
+            child: Material(
+              elevation: 8,
+              borderRadius: BorderRadius.circular(12),
+              color: Colors.transparent,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.white, size: 24),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Transaction saved successfully! ✓',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
