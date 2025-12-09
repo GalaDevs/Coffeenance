@@ -13,13 +13,13 @@ Transaction _$TransactionFromJson(Map<String, dynamic> json) => Transaction(
       category: json['category'] as String,
       description: json['description'] as String,
       amount: (json['amount'] as num).toDouble(),
-      paymentMethod: json['paymentMethod'] as String? ?? '',
-      transactionNumber: json['transactionNumber'] as String? ?? '',
-      receiptNumber: json['receiptNumber'] as String? ?? '',
-      tinNumber: json['tinNumber'] as String? ?? '',
+      paymentMethod: json['payment_method'] as String? ?? '',
+      transactionNumber: json['transaction_number'] as String? ?? '',
+      receiptNumber: json['receipt_number'] as String? ?? '',
+      tinNumber: json['tin_number'] as String? ?? '',
       vat: (json['vat'] as num?)?.toInt() ?? 0,
-      supplierName: json['supplierName'] as String? ?? '',
-      supplierAddress: json['supplierAddress'] as String? ?? '',
+      supplierName: json['supplier_name'] as String? ?? '',
+      supplierAddress: json['supplier_address'] as String? ?? '',
     );
 
 Map<String, dynamic> _$TransactionToJson(Transaction instance) =>
@@ -30,13 +30,13 @@ Map<String, dynamic> _$TransactionToJson(Transaction instance) =>
       'category': instance.category,
       'description': instance.description,
       'amount': instance.amount,
-      'paymentMethod': instance.paymentMethod,
-      'transactionNumber': instance.transactionNumber,
-      'receiptNumber': instance.receiptNumber,
-      'tinNumber': instance.tinNumber,
+      'payment_method': instance.paymentMethod,
+      'transaction_number': instance.transactionNumber,
+      'receipt_number': instance.receiptNumber,
+      'tin_number': instance.tinNumber,
       'vat': instance.vat,
-      'supplierName': instance.supplierName,
-      'supplierAddress': instance.supplierAddress,
+      'supplier_name': instance.supplierName,
+      'supplier_address': instance.supplierAddress,
     };
 
 const _$TransactionTypeEnumMap = {

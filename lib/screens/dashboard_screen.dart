@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/notification_provider.dart';
 import '../models/user_profile.dart';
 import '../widgets/balance_card.dart';
 import '../widgets/revenue_breakdown.dart';
@@ -15,6 +16,7 @@ import '../widgets/modals/kpi_dashboard_modal.dart';
 import '../widgets/modals/target_settings_modal.dart';
 import '../widgets/sales_monitoring_card.dart';
 import '../widgets/expense_breakdown_card.dart';
+import '../screens/notifications_screen.dart';
 
 /// Dashboard Screen - Matches dashboard.tsx
 /// Shows balance, sales breakdown, and recent transactions
@@ -204,6 +206,57 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   Row(
                     children: [
+                      // Notification Badge
+                      Consumer<NotificationProvider>(
+                        builder: (context, notificationProvider, _) {
+                          final badgeCount = notificationProvider.totalBadgeCount;
+                          
+                          return Stack(
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  Icons.notifications_rounded,
+                                  color: theme.colorScheme.primary,
+                                ),
+                                onPressed: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (context) => const NotificationsScreen(),
+                                    ),
+                                  );
+                                },
+                              ),
+                              if (badgeCount > 0)
+                                Positioned(
+                                  right: 8,
+                                  top: 8,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 18,
+                                      minHeight: 18,
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        badgeCount > 99 ? '99+' : '$badgeCount',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 8),
                       Consumer<AuthProvider>(
                         builder: (context, authProvider, _) {
                           final currentUser = authProvider.currentUser;

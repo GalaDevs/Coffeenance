@@ -4,7 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/transaction.dart';
 import '../models/kpi_target.dart';
+import '../models/user_profile.dart';
 import '../services/supabase_service.dart';
+import '../services/notification_service.dart';
 
 /// TransactionProvider manages all transaction state
 /// Now syncs with Supabase for cloud storage with REALTIME updates
@@ -13,6 +15,7 @@ class TransactionProvider with ChangeNotifier {
   List<Transaction> _transactions = [];
   bool _isLoading = false;
   final SupabaseService _supabaseService = SupabaseService();
+  final NotificationService _notificationService = NotificationService();
   
   // Realtime subscriptions
   RealtimeChannel? _transactionsSubscription;
@@ -911,6 +914,161 @@ class TransactionProvider with ChangeNotifier {
         notifyListeners();
         debugPrint('✅ Transaction updated in local storage only');
       }
+    }
+  }
+
+  // ============================================
+  // ROLE-BASED TRANSACTION MANAGEMENT
+  // ============================================
+
+  /// Delete transaction with role-based logic
+  /// - Admin: Delete immediately
+  /// - Manager: Delete and notify admin
+  /// - Staff: Not allowed (throws error)
+  Future<bool> deleteTransactionWithRole({
+    required int transactionId,
+    required UserRole role,
+    required String userId,
+    required String ownerId,
+  }) async {
+    try {
+      // Find the transaction
+      final transaction = _transactions.firstWhere(
+        (t) => t.id == transactionId,
+        orElse: () => throw Exception('Transaction not found'),
+      );
+
+      // Check permissions
+      if (role == UserRole.staff) {
+        throw Exception('Staff members cannot delete transactions');
+      }
+
+      // Delete the transaction
+      await deleteTransaction(transactionId);
+
+      // If manager, notify admin
+      if (role == UserRole.manager) {
+        // Get admin ID (owner_id or admin_id from user_profiles)
+        final adminId = await _getAdminId(ownerId);
+        if (adminId != null) {
+          await _notificationService.notifyTransactionDeleted(
+            adminId: adminId,
+            managerId: userId,
+            ownerId: ownerId,
+            transaction: transaction,
+          );
+          debugPrint('📩 Admin notified of transaction deletion');
+        }
+      }
+
+      return true;
+    } catch (e) {
+      debugPrint('❌ Error deleting transaction: $e');
+      return false;
+    }
+  }
+
+  /// Edit transaction with role-based logic
+  /// - Admin/Manager: Edit immediately
+  /// - Staff: Create pending edit request for approval
+  Future<bool> editTransactionWithRole({
+    required Transaction original,
+    required Transaction edited,
+    required UserRole role,
+    required String userId,
+    required String ownerId,
+  }) async {
+    try {
+      if (role == UserRole.staff) {
+        // Staff creates pending edit request
+        final pendingEditId = await _notificationService.createPendingEdit(
+          original: original,
+          edited: edited,
+          ownerId: ownerId,
+        );
+
+        if (pendingEditId == null) {
+          throw Exception('Failed to create pending edit');
+        }
+
+        // Notify admin and managers
+        await _notifyAdminsAndManagers(
+          ownerId: ownerId,
+          staffId: userId,
+          pendingEditId: pendingEditId,
+          transaction: original,
+        );
+
+        debugPrint('📝 Pending edit created (ID: $pendingEditId)');
+        return true;
+      } else {
+        // Admin/Manager can edit immediately
+        await updateTransaction(edited);
+        debugPrint('✅ Transaction updated immediately by ${role.toString()}');
+        return true;
+      }
+    } catch (e) {
+      debugPrint('❌ Error editing transaction: $e');
+      return false;
+    }
+  }
+
+  /// Get admin ID for the shop
+  Future<String?> _getAdminId(String ownerId) async {
+    try {
+      final response = await Supabase.instance.client
+          .from('user_profiles')
+          .select('id, role, admin_id')
+          .eq('id', ownerId)
+          .single();
+
+      if (response['role'] == 'admin') {
+        return response['id'] as String;
+      } else {
+        return response['admin_id'] as String?;
+      }
+    } catch (e) {
+      debugPrint('Error getting admin ID: $e');
+      return null;
+    }
+  }
+
+  /// Notify all admins and managers in the shop
+  Future<void> _notifyAdminsAndManagers({
+    required String ownerId,
+    required String staffId,
+    required String pendingEditId,
+    required Transaction transaction,
+  }) async {
+    try {
+      debugPrint('🔔 Finding admins/managers for owner_id: $ownerId');
+      
+      // Get all admins and managers in the shop
+      // If ownerId is null, it's an admin's ID, find managers/admins with admin_id=ownerId
+      // If ownerId is not null, it's the admin_id, find the admin (admin_id=null AND id=ownerId) and managers (admin_id=ownerId)
+      final response = await Supabase.instance.client
+          .from('user_profiles')
+          .select('id, role')
+          .or('role.eq.admin,role.eq.manager')
+          .or('admin_id.eq.$ownerId,and(id.eq.$ownerId,admin_id.is.null)');
+
+      final users = response as List;
+      debugPrint('👥 Found ${users.length} admin(s)/manager(s)');
+      
+      for (final user in users) {
+        debugPrint('📧 Notifying ${user['role']} (ID: ${user['id']})');
+        await _notificationService.notifyEditRequest(
+          adminOrManagerId: user['id'] as String,
+          staffId: staffId,
+          ownerId: ownerId,
+          pendingEditId: pendingEditId,
+          transaction: transaction,
+        );
+      }
+
+      debugPrint('✅ Notified ${users.length} admin(s)/manager(s) of edit request');
+    } catch (e) {
+      debugPrint('❌ Error notifying admins/managers: $e');
     }
   }
 

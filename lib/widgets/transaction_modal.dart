@@ -370,61 +370,24 @@ class _TransactionModalState extends State<TransactionModal>
       curve: Curves.easeOut,
     );
     
-    // Show first toast: "Transaction successful"
+    // Show success toast
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
             Icon(Icons.check_circle, color: Colors.white),
             SizedBox(width: 12),
-            Expanded(child: Text('Transaction successful')),
+            Expanded(child: Text('Transaction saved successfully! ✓')),
           ],
         ),
         backgroundColor: Colors.green,
         behavior: SnackBarBehavior.floating,
-        margin: EdgeInsets.only(
-          top: MediaQuery.of(context).padding.top + 16,
-          left: 16,
-          right: 16,
-          bottom: MediaQuery.of(context).size.height - 150,
-        ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
-        duration: const Duration(seconds: 2),
-        elevation: 20,
+        duration: const Duration(seconds: 3),
       ),
     );
-    
-    // Show second toast after first one: "Transaction added successfully"
-    Future.delayed(const Duration(milliseconds: 2100), () {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 12),
-                Expanded(child: Text('Transaction added successfully')),
-              ],
-            ),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            margin: EdgeInsets.only(
-              top: MediaQuery.of(context).padding.top + 16,
-              left: 16,
-              right: 16,
-              bottom: MediaQuery.of(context).size.height - 150,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            duration: const Duration(seconds: 2),
-            elevation: 20,
-          ),
-        );
-      }
-    });
   }
 
   @override

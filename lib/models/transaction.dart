@@ -12,12 +12,18 @@ class Transaction {
   final String category;
   final String description;
   final double amount;
+  @JsonKey(name: 'payment_method')
   final String paymentMethod;
+  @JsonKey(name: 'transaction_number')
   final String transactionNumber;
+  @JsonKey(name: 'receipt_number')
   final String receiptNumber;
+  @JsonKey(name: 'tin_number')
   final String tinNumber;
   final int vat;
+  @JsonKey(name: 'supplier_name')
   final String supplierName;
+  @JsonKey(name: 'supplier_address')
   final String supplierAddress;
 
   Transaction({
