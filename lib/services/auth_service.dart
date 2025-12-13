@@ -190,15 +190,15 @@ class AuthService {
       String adminId = createdByUserId;
       
       if (!isRegistration) {
-        // Normal flow: Check if current user is admin
+        // Normal flow: Check if current user is admin or developer
         final currentProfile = await getUserProfile(createdByUserId);
-        if (currentProfile?.role != UserRole.admin) {
-          throw Exception('Only admins can create new users');
+        if (currentProfile?.role != UserRole.admin && currentProfile?.role != UserRole.developer) {
+          throw Exception('Only admins and developers can create new users');
         }
 
-        // Get admin ID (current user's ID for admin, or their admin_id for manager/staff)
+        // Get admin ID (current user's ID for admin/developer, or their admin_id for manager/staff)
         adminId = createdByUserId;
-        if (currentProfile?.role != UserRole.admin) {
+        if (currentProfile?.role != UserRole.admin && currentProfile?.role != UserRole.developer) {
           // If not admin, get their admin_id
           final adminIdQuery = await _supabase!
               .from('user_profiles')
@@ -225,8 +225,8 @@ class AuthService {
         if (staff >= 2) {
           throw Exception('Maximum 2 staff accounts allowed per admin');
         }
-      } else if (role == UserRole.admin) {
-        debugPrint('👑 Creating admin account - no limits');
+      } else if (role == UserRole.admin || role == UserRole.developer) {
+        debugPrint('👑 Creating ${role.name} account - no limits');
       }
 
       debugPrint('✅ Account limit validation passed');
@@ -235,10 +235,10 @@ class AuthService {
       debugPrint('👤 Name: $fullName');
       debugPrint('🎭 Role: ${role.name}');
 
-      // Admin accounts: admin_id = NULL (they own themselves)
+      // Admin/Developer accounts: admin_id = NULL (they own themselves)
       // Manager/Staff accounts: admin_id = their admin's ID
-      final String? assignedAdminId = (role == UserRole.admin) ? null : adminId;
-      debugPrint('🏢 Admin ID for new user: ${assignedAdminId ?? "NULL (is admin)"}');
+      final String? assignedAdminId = (role == UserRole.admin || role == UserRole.developer) ? null : adminId;
+      debugPrint('🏢 Admin ID for new user: ${assignedAdminId ?? "NULL (is admin/developer)"}');
 
       // For registration: Use signUp to create both Auth user and profile
       if (isRegistration) {
@@ -439,14 +439,14 @@ class AuthService {
       }
       
       debugPrint('👤 Current user role: ${currentProfile.role}');
-      debugPrint('🏢 Current user admin_id: ${currentProfile.adminId ?? "NULL (is admin)"}');
+      debugPrint('🏢 Current user admin_id: ${currentProfile.adminId ?? "NULL (is admin/developer)"}');
       
       // Determine the admin ID to filter by
       String filterAdminId;
-      if (currentProfile.role == UserRole.admin) {
-        // Admin user: show only their own tenant (where admin_id = current user's ID OR admin_id IS NULL AND id = current user)
+      if (currentProfile.role == UserRole.admin || currentProfile.role == UserRole.developer) {
+        // Admin/Developer user: show only their own tenant (where admin_id = current user's ID OR admin_id IS NULL AND id = current user)
         filterAdminId = currentUserId;
-        debugPrint('🏢 Filtering for admin tenant: $filterAdminId');
+        debugPrint('🏢 Filtering for ${currentProfile.role.name} tenant: $filterAdminId');
       } else {
         // Manager/Staff: show users in their admin's tenant
         filterAdminId = currentProfile.adminId ?? currentUserId;

@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -15,6 +16,7 @@ class TargetSettingsModal extends StatefulWidget {
 
 class _TargetSettingsModalState extends State<TargetSettingsModal> {
   final Map<String, TextEditingController> _controllers = {};
+  final Set<String> _modifiedKeys = {}; // Track which keys were actually modified
   bool _isSaving = false;
   bool _isInitialized = false;
   
@@ -25,10 +27,20 @@ class _TargetSettingsModalState extends State<TargetSettingsModal> {
   // Available months (1-12)
   final List<int> _months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
   
-  // Available years (current and next year)
+  // Available years for date picker (unlimited - 20 years back to 20 years forward)
   List<int> get _years {
     final now = DateTime.now();
-    return [now.year, now.year + 1];
+    final List<int> years = [];
+    for (int i = now.year - 20; i <= now.year + 20; i++) {
+      years.add(i);
+    }
+    return years;
+  }
+  
+  // Years to initialize controllers for (limited to avoid massive sync)
+  List<int> get _initializationYears {
+    final now = DateTime.now();
+    return [now.year - 1, now.year, now.year + 1]; // Only 3 years
   }
   
   DateTime get _selectedDate => DateTime(_selectedYear, _selectedMonth, 1);
@@ -72,8 +84,19 @@ class _TargetSettingsModalState extends State<TargetSettingsModal> {
     });
   }
 
+  // Helper to create a controller with modification tracking
+  TextEditingController _createTrackedController(String key, double value) {
+    final controller = TextEditingController(
+      text: _formatNumber(value),
+    );
+    controller.addListener(() {
+      _modifiedKeys.add(key);
+    });
+    return controller;
+  }
+
   void _initializeControllers(TransactionProvider provider) {
-    // Initialize controllers for all available months
+    // Initialize controllers for all available months (next 12 months only)
     for (var monthDate in _availableMonths) {
       final monthKey = _getMonthKey(monthDate);
       final revenueKey = '${monthKey}_revenue';
@@ -82,16 +105,19 @@ class _TargetSettingsModalState extends State<TargetSettingsModal> {
       final revenueValue = provider.getKPITarget(revenueKey);
       final transactionsValue = provider.getKPITarget(transactionsKey);
       
-      _controllers[revenueKey] = TextEditingController(
-        text: _formatNumber(revenueValue > 0 ? revenueValue : 300000.0),
+      _controllers[revenueKey] = _createTrackedController(
+        revenueKey,
+        revenueValue > 0 ? revenueValue : 300000.0,
       );
-      _controllers[transactionsKey] = TextEditingController(
-        text: _formatNumber(transactionsValue > 0 ? transactionsValue : 1500.0),
+      _controllers[transactionsKey] = _createTrackedController(
+        transactionsKey,
+        transactionsValue > 0 ? transactionsValue : 1500.0,
       );
     }
     
-    // Also initialize controllers for all possible month/year combinations in the dropdowns
-    for (var year in _years) {
+    // Only initialize controllers for a LIMITED range (3 years) to avoid massive sync
+    // The date picker can still go to any year, but controllers are created on-demand
+    for (var year in _initializationYears) {
       for (var month in _months) {
         final monthDate = DateTime(year, month, 1);
         final monthKey = _getMonthKey(monthDate);
@@ -103,11 +129,13 @@ class _TargetSettingsModalState extends State<TargetSettingsModal> {
           final revenueValue = provider.getKPITarget(revenueKey);
           final transactionsValue = provider.getKPITarget(transactionsKey);
           
-          _controllers[revenueKey] = TextEditingController(
-            text: _formatNumber(revenueValue > 0 ? revenueValue : 300000.0),
+          _controllers[revenueKey] = _createTrackedController(
+            revenueKey,
+            revenueValue > 0 ? revenueValue : 300000.0,
           );
-          _controllers[transactionsKey] = TextEditingController(
-            text: _formatNumber(transactionsValue > 0 ? transactionsValue : 1500.0),
+          _controllers[transactionsKey] = _createTrackedController(
+            transactionsKey,
+            transactionsValue > 0 ? transactionsValue : 1500.0,
           );
         }
       }
@@ -134,11 +162,17 @@ class _TargetSettingsModalState extends State<TargetSettingsModal> {
   TextEditingController _getOrCreateController(String key, TransactionProvider provider) {
     if (!_controllers.containsKey(key)) {
       final value = provider.getKPITarget(key);
-      _controllers[key] = TextEditingController(
-        text: _formatNumber(value > 0 ? value : (key.contains('revenue') ? 300000.0 : 1500.0)),
+      _controllers[key] = _createTrackedController(
+        key,
+        value > 0 ? value : (key.contains('revenue') ? 300000.0 : 1500.0),
       );
     }
     return _controllers[key]!;
+  }
+  
+  // Mark a key as modified (called when user changes value)
+  void _markAsModified(String key) {
+    _modifiedKeys.add(key);
   }
 
   @override
@@ -162,29 +196,40 @@ class _TargetSettingsModalState extends State<TargetSettingsModal> {
     final provider = Provider.of<TransactionProvider>(context, listen: false);
     
     try {
-      for (var entry in _controllers.entries) {
-        final cleanValue = entry.value.text.replaceAll(',', '');
-        final value = double.tryParse(cleanValue);
-        if (value != null && value > 0) {
-          await provider.updateKPISetting(entry.key, value);
+      int savedCount = 0;
+      
+      // Only save controllers that were actually modified
+      for (var key in _modifiedKeys) {
+        final controller = _controllers[key];
+        if (controller != null) {
+          final cleanValue = controller.text.replaceAll(',', '');
+          final value = double.tryParse(cleanValue);
+          if (value != null && value > 0) {
+            await provider.updateKPISetting(key, value);
+            savedCount++;
+          }
         }
       }
+      
+      debugPrint('💾 Saved $savedCount modified KPI targets (out of ${_controllers.length} total)');
 
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Row(
               children: [
-                Icon(Icons.check_circle_rounded, color: Colors.white),
-                SizedBox(width: 12),
+                const Icon(Icons.check_circle_rounded, color: Colors.white),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Text('Targets applied to all dashboards successfully!'),
+                  child: Text(savedCount > 0 
+                    ? 'Saved $savedCount target(s) successfully!'
+                    : 'No changes to save'),
                 ),
               ],
             ),
             backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -262,6 +307,130 @@ class _TargetSettingsModalState extends State<TargetSettingsModal> {
     );
   }
 
+  void _showModernDatePicker(BuildContext context) {
+    final theme = Theme.of(context);
+    DateTime tempDate = _selectedDate;
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          height: 380,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(24),
+              topRight: Radius.circular(24),
+            ),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.outline.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Header
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      'Select Period',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _selectedMonth = tempDate.month;
+                          _selectedYear = tempDate.year;
+                        });
+                        Navigator.pop(context);
+                      },
+                      child: Text(
+                        'Done',
+                        style: TextStyle(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              // Date Picker
+              Expanded(
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.monthYear,
+                  initialDateTime: _selectedDate,
+                  minimumYear: DateTime.now().year - 20,
+                  maximumYear: DateTime.now().year + 20,
+                  onDateTimeChanged: (DateTime newDate) {
+                    setModalState(() {
+                      tempDate = newDate;
+                    });
+                  },
+                ),
+              ),
+              // Selected date preview
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                  border: Border(
+                    top: BorderSide(
+                      color: theme.colorScheme.outline.withValues(alpha: 0.2),
+                    ),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.calendar_month_rounded,
+                      color: theme.colorScheme.primary,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      DateFormat('MMMM yyyy').format(tempDate),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showAllTargets() {
     showDialog(
       context: context,
@@ -269,24 +438,49 @@ class _TargetSettingsModalState extends State<TargetSettingsModal> {
         final theme = Theme.of(context);
         final provider = Provider.of<TransactionProvider>(context, listen: false);
         
-        // Get all targets for available months
+        // Get all targets from kpiSettings (unlimited years)
         final targets = <Map<String, dynamic>>[];
-        for (var year in _years) {
-          for (var month in _months) {
-            final monthDate = DateTime(year, month, 1);
-            final monthKey = _getMonthKey(monthDate);
-            final revenueValue = provider.getKPITarget('${monthKey}_revenue');
-            final transactionsValue = provider.getKPITarget('${monthKey}_transactions');
-            
-            if (revenueValue > 0 || transactionsValue > 0) {
-              targets.add({
-                'date': monthDate,
-                'revenue': revenueValue,
-                'transactions': transactionsValue,
-              });
+        final allSettings = provider.kpiSettings;
+        
+        // Extract unique month keys from settings
+        // Keys are in format: "target_YYYY_M_revenue" or "target_YYYY_M_transactions"
+        final monthKeys = <String>{};
+        for (var key in allSettings.keys) {
+          if (key.startsWith('target_') && (key.endsWith('_revenue') || key.endsWith('_transactions'))) {
+            // Remove suffix to get month key (e.g., "target_2025_12")
+            final monthKey = key.replaceAll('_revenue', '').replaceAll('_transactions', '');
+            monthKeys.add(monthKey);
+          }
+        }
+        
+        // Build targets list from extracted month keys
+        for (var monthKey in monthKeys) {
+          final revenueValue = provider.getKPITarget('${monthKey}_revenue');
+          final transactionsValue = provider.getKPITarget('${monthKey}_transactions');
+          
+          if (revenueValue > 0 || transactionsValue > 0) {
+            // Parse month key (format: "target_YYYY_M")
+            try {
+              final parts = monthKey.split('_');
+              // parts[0] = "target", parts[1] = year, parts[2] = month
+              if (parts.length >= 3) {
+                final year = int.parse(parts[1]);
+                final month = int.parse(parts[2]);
+                targets.add({
+                  'date': DateTime(year, month, 1),
+                  'revenue': revenueValue,
+                  'transactions': transactionsValue,
+                });
+              }
+            } catch (e) {
+              // Skip invalid keys
+              debugPrint('⚠️ Could not parse month key: $monthKey - $e');
             }
           }
         }
+        
+        // Sort by date descending (most recent first)
+        targets.sort((a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime));
         
         return Dialog(
           child: Container(
@@ -756,108 +950,69 @@ class _TargetSettingsModalState extends State<TargetSettingsModal> {
                             ],
                           ),
                           const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              // Month Selector
-                              Expanded(
-                                flex: 2,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Month',
-                                      style: theme.textTheme.labelSmall?.copyWith(
-                                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                          // Modern iOS-style Date Picker Button
+                          GestureDetector(
+                            onTap: () => _showModernDatePicker(context),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: theme.colorScheme.primary.withValues(alpha: 0.08),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.primaryContainer,
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
-                                    const SizedBox(height: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: theme.colorScheme.outline.withValues(alpha: 0.3),
+                                    child: Icon(
+                                      Icons.calendar_today_rounded,
+                                      color: theme.colorScheme.primary,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Target Period',
+                                          style: theme.textTheme.labelSmall?.copyWith(
+                                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                                            fontWeight: FontWeight.w500,
+                                          ),
                                         ),
-                                      ),
-                                      child: DropdownButtonHideUnderline(
-                                        child: DropdownButton<int>(
-                                          value: _selectedMonth,
-                                          isExpanded: true,
-                                          icon: Icon(Icons.arrow_drop_down_rounded, color: theme.colorScheme.primary),
-                                          style: theme.textTheme.bodyMedium?.copyWith(
-                                            fontWeight: FontWeight.w600,
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          DateFormat('MMMM yyyy').format(_selectedDate),
+                                          style: theme.textTheme.titleMedium?.copyWith(
+                                            fontWeight: FontWeight.bold,
                                             color: theme.colorScheme.onSurface,
                                           ),
-                                          items: _months.map((int month) {
-                                            return DropdownMenuItem<int>(
-                                              value: month,
-                                              child: Text(_getMonthName(month)),
-                                            );
-                                          }).toList(),
-                                          onChanged: (int? newMonth) {
-                                            if (newMonth != null) {
-                                              _changeMonth(newMonth);
-                                            }
-                                          },
                                         ),
-                                      ),
+                                      ],
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                  Icon(
+                                    Icons.chevron_right_rounded,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 12),
-                              // Year Selector
-                              Expanded(
-                                flex: 1,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Year',
-                                      style: theme.textTheme.labelSmall?.copyWith(
-                                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: theme.colorScheme.outline.withValues(alpha: 0.3),
-                                        ),
-                                      ),
-                                      child: DropdownButtonHideUnderline(
-                                        child: DropdownButton<int>(
-                                          value: _selectedYear,
-                                          isExpanded: true,
-                                          icon: Icon(Icons.arrow_drop_down_rounded, color: theme.colorScheme.primary),
-                                          style: theme.textTheme.bodyMedium?.copyWith(
-                                            fontWeight: FontWeight.w600,
-                                            color: theme.colorScheme.onSurface,
-                                          ),
-                                          items: _years.map((int year) {
-                                            return DropdownMenuItem<int>(
-                                              value: year,
-                                              child: Text(year.toString()),
-                                            );
-                                          }).toList(),
-                                          onChanged: (int? newYear) {
-                                            if (newYear != null) {
-                                              _changeYear(newYear);
-                                            }
-                                          },
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
                         ],
                       ),

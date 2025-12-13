@@ -372,7 +372,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         // App Title
                         Text(
-                          'Coffeenance',
+                          'Cafenance',
                           textAlign: TextAlign.center,
                           style: theme.textTheme.headlineMedium?.copyWith(
                             fontWeight: FontWeight.bold,
@@ -529,7 +529,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'New to Coffeenance? Register your coffee shop above',
+                                  'New to Cafenance? Register your coffee shop above',
                                   style: theme.textTheme.bodySmall?.copyWith(
                                     color: isDark
                                         ? Colors.white70

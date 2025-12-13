@@ -1,5 +1,5 @@
 /// Supabase configuration
-/// Project: Coffeenance (tpejvjznleoinsanrgut)
+/// Project: Cafenance (tpejvjznleoinsanrgut)
 /// Region: Oceania (Sydney)
 /// 
 /// ⚠️ IMPORTANT: Replace the anon key below with your REAL key!

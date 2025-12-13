@@ -110,7 +110,7 @@ class ShopSettingsService {
     try {
       final data = {
         'admin_id': adminId,
-        'shop_name': 'CoffeeFlow Coffee Shop',
+        'shop_name': 'Cafenance Coffee Shop',
       };
 
       final response = await _supabase

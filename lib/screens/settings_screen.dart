@@ -49,8 +49,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return;
     }
 
-    // Get admin ID (use current user's ID if admin, or their admin_id if staff/manager)
-    final adminId = currentUser.role == UserRole.admin
+    // Get admin ID (use current user's ID if admin/developer, or their admin_id if staff/manager)
+    final adminId = (currentUser.role == UserRole.admin || currentUser.role == UserRole.developer)
         ? currentUser.id
         : currentUser.adminId ?? currentUser.id;
 
@@ -199,102 +199,113 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Card(
             child: Column(
               children: [
-                ListTile(
-                  leading: Icon(
-                    Icons.security,
-                    color: theme.colorScheme.primary,
+                // Developer-only: Data Isolation Test
+                if (currentUser?.role == UserRole.developer) ...[
+                  ListTile(
+                    leading: Icon(
+                      Icons.security,
+                      color: theme.colorScheme.primary,
+                    ),
+                    title: const Text('Data Isolation Test'),
+                    subtitle: const Text('Verify user data separation'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const DataIsolationTestScreen(),
+                        ),
+                      );
+                    },
                   ),
-                  title: const Text('Data Isolation Test'),
-                  subtitle: const Text('Verify user data separation'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const DataIsolationTestScreen(),
-                      ),
-                    );
-                  },
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: Icon(
-                    Icons.bug_report,
-                    color: theme.colorScheme.primary,
+                  const Divider(height: 1),
+                ],
+                // Developer-only: Connection Diagnostics
+                if (currentUser?.role == UserRole.developer) ...[
+                  ListTile(
+                    leading: Icon(
+                      Icons.bug_report,
+                      color: theme.colorScheme.primary,
+                    ),
+                    title: const Text('Connection Diagnostics'),
+                    subtitle: const Text('Detailed cloud connection testing'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ConnectionDebugScreen(),
+                        ),
+                      );
+                    },
                   ),
-                  title: const Text('Connection Diagnostics'),
-                  subtitle: const Text('Detailed cloud connection testing'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ConnectionDebugScreen(),
-                      ),
-                    );
-                  },
-                ),
-                const Divider(height: 1),
-                Consumer<TransactionProvider>(
-                  builder: (context, provider, child) {
-                    return ListTile(
-                      leading: Icon(
-                        provider.isOnline ? Icons.cloud_done : Icons.cloud_off,
-                        color: provider.isOnline ? Colors.green : Colors.red,
-                      ),
-                      title: Text(
-                        provider.isOnline ? 'Online - Auto Sync Active' : 'Offline Mode',
-                      ),
-                      subtitle: Text(
-                        provider.pendingSyncCount > 0
-                            ? '${provider.pendingSyncCount} transaction${provider.pendingSyncCount > 1 ? 's' : ''} pending sync'
-                            : 'All data synced',
-                      ),
-                      trailing: provider.pendingSyncCount > 0
-                          ? ElevatedButton.icon(
-                              onPressed: provider.isSyncing
-                                  ? null
-                                  : () => provider.syncPendingTransactions(),
-                              icon: provider.isSyncing
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
-                                    )
-                                  : const Icon(Icons.sync, size: 18),
-                              label: Text(provider.isSyncing ? 'Syncing...' : 'Sync Now'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.orange.shade700,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  const Divider(height: 1),
+                ],
+                // Developer-only: Online/Auto Sync Status
+                if (currentUser?.role == UserRole.developer)
+                  Consumer<TransactionProvider>(
+                    builder: (context, provider, child) {
+                      return ListTile(
+                        leading: Icon(
+                          provider.isOnline ? Icons.cloud_done : Icons.cloud_off,
+                          color: provider.isOnline ? Colors.green : Colors.red,
+                        ),
+                        title: Text(
+                          provider.isOnline ? 'Online - Auto Sync Active' : 'Offline Mode',
+                        ),
+                        subtitle: Text(
+                          provider.pendingSyncCount > 0
+                              ? '${provider.pendingSyncCount} transaction${provider.pendingSyncCount > 1 ? 's' : ''} pending sync'
+                              : 'All data synced',
+                        ),
+                        trailing: provider.pendingSyncCount > 0
+                            ? ElevatedButton.icon(
+                                onPressed: provider.isSyncing
+                                    ? null
+                                    : () => provider.syncPendingTransactions(),
+                                icon: provider.isSyncing
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      )
+                                    : const Icon(Icons.sync, size: 18),
+                                label: Text(provider.isSyncing ? 'Syncing...' : 'Sync Now'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.orange.shade700,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                ),
+                              )
+                            : Icon(
+                                Icons.check_circle,
+                                color: Colors.green.shade700,
                               ),
-                            )
-                          : Icon(
-                              Icons.check_circle,
-                              color: Colors.green.shade700,
-                            ),
-                    );
-                  },
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: Icon(
-                    Icons.cloud_done,
-                    color: theme.colorScheme.primary,
+                      );
+                    },
                   ),
-                  title: const Text('Quick Connection Test'),
-                  subtitle: const Text('Simple cloud verification'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const SupabaseTestScreen(),
-                      ),
-                    );
-                  },
-                ),
-                const Divider(height: 1),
+                if (currentUser?.role == UserRole.developer) const Divider(height: 1),
+                // Developer-only: Quick Connection Test
+                if (currentUser?.role == UserRole.developer) ...[
+                  ListTile(
+                    leading: Icon(
+                      Icons.cloud_done,
+                      color: theme.colorScheme.primary,
+                    ),
+                    title: const Text('Quick Connection Test'),
+                    subtitle: const Text('Simple cloud verification'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SupabaseTestScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const Divider(height: 1),
+                ],
                 ListTile(
                   leading: Icon(
                     Icons.file_download,
@@ -345,7 +356,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: const Text('Shop Name'),
                   subtitle: Text(_loadingSettings
                       ? 'Loading...'
-                      : _shopSettings?.shopName ?? 'CoffeeFlow Coffee Shop'),
+                      : _shopSettings?.shopName ?? 'Cafenance Coffee Shop'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => _showEditShopNameDialog(context),
                 ),
@@ -428,6 +439,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return AppColors.chart2;
       case UserRole.staff:
         return AppColors.chart3;
+      case UserRole.developer:
+        return AppColors.chart4;
     }
   }
 
@@ -439,6 +452,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return Icons.supervisor_account;
       case UserRole.staff:
         return Icons.person;
+      case UserRole.developer:
+        return Icons.code;
     }
   }
 
@@ -483,7 +498,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _showEditShopNameDialog(BuildContext context) {
     final controller = TextEditingController(
-      text: _shopSettings?.shopName ?? 'CoffeeFlow Coffee Shop',
+      text: _shopSettings?.shopName ?? 'Cafenance Coffee Shop',
     );
 
     showDialog(

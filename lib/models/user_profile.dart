@@ -3,7 +3,8 @@
 enum UserRole {
   admin,
   manager,
-  staff;
+  staff,
+  developer;
 
   String get displayName {
     switch (this) {
@@ -13,6 +14,8 @@ enum UserRole {
         return 'Manager';
       case UserRole.staff:
         return 'Staff';
+      case UserRole.developer:
+        return 'Developer';
     }
   }
 
@@ -24,6 +27,8 @@ enum UserRole {
         return UserRole.manager;
       case 'staff':
         return UserRole.staff;
+      case 'developer':
+        return UserRole.developer;
       default:
         return UserRole.staff;
     }
@@ -56,15 +61,15 @@ class UserProfile {
   });
 
   /// Permissions based on role
-  bool get canAccessSettings => role == UserRole.admin;
+  bool get canAccessSettings => role == UserRole.admin || role == UserRole.developer;
   bool get canAccessDashboard => role != UserRole.staff;
   bool get canAccessRevenue => role != UserRole.staff;
   bool get canAccessTransactions => true; // All roles
-  bool get canManageUsers => role == UserRole.admin;
-  bool get canManageInventory => role == UserRole.admin || role == UserRole.manager;
-  bool get canManageStaff => role == UserRole.admin || role == UserRole.manager;
-  bool get canDeleteTransactions => role == UserRole.admin;
-  bool get canEditTransactions => role == UserRole.admin || role == UserRole.manager;
+  bool get canManageUsers => role == UserRole.admin || role == UserRole.developer;
+  bool get canManageInventory => role == UserRole.admin || role == UserRole.manager || role == UserRole.developer;
+  bool get canManageStaff => role == UserRole.admin || role == UserRole.manager || role == UserRole.developer;
+  bool get canDeleteTransactions => role == UserRole.admin || role == UserRole.developer;
+  bool get canEditTransactions => role == UserRole.admin || role == UserRole.manager || role == UserRole.developer;
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(

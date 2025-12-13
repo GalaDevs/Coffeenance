@@ -277,6 +277,16 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           ],
                         ),
                       ),
+                      DropdownMenuItem(
+                        value: UserRole.developer,
+                        child: Row(
+                          children: [
+                            Icon(Icons.code, size: 20, color: AppColors.chart4),
+                            const SizedBox(width: 8),
+                            const Text('Developer (full access)'),
+                          ],
+                        ),
+                      ),
                     ],
                     onChanged: (value) {
                       if (value != null) {
@@ -796,6 +806,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         roleColor = AppColors.chart3;
         roleIcon = Icons.person;
         roleLabel = 'Staff';
+        break;
+      case UserRole.developer:
+        roleColor = AppColors.chart4;
+        roleIcon = Icons.code;
+        roleLabel = 'Developer';
         break;
     }
 

@@ -81,7 +81,7 @@ class CafenanceApp extends StatelessWidget {
       child: Consumer2<ThemeProvider, AuthProvider>(
         builder: (context, themeProvider, authProvider, child) {
           return MaterialApp(
-            title: 'Coffeenance - Coffee Shop Tracker',
+            title: 'Cafenance - Coffee Shop Tracker',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,

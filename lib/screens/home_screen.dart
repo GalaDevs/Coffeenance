@@ -55,7 +55,7 @@ class _HomeScreenState extends State<HomeScreen>
         TransactionsScreen(),
       ];
     }
-    // Admin sees all screens including Settings
+    // Admin and Developer see all screens including Settings
     return const [
       DashboardScreen(),
       RevenueScreen(),
@@ -82,7 +82,7 @@ class _HomeScreenState extends State<HomeScreen>
         _NavItem(icon: Icons.logout_rounded, label: 'Logout', isLogout: true),
       ];
     }
-    // Admin has all tabs including Settings
+    // Admin and Developer have all tabs including Settings
     return const [
       _NavItem(icon: Icons.dashboard_customize_rounded, label: 'Dashboard'),
       _NavItem(icon: Icons.account_balance_wallet_rounded, label: 'Revenue'),

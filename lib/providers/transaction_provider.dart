@@ -1220,7 +1220,18 @@ class TransactionProvider with ChangeNotifier {
         // Convert response to KPITarget objects and populate settings
         for (var json in response) {
           final target = KPITarget.fromJson(json);
-          _kpiSettings[target.targetKey] = target.targetValue;
+          
+          // Reconstruct the full key based on month/year
+          String fullKey;
+          if (target.month != null && target.year != null) {
+            // Month-specific target: "target_YYYY_M_type"
+            fullKey = 'target_${target.year}_${target.month}_${target.targetKey}';
+          } else {
+            // General target (no month/year)
+            fullKey = target.targetKey;
+          }
+          
+          _kpiSettings[fullKey] = target.targetValue;
         }
         debugPrint('✅ Loaded ${response.length} KPI targets from cloud');
       }
@@ -1329,20 +1340,19 @@ class TransactionProvider with ChangeNotifier {
       if (_currentShopId != null) {
         final userId = Supabase.instance.client.auth.currentUser?.id;
         if (userId != null) {
-          // Parse key to extract month/year if present (e.g., "jan_2025_revenue")
+          // Parse key to extract month/year if present
+          // Format: "target_YYYY_M_revenue" or "target_YYYY_M_transactions"
           int? month;
           int? year;
           String targetKey = key;
           
-          if (key.contains('_')) {
+          if (key.startsWith('target_')) {
             final parts = key.split('_');
-            if (parts.length >= 3) {
-              // Month-specific target (e.g., "jan_2025_revenue")
-              final monthNames = {'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
-                                  'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12};
-              month = monthNames[parts[0].toLowerCase()];
+            // parts[0] = "target", parts[1] = year, parts[2] = month, parts[3] = type
+            if (parts.length >= 4) {
               year = int.tryParse(parts[1]);
-              targetKey = parts.sublist(2).join('_');
+              month = int.tryParse(parts[2]);
+              targetKey = parts.sublist(3).join('_'); // "revenue" or "transactions"
             }
           }
           
