@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/notification_provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/notification.dart';
@@ -176,7 +177,12 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           return _NotificationCard(
             notification: notification,
             onTap: () {
-              provider.markAsRead(notification.id);
+              // If it's an announcement, show expanded popup
+              if (notification.type == NotificationType.announcement) {
+                _showAnnouncementDetail(context, notification, provider);
+              } else {
+                provider.markAsRead(notification.id);
+              }
             },
           );
         },
@@ -323,6 +329,147 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       ),
     );
   }
+
+  void _showAnnouncementDetail(
+    BuildContext context,
+    AppNotification notification,
+    NotificationProvider provider,
+  ) {
+    final downloadLink = notification.data['download_link'] as String?;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              Icons.campaign_rounded,
+              color: Theme.of(context).colorScheme.primary,
+              size: 28,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                notification.title,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                notification.message,
+                style: const TextStyle(fontSize: 16, height: 1.5),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Posted on ${DateFormat('MMM d, yyyy \'at\' h:mm a').format(notification.createdAt)}',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              if (downloadLink != null && downloadLink.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.download_rounded, color: Colors.blue.shade700),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Download Available',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.blue.shade700,
+                              ),
+                            ),
+                            Text(
+                              downloadLink,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.blue.shade600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          if (downloadLink != null && downloadLink.isNotEmpty)
+            TextButton.icon(
+              onPressed: () async {
+                // Open download link
+                try {
+                  final uri = Uri.parse(downloadLink);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    print('📥 Opened download link: $downloadLink');
+                  } else {
+                    print('❌ Cannot launch URL: $downloadLink');
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Unable to open download link'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                } catch (e) {
+                  print('❌ Error launching URL: $e');
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Error opening download link'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              icon: const Icon(Icons.download_rounded),
+              label: const Text('Download'),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.blue,
+              ),
+            ),
+          TextButton(
+            onPressed: () {
+              // Mark as read and close
+              provider.markAsRead(notification.id);
+              Navigator.pop(context);
+            },
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _NotificationCard extends StatelessWidget {
@@ -344,6 +491,8 @@ class _NotificationCard extends StatelessWidget {
         return Icons.check_circle_rounded;
       case NotificationType.editRejected:
         return Icons.cancel_rounded;
+      case NotificationType.announcement:
+        return Icons.campaign_rounded;
     }
   }
 
@@ -357,6 +506,8 @@ class _NotificationCard extends StatelessWidget {
         return Colors.green;
       case NotificationType.editRejected:
         return Colors.red;
+      case NotificationType.announcement:
+        return Colors.blue;
     }
   }
 

@@ -4,6 +4,9 @@ import '../providers/auth_provider.dart';
 import '../models/user_profile.dart';
 import '../theme/app_theme.dart';
 import '../widgets/register_dialog.dart';
+import '../screens/email_verification_screen.dart';
+import '../services/email_verification_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Login Screen - Beautiful authentication UI
 class LoginScreen extends StatefulWidget {
@@ -42,8 +45,141 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
     setState(() => _isLoading = false);
 
-    if (!success && mounted && authProvider.error != null) {
-      _showErrorDialog(authProvider.error!);
+    if (success && mounted) {
+      // Show success toast
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white),
+              const SizedBox(width: 12),
+              const Expanded(child: Text('Welcome back! Signing you in...')),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } else if (!success && mounted && authProvider.error != null) {
+      // Check if error is due to unverified email (custom verification)
+      if (authProvider.error!.contains('EMAIL_NOT_VERIFIED:')) {
+        final parts = authProvider.error!.split(':');
+        final email = parts.length > 1 ? parts[1] : _emailController.text.trim();
+        final userId = parts.length > 2 ? parts[2] : '';
+        
+        if (userId.isNotEmpty) {
+          // Create new verification code
+          String? verificationCode;
+          try {
+            final verificationService = EmailVerificationService(Supabase.instance.client);
+            verificationCode = await verificationService.createVerificationCode(
+              userId: userId,
+              email: email,
+            );
+            await verificationService.sendVerificationEmail(
+              email: email,
+              code: verificationCode,
+              userName: email.split('@')[0],
+            );
+          } catch (e) {
+            debugPrint('⚠️ Could not resend verification: $e');
+          }
+          
+          // Navigate to verification screen
+          final verified = await Navigator.of(context).push<bool>(
+            MaterialPageRoute(
+              builder: (context) => EmailVerificationScreen(
+                email: email,
+                userId: userId,
+                userName: email.split('@')[0],
+                verificationCode: verificationCode,
+              ),
+            ),
+          );
+          
+          if (verified == true) {
+            // Retry login
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.white),
+                    const SizedBox(width: 12),
+                    const Expanded(child: Text('Email verified! Please login again.')),
+                  ],
+                ),
+                backgroundColor: Colors.green,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.email_outlined, color: Colors.white),
+                  const SizedBox(width: 12),
+                  const Expanded(child: Text('Please verify your email before logging in')),
+                ],
+              ),
+              backgroundColor: Colors.orange,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      } else if (authProvider.error!.contains('EMAIL_NOT_CONFIRMED:')) {
+        // Legacy Supabase Auth email confirmation (keeping for backwards compatibility)
+        final email = authProvider.error!.split(':')[1];
+        Navigator.of(context).pushNamed(
+          '/email-verification',
+          arguments: email,
+        );
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.email_outlined, color: Colors.white),
+                const SizedBox(width: 12),
+                const Expanded(child: Text('Please verify your email before logging in')),
+              ],
+            ),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      } else {
+        // Show error toast
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(child: Text(authProvider.error!.replaceAll('Exception: ', ''))),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'Details',
+              textColor: Colors.white,
+              onPressed: () => _showErrorDialog(authProvider.error!),
+            ),
+          ),
+        );
+      }
     }
     // Navigation is handled automatically by main.dart based on auth state
     // No need to manually navigate - the app will rebuild with HomeScreen

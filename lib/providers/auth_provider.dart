@@ -27,6 +27,30 @@ class AuthProvider extends ChangeNotifier {
     Future.microtask(() => _initAuth());
   }
 
+  /// Check if user's email is verified
+  Future<bool> _checkEmailVerified(String userId) async {
+    try {
+      final response = await Supabase.instance.client
+          .from('user_profiles')
+          .select('email_verified')
+          .eq('id', userId)
+          .maybeSingle();
+      
+      if (response == null) {
+        debugPrint('⚠️ No profile found for user $userId');
+        return false;
+      }
+      
+      final isVerified = response['email_verified'] == true;
+      debugPrint('📧 Email verification status for $userId: $isVerified');
+      return isVerified;
+    } catch (e) {
+      debugPrint('❌ Error checking email verification: $e');
+      // If check fails (e.g., column doesn't exist), allow login
+      return true;
+    }
+  }
+
   /// Initialize auth state
   Future<void> _initAuth() async {
     _isLoading = true;
@@ -39,12 +63,21 @@ class AuthProvider extends ChangeNotifier {
       
       if (user != null) {
         try {
-          final profile = await _authService.getUserProfile(user.id);
-          if (profile != null) {
-            _currentUser = profile;
-            debugPrint('✅ Init: User profile loaded: ${_currentUser?.email}, role: ${_currentUser?.role}');
+          // Check email verification first
+          final isVerified = await _checkEmailVerified(user.id);
+          if (!isVerified) {
+            debugPrint('⚠️ Init: Email not verified for ${user.email}, signing out...');
+            await _authService.signOut();
+            _currentUser = null;
+            debugPrint('🔐 Init: User signed out due to unverified email');
           } else {
-            debugPrint('⚠️ Init: Profile is null for user ${user.id}');
+            final profile = await _authService.getUserProfile(user.id);
+            if (profile != null) {
+              _currentUser = profile;
+              debugPrint('✅ Init: User profile loaded: ${_currentUser?.email}, role: ${_currentUser?.role}');
+            } else {
+              debugPrint('⚠️ Init: Profile is null for user ${user.id}');
+            }
           }
         } catch (e) {
           debugPrint('❌ Init: Error loading user profile: $e');
@@ -103,6 +136,16 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
     
     try {
+      // Check email verification first
+      final isVerified = await _checkEmailVerified(userId);
+      if (!isVerified) {
+        debugPrint('⚠️ Email not verified for user $userId, signing out...');
+        await _authService.signOut();
+        _currentUser = null;
+        debugPrint('🔐 User signed out due to unverified email');
+        return;
+      }
+      
       final profile = await _authService.getUserProfile(userId);
       if (profile != null) {
         _currentUser = profile;

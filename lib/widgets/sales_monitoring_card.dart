@@ -101,7 +101,7 @@ class SalesMonitoringCard extends StatelessWidget {
                           getTooltipItem: (group, groupIndex, rod, rodIndex) {
                             final value = rod.toY;
                             return BarTooltipItem(
-                              '₱${NumberFormat('#,###').format(value)}',
+                              '₱${NumberFormat('#,##0.00').format(value)}',
                               const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
@@ -227,7 +227,7 @@ class SalesMonitoringCard extends StatelessWidget {
                       ],
                     ),
                     Text(
-                      '₱${NumberFormat('#,###').format(method['value'] as double)}',
+                      '₱${NumberFormat('#,##0.00').format(method['value'] as double)}',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -252,7 +252,7 @@ class SalesMonitoringCard extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '₱${NumberFormat('#,###').format(totalSales)}',
+                  '₱${NumberFormat('#,##0.00').format(totalSales)}',
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: theme.colorScheme.primary,

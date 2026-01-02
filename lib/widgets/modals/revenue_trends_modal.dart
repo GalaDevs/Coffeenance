@@ -16,10 +16,26 @@ class RevenueTrendsModal extends StatelessWidget {
     final weeklyData = <Map<String, dynamic>>[];
     final dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     
-    // Calculate daily target from monthly revenue target divided by days in month
-    final monthlyRevenueTarget = provider.getKPITarget('monthlyRevenueTarget');
+    // Calculate daily target from current month's revenue target divided by days in month
+    final currentMonthKey = 'target_${now.year}_${now.month}_revenue';
+    var monthlyRevenueTarget = provider.getKPITarget(currentMonthKey);
+    
+    // If no target found, try without the "target_" prefix
+    if (monthlyRevenueTarget <= 0) {
+      monthlyRevenueTarget = provider.getKPITarget('${now.year}_${now.month}_revenue');
+    }
+    
+    // If still no target, use default
+    if (monthlyRevenueTarget <= 0) {
+      monthlyRevenueTarget = provider.getKPITarget('monthlyRevenueTarget');
+    }
+    
     final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
     final dailyTarget = monthlyRevenueTarget / daysInMonth;
+    
+    debugPrint('🎯 Revenue Trends: Current month ${now.month}/${now.year}');
+    debugPrint('🎯 Target key: $currentMonthKey = $monthlyRevenueTarget');
+    debugPrint('🎯 Daily target: $dailyTarget (${monthlyRevenueTarget} / $daysInMonth days)');
     
     for (int i = 6; i >= 0; i--) {
       final targetDate = now.subtract(Duration(days: i));
@@ -71,7 +87,36 @@ class RevenueTrendsModal extends StatelessWidget {
     final revenueData = _generateWeeklyData(provider);
     final categoryData = _generateCategoryData(provider);
 
-    // Calculate KPIs
+    // Get current month info for target calculations
+    final now = DateTime.now();
+    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+    final weeksInMonth = daysInMonth / 7.0;
+    
+    // Get monthly target - check all possible keys
+    final currentMonthKey = 'target_${now.year}_${now.month}_revenue';
+    var monthlyTarget = provider.getKPITarget(currentMonthKey);
+    debugPrint('🎯 Revenue Trends: Checking target key: $currentMonthKey = $monthlyTarget');
+    
+    if (monthlyTarget <= 0) {
+      final altKey = '${now.year}_${now.month}_revenue';
+      monthlyTarget = provider.getKPITarget(altKey);
+      debugPrint('🎯 Revenue Trends: Checking alt key: $altKey = $monthlyTarget');
+    }
+    if (monthlyTarget <= 0) {
+      monthlyTarget = provider.getKPITarget('monthlyRevenueTarget');
+      debugPrint('🎯 Revenue Trends: Checking fallback monthlyRevenueTarget = $monthlyTarget');
+    }
+    
+    // Targets will be 0 if not set or cleared
+    final hasTargetSet = monthlyTarget > 0;
+    
+    // Calculate derived targets (will be 0 if no target set)
+    final dailyTarget = hasTargetSet ? (monthlyTarget / daysInMonth) : 0.0;
+    final weeklyTarget = hasTargetSet ? (monthlyTarget / weeksInMonth) : 0.0;
+    
+    debugPrint('🎯 Revenue Trends: Final monthly=$monthlyTarget, daily=$dailyTarget, weekly=$weeklyTarget');
+
+    // Calculate KPIs from actual data
     final weeklyTotal = revenueData.fold<double>(
       0,
       (sum, item) => sum + (item['sales'] as double),
@@ -125,13 +170,13 @@ class RevenueTrendsModal extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
                 child: Column(
                   children: [
-                    // KPI Cards
+                    // KPI Cards - Top Row
                     Row(
                       children: [
                         Expanded(
                           child: _KPICard(
                             title: 'Weekly Total',
-                            value: '₱${(weeklyTotal / 1000).toStringAsFixed(0)}K',
+                            value: '₱${NumberFormat('#,##0.00').format(weeklyTotal)}',
                             color: const Color(0xFF10B981), // green-600
                             theme: theme,
                           ),
@@ -140,8 +185,42 @@ class RevenueTrendsModal extends StatelessWidget {
                         Expanded(
                           child: _KPICard(
                             title: 'Daily Average',
-                            value: '₱${avgDaily.toStringAsFixed(0)}',
+                            value: '₱${NumberFormat('#,##0.00').format(avgDaily)}',
                             color: const Color(0xFF3B82F6), // blue-600
+                            theme: theme,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // KPI Cards - Target Row
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _KPICard(
+                            title: 'Daily Target',
+                            value: hasTargetSet 
+                                ? '₱${NumberFormat('#,##0.00').format(dailyTarget)}'
+                                : 'Not Set',
+                            subtitle: hasTargetSet 
+                                ? '${DateFormat('MMM').format(now)} ÷ $daysInMonth days'
+                                : 'Set in Target Settings',
+                            color: const Color(0xFFF59E0B), // amber-500
+                            theme: theme,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _KPICard(
+                            title: 'Weekly Target',
+                            value: hasTargetSet 
+                                ? '₱${NumberFormat('#,##0.00').format(weeklyTarget)}'
+                                : 'Not Set',
+                            subtitle: hasTargetSet 
+                                ? '${DateFormat('MMM').format(now)} ÷ ${weeksInMonth.toStringAsFixed(1)} wks'
+                                : 'Set in Target Settings',
+                            color: const Color(0xFF8B5CF6), // violet-500
                             theme: theme,
                           ),
                         ),
@@ -267,7 +346,7 @@ class RevenueTrendsModal extends StatelessWidget {
                                       minY: 0,
                                       maxY: maxY,
                                   lineBarsData: [
-                                    // Actual Sales Line (filled area)
+                                    // Actual Sales Line - color based on target comparison
                                     LineChartBarData(
                                       spots: revenueData.asMap().entries.map((e) {
                                         return FlSpot(
@@ -276,16 +355,29 @@ class RevenueTrendsModal extends StatelessWidget {
                                         );
                                       }).toList(),
                                       isCurved: true,
-                                      color: const Color(0xFF10B981), // green-500
+                                      // Line color stays neutral gray
+                                      color: const Color(0xFF6B7280),
                                       barWidth: 3,
-                                      dotData: const FlDotData(show: true),
+                                      // Color each dot gray
+                                      dotData: FlDotData(
+                                        show: true,
+                                        getDotPainter: (spot, percent, barData, index) {
+                                          return FlDotCirclePainter(
+                                            radius: 5,
+                                            color: const Color(0xFF6B7280), // gray
+                                            strokeWidth: 2,
+                                            strokeColor: Colors.white,
+                                          );
+                                        },
+                                      ),
                                       belowBarData: BarAreaData(
                                         show: true,
-                                        color: const Color(0xFF10B981)
-                                            .withValues(alpha: 0.2),
+                                        // Gradient based on overall performance
+                                        color: const Color(0xFF6B7280)
+                                            .withValues(alpha: 0.1),
                                       ),
                                     ),
-                                    // Target Line
+                                    // Target Line (dashed)
                                     LineChartBarData(
                                       spots: revenueData.asMap().entries.map((e) {
                                         return FlSpot(
@@ -294,14 +386,12 @@ class RevenueTrendsModal extends StatelessWidget {
                                         );
                                       }).toList(),
                                       isCurved: false,
-                                      color: const Color(0xFF6B7280), // gray-500
+                                      color: const Color(0xFFF59E0B), // amber/gold for target
                                       barWidth: 2,
                                       dotData: const FlDotData(show: false),
                                       dashArray: [5, 5],
                                       belowBarData: BarAreaData(
-                                        show: true,
-                                        color: const Color(0xFFF3F4F6)
-                                            .withValues(alpha: 0.5),
+                                        show: false,
                                       ),
                                     ),
                                   ],
@@ -334,13 +424,14 @@ class RevenueTrendsModal extends StatelessWidget {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 _LegendItem(
-                                  color: const Color(0xFF10B981),
+                                  color: const Color(0xFF6B7280),
                                   label: 'Actual Sales',
                                 ),
-                                const SizedBox(width: 24),
+                                const SizedBox(width: 16),
                                 _LegendItem(
-                                  color: const Color(0xFF6B7280),
-                                  label: 'Target',
+                                  color: const Color(0xFFF59E0B),
+                                  label: 'Target Line',
+                                  isDashed: true,
                                 ),
                               ],
                             ),
@@ -402,10 +493,10 @@ class RevenueTrendsModal extends StatelessWidget {
                                           ),
                                           const SizedBox(height: 2),
                                           Text(
-                                            '₱${NumberFormat('#,###').format(item['revenue'])}',
+                                            '₱${NumberFormat('#,##0.00').format(item['revenue'])}',
                                             style: theme.textTheme.bodySmall
                                                 ?.copyWith(
-                                              fontSize: 12,
+                                              fontSize: 6,
                                               color: theme.colorScheme.onSurface
                                                   .withValues(alpha: 0.6),
                                             ),
@@ -446,12 +537,14 @@ class RevenueTrendsModal extends StatelessWidget {
 class _KPICard extends StatelessWidget {
   final String title;
   final String value;
+  final String? subtitle;
   final Color color;
   final ThemeData theme;
 
   const _KPICard({
     required this.title,
     required this.value,
+    this.subtitle,
     required this.color,
     required this.theme,
   });
@@ -483,11 +576,21 @@ class _KPICard extends StatelessWidget {
             Text(
               value,
               style: theme.textTheme.headlineMedium?.copyWith(
-                fontSize: 24,
+                fontSize: 12,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
             ),
+            if (subtitle != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                subtitle!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontSize: 10,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -498,32 +601,81 @@ class _KPICard extends StatelessWidget {
 class _LegendItem extends StatelessWidget {
   final Color color;
   final String label;
+  final bool isDashed;
 
   const _LegendItem({
     required this.color,
     required this.label,
+    this.isDashed = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Container(
-          width: 16,
-          height: 16,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ),
-        const SizedBox(width: 8),
+        isDashed
+            ? Container(
+                width: 20,
+                height: 3,
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: color,
+                      width: 2,
+                      style: BorderStyle.solid,
+                    ),
+                  ),
+                ),
+                child: CustomPaint(
+                  painter: _DashedLinePainter(color: color),
+                ),
+              )
+            : Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                ),
+              ),
+        const SizedBox(width: 6),
         Text(
           label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontSize: 12,
+                fontSize: 11,
               ),
         ),
       ],
     );
   }
+}
+
+class _DashedLinePainter extends CustomPainter {
+  final Color color;
+  
+  _DashedLinePainter({required this.color});
+  
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+    
+    const dashWidth = 4.0;
+    const dashSpace = 2.0;
+    double startX = 0;
+    
+    while (startX < size.width) {
+      canvas.drawLine(
+        Offset(startX, size.height / 2),
+        Offset(startX + dashWidth, size.height / 2),
+        paint,
+      );
+      startX += dashWidth + dashSpace;
+    }
+  }
+  
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

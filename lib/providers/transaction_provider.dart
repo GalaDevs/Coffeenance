@@ -5,8 +5,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/transaction.dart';
 import '../models/kpi_target.dart';
 import '../models/user_profile.dart';
+import '../models/activity_log.dart';
 import '../services/supabase_service.dart';
 import '../services/notification_service.dart';
+import '../services/activity_log_service.dart';
 
 /// TransactionProvider manages all transaction state
 /// Now syncs with Supabase for cloud storage with REALTIME updates
@@ -16,6 +18,7 @@ class TransactionProvider with ChangeNotifier {
   bool _isLoading = false;
   final SupabaseService _supabaseService = SupabaseService();
   final NotificationService _notificationService = NotificationService();
+  final ActivityLogService _activityLogService = ActivityLogService(Supabase.instance.client);
   
   // Realtime subscriptions
   RealtimeChannel? _transactionsSubscription;
@@ -48,6 +51,7 @@ class TransactionProvider with ChangeNotifier {
   Map<String, dynamic> get kpiSettings => Map.unmodifiable(_kpiSettings);
   Map<String, dynamic> get taxSettings => Map.unmodifiable(_taxSettings);
   List<Transaction> get pendingTransactions => List.unmodifiable(_pendingTransactions);
+  String? get currentShopId => _currentShopId;
   bool get isOnline => _isOnline;
   bool get isSyncing => _isSyncing;
   int get pendingSyncCount => _pendingTransactions.length;
@@ -847,6 +851,31 @@ class TransactionProvider with ChangeNotifier {
       debugPrint('💾 Attempting to save transaction to Supabase...');
       final savedTransaction = await _supabaseService.addTransaction(transaction);
       
+      // Log the activity
+      try {
+        final currentUser = Supabase.instance.client.auth.currentUser;
+        if (currentUser != null) {
+          final userProfile = await Supabase.instance.client
+              .from('user_profiles')
+              .select('full_name, role, admin_id, id')
+              .eq('id', currentUser.id)
+              .single();
+          
+          final adminId = userProfile['admin_id'] ?? userProfile['id'];
+          
+          await _activityLogService.logTransactionAdd(
+            userId: currentUser.id,
+            userName: userProfile['full_name'],
+            userRole: userProfile['role'],
+            adminId: adminId,
+            transaction: savedTransaction,
+          );
+        }
+      } catch (e) {
+        debugPrint('⚠️ Failed to log activity: $e');
+      }
+      
+      // 
       // Don't add locally here - realtime subscription will handle it to prevent duplicates
       debugPrint('✅ SUCCESS: Transaction saved to CLOUD (Supabase ID: ${savedTransaction.id})');
       debugPrint('🔔 Waiting for realtime to sync...');
@@ -1226,14 +1255,17 @@ class TransactionProvider with ChangeNotifier {
           if (target.month != null && target.year != null) {
             // Month-specific target: "target_YYYY_M_type"
             fullKey = 'target_${target.year}_${target.month}_${target.targetKey}';
+            debugPrint('📦 Loaded target: key=${target.targetKey}, month=${target.month}, year=${target.year} -> fullKey=$fullKey, value=${target.targetValue}');
           } else {
             // General target (no month/year)
             fullKey = target.targetKey;
+            debugPrint('📦 Loaded general target: key=${target.targetKey} -> fullKey=$fullKey, value=${target.targetValue}');
           }
           
           _kpiSettings[fullKey] = target.targetValue;
         }
         debugPrint('✅ Loaded ${response.length} KPI targets from cloud');
+        debugPrint('📋 All kpiSettings keys after load: ${_kpiSettings.keys.toList()}');
       }
       
       // If no cloud data exists, save defaults to cloud
@@ -1245,6 +1277,14 @@ class TransactionProvider with ChangeNotifier {
       // Fallback to local storage on error
       await _loadKPISettingsLocal();
     }
+  }
+  
+  /// Public method to refresh KPI targets from cloud
+  Future<void> refreshKPITargets() async {
+    debugPrint('🔄 Refreshing KPI targets from cloud...');
+    await _loadKPISettings();
+    notifyListeners();
+    debugPrint('✅ KPI targets refreshed');
   }
   
   /// Fallback: Load KPI settings from local storage
@@ -1356,20 +1396,60 @@ class TransactionProvider with ChangeNotifier {
             }
           }
           
-          await Supabase.instance.client.from('kpi_targets').upsert({
-            'shop_id': _currentShopId,
-            'user_id': userId,
-            'target_key': targetKey,
-            'target_value': targetValue,
-            'month': month,
-            'year': year,
-          });
+          debugPrint('💾 Saving target: key=$key -> targetKey=$targetKey, month=$month, year=$year, value=$targetValue');
           
-          debugPrint('☁️ Synced target $key = $targetValue to cloud');
+          // For general targets (no month/year), use update or delete+insert
+          // because NULL values don't work well with unique constraints
+          if (month == null && year == null) {
+            // First try to update existing record
+            final existing = await Supabase.instance.client
+                .from('kpi_targets')
+                .select('id')
+                .eq('shop_id', _currentShopId!)
+                .eq('target_key', targetKey)
+                .isFilter('month', null)
+                .isFilter('year', null)
+                .maybeSingle();
+            
+            if (existing != null) {
+              // Update existing record
+              await Supabase.instance.client
+                  .from('kpi_targets')
+                  .update({'target_value': targetValue})
+                  .eq('id', existing['id']);
+              debugPrint('☁️ Updated existing general target $targetKey = $targetValue');
+            } else {
+              // Insert new record
+              await Supabase.instance.client.from('kpi_targets').insert({
+                'shop_id': _currentShopId,
+                'user_id': userId,
+                'target_key': targetKey,
+                'target_value': targetValue,
+                'month': null,
+                'year': null,
+              });
+              debugPrint('☁️ Inserted new general target $targetKey = $targetValue');
+            }
+          } else {
+            // For month-specific targets, use upsert
+            await Supabase.instance.client.from('kpi_targets').upsert(
+              {
+                'shop_id': _currentShopId,
+                'user_id': userId,
+                'target_key': targetKey,
+                'target_value': targetValue,
+                'month': month,
+                'year': year,
+              },
+              onConflict: 'shop_id,target_key,month,year',
+            );
+            debugPrint('☁️ Synced monthly target $key = $targetValue to cloud');
+          }
         }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('⚠️ Error syncing KPI setting to cloud: $e');
+      debugPrint('⚠️ Stack trace: $stackTrace');
     }
     
     // Save to local storage as backup

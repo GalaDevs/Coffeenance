@@ -7,8 +7,7 @@ import 'providers/theme_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/notification_provider.dart';
 import 'screens/home_screen.dart';
-import 'screens/login_screen.dart';
-import 'theme/app_theme.dart';
+import 'screens/login_screen.dart';import 'screens/email_verification_screen.dart';import 'theme/app_theme.dart';
 
 /// Main entry point - Matches Next.js layout.tsx and page.tsx
 /// Provides state management and adaptive theming for iOS/Android/Web
@@ -87,6 +86,20 @@ class CafenanceApp extends StatelessWidget {
             darkTheme: AppTheme.darkTheme,
             themeMode: themeProvider.themeMode,
             home: _buildHome(authProvider),
+            routes: {
+              '/login': (context) => const LoginScreen(),
+              '/home': (context) => const HomeScreen(),
+            },
+            onGenerateRoute: (settings) {
+              if (settings.name == '/email-verification') {
+                // Handle legacy route - redirect to login
+                // Custom verification is now handled directly in register_dialog and login_screen
+                return MaterialPageRoute(
+                  builder: (context) => const LoginScreen(),
+                );
+              }
+              return null;
+            },
             builder: (context, widget) {
               // Add error boundary
               ErrorWidget.builder = (FlutterErrorDetails details) {

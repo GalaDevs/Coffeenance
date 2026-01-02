@@ -113,6 +113,14 @@ class NotificationService {
           'date': transaction.date,
         },
       });
+      
+      // Send email notification to owner
+      await _sendEmailNotification(
+        recipientId: adminId,
+        subject: 'Transaction Deleted by Manager',
+        message: 'A transaction of ₱${transaction.amount.toStringAsFixed(2)} was deleted on ${transaction.date}. Description: ${transaction.description}',
+      );
+      
       return true;
     } catch (e) {
       print('Error creating deletion notification: $e');
@@ -149,6 +157,14 @@ class NotificationService {
       });
       
       print('✅ Notification created successfully: $result');
+      
+      // Send email notification to admin/manager
+      await _sendEmailNotification(
+        recipientId: adminOrManagerId,
+        subject: 'Edit Request from Staff',
+        message: 'A staff member requested to edit a transaction. Please review the request in the app.',
+      );
+      
       return true;
     } catch (e) {
       print('❌ Error creating edit request notification: $e');
@@ -474,5 +490,45 @@ class NotificationService {
         .subscribe();
 
     return channel;
+  }
+  
+  // ============================================
+  // Email Notifications
+  // ============================================
+  
+  /// Send email notification to owner
+  Future<void> _sendEmailNotification({
+    required String recipientId,
+    required String subject,
+    required String message,
+  }) async {
+    try {
+      // Get recipient email from user profile
+      final profile = await _supabase
+          .from('user_profiles')
+          .select('email')
+          .eq('id', recipientId)
+          .single();
+      
+      if (profile == null || profile['email'] == null) {
+        print('⚠️ No email found for user $recipientId');
+        return;
+      }
+      
+      final recipientEmail = profile['email'] as String;
+      
+      // Use Supabase Edge Function to send email
+      // Note: You need to create this Edge Function in Supabase
+      await _supabase.functions.invoke('send-email', body: {
+        'to': recipientEmail,
+        'subject': subject,
+        'message': message,
+      });
+      
+      print('✅ Email notification sent to $recipientEmail');
+    } catch (e) {
+      print('⚠️ Error sending email notification: $e');
+      // Don't throw - email is optional, notification still created
+    }
   }
 }

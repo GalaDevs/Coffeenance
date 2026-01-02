@@ -1,7 +1,7 @@
 name: cafenance
 description: A modern money tracker for coffee shops - Converted from Next.js
 publish_to: 'none'
-version: 1.0.0+2
+version: 1.0.0+5
 
 environment:
   sdk: ^3.5.0
@@ -69,6 +69,7 @@ flutter:
   assets:
     - assets/icon.png
     - assets/icon Cafenance.png
+    - assets/images/GalaDevs Corp Logo navy.png
   
   # Fonts (similar to Geist font in Next.js)
   # fonts:

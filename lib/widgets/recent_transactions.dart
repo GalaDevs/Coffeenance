@@ -14,11 +14,7 @@ class RecentTransactions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final numberFormat = NumberFormat.currency(
-      locale: 'en_PH',
-      symbol: '₱',
-      decimalDigits: 2,
-    );
+    final numberFormat = NumberFormat('#,##0.00', 'en_US');
 
     return Card(
       child: Padding(
@@ -27,7 +23,7 @@ class RecentTransactions extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Recent Transactions',
+              'Recent Expenses',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
@@ -39,7 +35,7 @@ class RecentTransactions extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.all(32),
               child: Text(
-                'No transactions yet',
+                'No expenses yet',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.textTheme.bodySmall?.color,
                 ),
@@ -120,7 +116,7 @@ class RecentTransactions extends StatelessWidget {
 
                       // Amount
                       Text(
-                        '${isIncome ? '+' : '-'}${numberFormat.format(transaction.amount)}',
+                        '${isIncome ? '+' : '-'}₱${numberFormat.format(transaction.amount)}',
                         style: theme.textTheme.bodyLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: isIncome ? Colors.green : Colors.red,

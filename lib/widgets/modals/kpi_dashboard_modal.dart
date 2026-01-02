@@ -21,7 +21,7 @@ class _KPIDashboardModalState extends State<KPIDashboardModal> {
 
   // Format number with comma separators
   String _formatNumber(double number) {
-    final formatter = NumberFormat('#,##0', 'en_US');
+    final formatter = NumberFormat('#,##0.00', 'en_US');
     return formatter.format(number.round());
   }
 
@@ -58,30 +58,61 @@ class _KPIDashboardModalState extends State<KPIDashboardModal> {
     final revenueCount = revenueTransactions.length;
     final avgTransaction = revenueCount > 0 ? dailyRevenue / revenueCount : 0.0;
     
-    // Get targets from provider (PULL)
-    final dailyRevenueTarget = provider.getKPITarget('dailyRevenueTarget');
-    final dailyTransactionsTarget = provider.getKPITarget('dailyTransactionsTarget');
-    final avgTransactionTarget = provider.getKPITarget('avgTransactionTarget');
-    final dailyExpensesTarget = provider.getKPITarget('dailyExpensesTarget');
+    // Get monthly targets from Target Settings (PULL)
+    // Use selected date's month/year to get the correct monthly target
+    final targetMonth = _selectedDate.month;
+    final targetYear = _selectedDate.year;
+    final daysInMonth = DateTime(targetYear, targetMonth + 1, 0).day;
+    
+    // Get monthly revenue target for selected month
+    final monthlyRevenueKey = 'target_${targetYear}_${targetMonth}_revenue';
+    var monthlyRevenueTarget = provider.getKPITarget(monthlyRevenueKey);
+    if (monthlyRevenueTarget <= 0) {
+      monthlyRevenueTarget = provider.getKPITarget('monthlyRevenueTarget');
+    }
+    
+    // Get monthly expenses budget for selected month
+    final monthlyExpensesKey = 'target_${targetYear}_${targetMonth}_expenses';
+    var monthlyExpensesTarget = provider.getKPITarget(monthlyExpensesKey);
+    if (monthlyExpensesTarget <= 0) {
+      monthlyExpensesTarget = provider.getKPITarget('monthlyExpensesTarget');
+    }
+    
+    // Calculate daily targets from monthly targets
+    final dailyRevenueTarget = monthlyRevenueTarget > 0 ? monthlyRevenueTarget / daysInMonth : 0.0;
+    final dailyExpensesTarget = monthlyExpensesTarget > 0 ? monthlyExpensesTarget / daysInMonth : 0.0;
+    
+    // Estimate transaction count target (assuming average of ₱250 per transaction)
+    final avgTransactionEstimate = 250.0;
+    final dailyTransactionsTarget = dailyRevenueTarget > 0 ? dailyRevenueTarget / avgTransactionEstimate : 0.0;
+    final avgTransactionTarget = avgTransactionEstimate;
+    
+    final hasRevenueTarget = monthlyRevenueTarget > 0;
+    final hasExpensesTarget = monthlyExpensesTarget > 0;
     
     return [
       {
         'label': 'Daily Revenue',
         'value': '₱${_formatNumber(dailyRevenue)}',
         'valueNum': dailyRevenue,
-        'target': '₱${_formatNumber(dailyRevenueTarget)}',
+        'target': hasRevenueTarget ? '₱${_formatNumber(dailyRevenueTarget)}' : 'Not Set',
         'targetNum': dailyRevenueTarget,
-        'status': dailyRevenue >= dailyRevenueTarget ? 'above-target' : 'on-track',
-        'key': 'dailyRevenueTarget',
+        'status': hasRevenueTarget 
+            ? (dailyRevenue >= dailyRevenueTarget ? 'above-target' : 'below-target')
+            : 'no-target',
+        'hasTarget': hasRevenueTarget,
+        'monthlyTarget': monthlyRevenueTarget,
       },
       {
         'label': 'Daily Transactions',
         'value': _formatNumber(revenueCount.toDouble()),
         'valueNum': revenueCount.toDouble(),
-        'target': _formatNumber(dailyTransactionsTarget),
+        'target': hasRevenueTarget ? _formatNumber(dailyTransactionsTarget) : 'Not Set',
         'targetNum': dailyTransactionsTarget,
-        'status': revenueCount >= dailyTransactionsTarget ? 'above-target' : 'on-track',
-        'key': 'dailyTransactionsTarget',
+        'status': hasRevenueTarget 
+            ? (revenueCount >= dailyTransactionsTarget ? 'above-target' : 'below-target')
+            : 'no-target',
+        'hasTarget': hasRevenueTarget,
       },
       {
         'label': 'Average Transaction',
@@ -89,17 +120,20 @@ class _KPIDashboardModalState extends State<KPIDashboardModal> {
         'valueNum': avgTransaction,
         'target': '₱${_formatNumber(avgTransactionTarget)}',
         'targetNum': avgTransactionTarget,
-        'status': avgTransaction >= avgTransactionTarget ? 'above-target' : 'on-track',
-        'key': 'avgTransactionTarget',
+        'status': avgTransaction >= avgTransactionTarget ? 'above-target' : 'below-target',
+        'hasTarget': true,
       },
       {
         'label': 'Daily Expenses',
         'value': '₱${_formatNumber(dailyExpenses)}',
         'valueNum': dailyExpenses,
-        'target': '₱${_formatNumber(dailyExpensesTarget)}',
+        'target': hasExpensesTarget ? '₱${_formatNumber(dailyExpensesTarget)}' : 'Not Set',
         'targetNum': dailyExpensesTarget,
-        'status': dailyExpenses <= dailyExpensesTarget ? 'above-target' : 'on-track',
-        'key': 'dailyExpensesTarget',
+        'status': hasExpensesTarget 
+            ? (dailyExpenses <= dailyExpensesTarget ? 'above-target' : 'below-target')
+            : 'no-target',
+        'hasTarget': hasExpensesTarget,
+        'monthlyTarget': monthlyExpensesTarget,
       },
     ];
   }
@@ -178,24 +212,22 @@ class _KPIDashboardModalState extends State<KPIDashboardModal> {
       final totalRevenue = revenueTransactions.fold(0.0, (sum, t) => sum + t.amount);
       final totalExpenses = expenseTransactions.fold(0.0, (sum, t) => sum + t.amount);
       
-      // Calculate metrics (0-100 scale normalized to realistic values)
-      // Revenue - normalized to show meaningful growth (divide by 100 to get percentage scale)
-      final revenueGrowth = (totalRevenue / 100).clamp(0.0, 100.0);
+      // Calculate metrics - scale to thousands for better visualization
+      // Revenue - divide by 1000 to show in K scale (₱50,000 = 50)
+      final revenueScaled = (totalRevenue / 1000).clamp(0.0, 100.0);
       
-      // Operational Efficiency (inverse of expense ratio)
-      final efficiency = totalRevenue > 0 
-          ? (100 - ((totalExpenses / totalRevenue) * 100)).clamp(0.0, 100.0)
-          : 50.0;
+      // Expenses - divide by 1000 to show in K scale
+      final expensesScaled = (totalExpenses / 1000).clamp(0.0, 100.0);
       
-      // Profit Margin
+      // Profit Margin as percentage
       final profitMargin = totalRevenue > 0
           ? (((totalRevenue - totalExpenses) / totalRevenue) * 100).clamp(0.0, 100.0)
           : 0.0;
       
       weeklyData.add({
         'week': 'W${4 - i}',
-        'revenue': revenueGrowth,
-        'efficiency': efficiency,
+        'revenue': revenueScaled,
+        'expenses': expensesScaled,
         'profit': profitMargin,
       });
     }
@@ -235,7 +267,7 @@ class _KPIDashboardModalState extends State<KPIDashboardModal> {
                             Text(
                               'KPI Dashboard',
                               style: theme.textTheme.titleLarge?.copyWith(
-                                fontSize: 20,
+                                fontSize: 15,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -247,7 +279,7 @@ class _KPIDashboardModalState extends State<KPIDashboardModal> {
                                 children: [
                                   Icon(
                                     Icons.calendar_today_rounded,
-                                    size: 14,
+                                    size: 11,
                                     color: theme.colorScheme.primary,
                                   ),
                                   const SizedBox(width: 6),
@@ -261,7 +293,7 @@ class _KPIDashboardModalState extends State<KPIDashboardModal> {
                                   const SizedBox(width: 4),
                                   Icon(
                                     Icons.arrow_drop_down,
-                                    size: 18,
+                                    size: 14,
                                     color: theme.colorScheme.primary,
                                   ),
                                 ],
@@ -303,12 +335,7 @@ class _KPIDashboardModalState extends State<KPIDashboardModal> {
                       value: kpi['value']!,
                       target: kpi['target']!,
                       status: kpi['status']!,
-                      onEditTarget: () => _editTarget(
-                        context,
-                        kpi['label']!,
-                        kpi['key']!,
-                        kpi['targetNum'] as double,
-                      ),
+                      // Removed onEditTarget - targets are now set in Target Settings modal
                     );
                   },
                 ),
@@ -331,7 +358,7 @@ class _KPIDashboardModalState extends State<KPIDashboardModal> {
                         Text(
                           'Weekly Trends',
                           style: theme.textTheme.titleMedium?.copyWith(
-                            fontSize: 16,
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -345,8 +372,8 @@ class _KPIDashboardModalState extends State<KPIDashboardModal> {
                               label: 'Revenue',
                             ),
                             _LegendItem(
-                              color: const Color(0xFF3b82f6),
-                              label: 'Efficiency',
+                              color: const Color(0xFFEF4444),
+                              label: 'Expenses',
                             ),
                             _LegendItem(
                               color: const Color(0xFFf59e0b),
@@ -394,6 +421,27 @@ class _KPICard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isAboveTarget = status == 'above-target';
+    final isBelowTarget = status == 'below-target';
+    final hasNoTarget = status == 'no-target';
+
+    // Determine colors based on status
+    Color statusBgColor;
+    Color statusTextColor;
+    String statusText;
+    
+    if (hasNoTarget) {
+      statusBgColor = Colors.grey.shade200;
+      statusTextColor = Colors.grey.shade700;
+      statusText = '○ No Target';
+    } else if (isAboveTarget) {
+      statusBgColor = Colors.green.shade100;
+      statusTextColor = Colors.green.shade800;
+      statusText = '✓ Met';
+    } else {
+      statusBgColor = Colors.red.shade100;
+      statusTextColor = Colors.red.shade800;
+      statusText = '✗ Below';
+    }
 
     return Card(
       elevation: 0,
@@ -410,7 +458,7 @@ class _KPICard extends StatelessWidget {
           padding: const EdgeInsets.all(10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -421,7 +469,7 @@ class _KPICard extends StatelessWidget {
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.6),
                         fontWeight: FontWeight.w500,
-                        fontSize: 11,
+                        fontSize: 8,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -430,12 +478,12 @@ class _KPICard extends StatelessWidget {
                   if (onEditTarget != null)
                     Icon(
                       Icons.edit_rounded,
-                      size: 13,
+                      size: 10,
                       color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.4),
                     ),
                 ],
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -448,14 +496,14 @@ class _KPICard extends StatelessWidget {
                           value,
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
-                            fontSize: 15,
+                            fontSize: 11,
                           ),
                         ),
                         Text(
                           'Target: $target',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.6),
-                            fontSize: 10,
+                            fontSize: 8,
                           ),
                         ),
                       ],
@@ -467,19 +515,15 @@ class _KPICard extends StatelessWidget {
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: isAboveTarget
-                          ? Colors.green.shade100
-                          : Colors.blue.shade100,
+                      color: statusBgColor,
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      isAboveTarget ? '✓ Above' : '◔ On Track',
+                      statusText,
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: 8,
                         fontWeight: FontWeight.w600,
-                        color: isAboveTarget
-                            ? Colors.green.shade800
-                            : Colors.blue.shade800,
+                        color: statusTextColor,
                       ),
                     ),
                   ),
@@ -541,7 +585,7 @@ class _LineChartWidget extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
                       data[value.toInt()]['week'],
-                      style: const TextStyle(fontSize: 12),
+                      style: const TextStyle(fontSize: 9),
                     ),
                   );
                 }
@@ -557,7 +601,7 @@ class _LineChartWidget extends StatelessWidget {
               getTitlesWidget: (double value, TitleMeta meta) {
                 return Text(
                   value.toInt().toString(),
-                  style: const TextStyle(fontSize: 12),
+                  style: const TextStyle(fontSize: 9),
                 );
               },
             ),
@@ -587,16 +631,16 @@ class _LineChartWidget extends StatelessWidget {
             dotData: const FlDotData(show: true),
             belowBarData: BarAreaData(show: false),
           ),
-          // Operational Efficiency - Blue
+          // Expenses - Red
           LineChartBarData(
             spots: data.asMap().entries.map((entry) {
               return FlSpot(
                 entry.key.toDouble(),
-                entry.value['efficiency'] as double,
+                entry.value['expenses'] as double,
               );
             }).toList(),
             isCurved: true,
-            color: const Color(0xFF3b82f6),
+            color: const Color(0xFFEF4444),
             barWidth: 2,
             isStrokeCapRound: true,
             dotData: const FlDotData(show: true),
@@ -624,19 +668,23 @@ class _LineChartWidget extends StatelessWidget {
             getTooltipItems: (List<LineBarSpot> touchedSpots) {
               return touchedSpots.map((LineBarSpot touchedSpot) {
                 String label = '';
+                String suffix = '';
                 if (touchedSpot.barIndex == 0) {
                   label = 'Revenue';
+                  suffix = 'K';
                 } else if (touchedSpot.barIndex == 1) {
-                  label = 'Efficiency';
+                  label = 'Expenses';
+                  suffix = 'K';
                 } else if (touchedSpot.barIndex == 2) {
                   label = 'Profit';
+                  suffix = '%';
                 }
                 return LineTooltipItem(
-                  '$label\n${touchedSpot.y.toStringAsFixed(0)}%',
+                  '$label\n₱${touchedSpot.y.toStringAsFixed(0)}$suffix',
                   const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                    fontSize: 9,
                   ),
                 );
               }).toList();
@@ -664,8 +712,8 @@ class _LegendItem extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 12,
-          height: 12,
+          width: 9,
+          height: 9,
           decoration: BoxDecoration(
             color: color,
             borderRadius: BorderRadius.circular(2),
@@ -674,7 +722,7 @@ class _LegendItem extends StatelessWidget {
         const SizedBox(width: 4),
         Text(
           label,
-          style: const TextStyle(fontSize: 12),
+          style: const TextStyle(fontSize: 9),
         ),
       ],
     );

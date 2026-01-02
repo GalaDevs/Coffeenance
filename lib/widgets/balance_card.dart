@@ -20,12 +20,12 @@ class BalanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isPositive = amount >= 0;
-    final numberFormat = NumberFormat.currency(
-      locale: 'en_PH',
-      symbol: '₱',
-      decimalDigits: 2,
-    );
+    // Calculate income as Revenue - Expenses
+    final calculatedIncome = income - expense;
+    final isPositive = calculatedIncome >= 0;
+    
+    // Format with commas: xxx,xxx.xx
+    final numberFormat = NumberFormat('#,##0.00', 'en_US');
 
     return Container(
       decoration: BoxDecoration(
@@ -61,28 +61,42 @@ class BalanceCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
 
-          // Amount
-          Text(
-            '${isPositive ? '+' : ''}${numberFormat.format(amount)}',
-            style: const TextStyle(
-              fontSize: 36,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              letterSpacing: -0.5,
-            ),
+          // Amount (Income = Revenue - Expenses)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '₱${numberFormat.format(calculatedIncome.abs())}',
+                style: TextStyle(
+                  fontSize: 36,
+                  fontWeight: FontWeight.bold,
+                  color: isPositive ? Colors.white : Colors.red,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              if (!isPositive)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Icon(
+                    Icons.trending_down_rounded,
+                    color: Colors.red,
+                    size: 32,
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 24),
 
-          // Income/Transaction Row
+          // Revenue/Expenses Row
           Row(
             children: [
-              // Income
+              // Total Revenue or Sales
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Income',
+                      'Total Revenue or Sales',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.white.withValues(alpha: 0.75),
@@ -90,7 +104,7 @@ class BalanceCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '+${numberFormat.format(income)}',
+                      '₱${numberFormat.format(income)}',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -109,13 +123,13 @@ class BalanceCard extends StatelessWidget {
               ),
               const SizedBox(width: 16),
 
-              // Transactions
+              // Total Expenses
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Transactions',
+                      'Total Expenses',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.white.withValues(alpha: 0.75),
@@ -123,7 +137,7 @@ class BalanceCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '-${numberFormat.format(expense)}',
+                      '₱${numberFormat.format(expense)}',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,

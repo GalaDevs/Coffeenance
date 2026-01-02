@@ -132,6 +132,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
+  void _setYearly() {
+    final now = DateTime.now();
+    setState(() {
+      _startDate = DateTime(now.year, 1, 1); // January 1 of current year
+      _endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    });
+  }
+
   bool _isToday() {
     if (_startDate == null || _endDate == null) return false;
     final now = DateTime.now();
@@ -160,6 +168,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final startDay = DateTime(_startDate!.year, _startDate!.month, _startDate!.day);
     final endDay = DateTime(_endDate!.year, _endDate!.month, _endDate!.day);
     return startDay == firstOfMonth && endDay == today;
+  }
+
+  bool _isYearly() {
+    if (_startDate == null || _endDate == null) return false;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final firstOfYear = DateTime(now.year, 1, 1);
+    final startDay = DateTime(_startDate!.year, _startDate!.month, _startDate!.day);
+    final endDay = DateTime(_endDate!.year, _endDate!.month, _endDate!.day);
+    return startDay == firstOfYear && endDay == today;
   }
 
   @override
@@ -198,9 +216,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        _getPerformanceLabel(),
-                        style: theme.textTheme.bodySmall,
+                      Consumer<AuthProvider>(
+                        builder: (context, authProvider, _) {
+                          final userName = authProvider.currentUser?.fullName ?? 'User';
+                          return Text(
+                            userName,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -226,14 +251,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   );
                                 },
                               ),
-                              if (badgeCount > 0)
-                                Positioned(
-                                  right: 8,
-                                  top: 8,
+                              // Always show badge - even when count is 0
+                              Positioned(
+                                right: 8,
+                                top: 8,
+                                child: IgnorePointer(
                                   child: Container(
                                     padding: const EdgeInsets.all(4),
                                     decoration: BoxDecoration(
-                                      color: Colors.red,
+                                      color: badgeCount > 0 ? Colors.red : Colors.grey,
                                       shape: BoxShape.circle,
                                     ),
                                     constraints: const BoxConstraints(
@@ -252,6 +278,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     ),
                                   ),
                                 ),
+                              ),
                             ],
                           );
                         },
@@ -533,20 +560,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             isSelected: _isToday(),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 4),
                         Expanded(
                           child: _QuickFilterButton(
-                            label: 'This Week',
+                            label: 'Past 7 Days',
                             onTap: _setThisWeek,
                             isSelected: _isThisWeek(),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 4),
                         Expanded(
                           child: _QuickFilterButton(
-                            label: 'This Month',
+                            label: 'Month to Date',
                             onTap: _setThisMonth,
                             isSelected: _isThisMonth(),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: _QuickFilterButton(
+                            label: 'Year to Date',
+                            onTap: _setYearly,
+                            isSelected: _isYearly(),
                           ),
                         ),
                       ],
@@ -642,12 +677,16 @@ class _TaxSummaryCardState extends State<_TaxSummaryCard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     
-    // Tax calculations matching Next.js
+    // Tax calculations with new formulas
+    // VAT Output = Gross Sales * 12%
+    // VAT Input = Gross Expenses * 12%
+    // VAT Payable = VAT Output - VAT Input
     const vatRate = 0.12;
     final grossSales = widget.totalIncome;
-    final vatTax = grossSales * vatRate;
-    final totalTaxes = vatTax;
-    final netSales = grossSales - totalTaxes;
+    final grossExpenses = widget.expenses;
+    final vatOutput = grossSales * vatRate;
+    final vatInput = grossExpenses * vatRate;
+    final vatPayable = vatOutput - vatInput;
 
     return Card(
       child: Column(
@@ -669,7 +708,7 @@ class _TaxSummaryCardState extends State<_TaxSummaryCard> {
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        'Tax Summary',
+                        'VALUE ADDED TAX (VAT) Summary',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
@@ -698,16 +737,16 @@ class _TaxSummaryCardState extends State<_TaxSummaryCard> {
               child: Column(
                 children: [
                   _buildTaxRow(
-                    'Gross Sales',
-                    grossSales,
+                    'VAT Output (12%)',
+                    vatOutput,
                     theme,
                   ),
                   const SizedBox(height: 12),
                   const Divider(height: 1),
                   const SizedBox(height: 12),
                   _buildTaxRow(
-                    'VAT (12%)',
-                    vatTax,
+                    'VAT Input (12%)',
+                    vatInput,
                     theme,
                     isNegative: true,
                   ),
@@ -721,22 +760,12 @@ class _TaxSummaryCardState extends State<_TaxSummaryCard> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: _buildTaxRow(
-                      'Total Taxes',
-                      totalTaxes,
+                      'VAT Payable',
+                      vatPayable,
                       theme,
                       isBold: true,
-                      isNegative: true,
+                      isNegative: vatPayable < 0,
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Divider(height: 1),
-                  const SizedBox(height: 12),
-                  _buildTaxRow(
-                    'Net Sales',
-                    netSales,
-                    theme,
-                    isBold: true,
-                    isPrimary: true,
                   ),
                 ],
               ),
@@ -754,6 +783,8 @@ class _TaxSummaryCardState extends State<_TaxSummaryCard> {
     bool isNegative = false,
     bool isPrimary = false,
   }) {
+    final numberFormat = NumberFormat('#,##0.00', 'en_US');
+    
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -765,7 +796,7 @@ class _TaxSummaryCardState extends State<_TaxSummaryCard> {
           ),
         ),
         Text(
-          '${isNegative ? "-" : ""}₱${amount.toStringAsFixed(2).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
+          '${isNegative ? "-" : ""}₱${numberFormat.format(amount.abs())}',
           style: theme.textTheme.bodySmall?.copyWith(
             fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
             color: isPrimary
@@ -802,7 +833,7 @@ class _QuickFilterButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(6),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 1),
           decoration: BoxDecoration(
             color: isSelected 
                 ? theme.colorScheme.primary.withValues(alpha: 0.15)
@@ -818,9 +849,11 @@ class _QuickFilterButton extends StatelessWidget {
           child: Text(
             label,
             textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.visible,
             style: theme.textTheme.bodySmall?.copyWith(
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-              fontSize: 11,
+              fontSize: 8.5,
               color: isSelected ? theme.colorScheme.primary : null,
             ),
           ),

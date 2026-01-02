@@ -69,6 +69,27 @@ class AuthService {
         throw Exception('Login failed: No user returned');
       }
 
+      // Check custom email verification (not Supabase Auth)
+      try {
+        final profile = await _supabase!
+            .from('user_profiles')
+            .select('email_verified')
+            .eq('id', response.user!.id)
+            .maybeSingle();
+        
+        if (profile != null && profile['email_verified'] != true) {
+          debugPrint('⚠️ Email not verified for user: ${response.user!.email}');
+          await signOut();
+          throw Exception('EMAIL_NOT_VERIFIED:${response.user!.email}:${response.user!.id}');
+        }
+      } catch (e) {
+        if (e.toString().contains('EMAIL_NOT_VERIFIED')) {
+          rethrow;
+        }
+        // If check fails, allow login (column might not exist yet)
+        debugPrint('⚠️ Could not check email_verified: $e');
+      }
+
       // Fetch user profile
       debugPrint('🔐 AuthService: Fetching user profile for ${response.user!.id}');
       final profile = await getUserProfile(response.user!.id);
@@ -94,6 +115,70 @@ class AuthService {
     } catch (e) {
       throw Exception('Sign out failed: $e');
     }
+  }
+
+  /// Verify email with OTP code
+  Future<bool> verifyEmailOtp({
+    required String email,
+    required String token,
+  }) async {
+    if (_supabase == null) {
+      throw Exception('Supabase not initialized');
+    }
+    try {
+      debugPrint('📧 Verifying email OTP for: $email');
+      
+      final response = await _supabase!.auth.verifyOTP(
+        email: email,
+        token: token,
+        type: OtpType.signup,
+      );
+
+      if (response.user == null) {
+        throw Exception('Email verification failed');
+      }
+
+      debugPrint('✅ Email verified successfully');
+      return true;
+    } on AuthException catch (e) {
+      debugPrint('❌ Email verification failed: ${e.message}');
+      throw Exception('Verification failed: ${e.message}');
+    } catch (e) {
+      debugPrint('❌ Email verification error: $e');
+      throw Exception('Verification failed: $e');
+    }
+  }
+
+  /// Resend email verification code
+  Future<void> resendVerificationEmail({
+    required String email,
+  }) async {
+    if (_supabase == null) {
+      throw Exception('Supabase not initialized');
+    }
+    try {
+      debugPrint('📧 Resending verification email to: $email');
+      
+      await _supabase!.auth.resend(
+        email: email,
+        type: OtpType.signup,
+      );
+
+      debugPrint('✅ Verification email resent');
+    } on AuthException catch (e) {
+      debugPrint('❌ Failed to resend email: ${e.message}');
+      throw Exception('Failed to resend email: ${e.message}');
+    } catch (e) {
+      debugPrint('❌ Error resending email: $e');
+      throw Exception('Failed to resend email: $e');
+    }
+  }
+
+  /// Check if current user's email is confirmed
+  bool get isEmailConfirmed {
+    final user = currentUser;
+    if (user == null) return false;
+    return user.emailConfirmedAt != null;
   }
 
   /// Upload profile image to Supabase Storage
@@ -244,19 +329,40 @@ class AuthService {
       if (isRegistration) {
         debugPrint('📝 REGISTRATION: Creating auth user with signUp()...');
         
-        final authResponse = await _supabase!.auth.signUp(
-          email: email,
-          password: password,
-          data: {
-            'full_name': fullName,
-            'role': role.name,
-            'admin_id': assignedAdminId,
-          },
-        );
+        late final AuthResponse authResponse;
+        try {
+          authResponse = await _supabase!.auth.signUp(
+            email: email,
+            password: password,
+            emailRedirectTo: null, // Disable email redirect
+            data: {
+              'full_name': fullName,
+              'role': role.name,
+              'admin_id': assignedAdminId,
+              'email_confirm': true, // Auto-confirm email
+            },
+          );
+        } on AuthApiException catch (authError) {
+          debugPrint('❌ AuthApiException during registration: ${authError.message}');
+          debugPrint('   Code: ${authError.code}');
+          debugPrint('   Status: ${authError.statusCode}');
+          
+          if (authError.code == 'user_already_exists' || 
+              authError.statusCode == 422 ||
+              authError.message.toLowerCase().contains('already') ||
+              authError.message.toLowerCase().contains('exists')) {
+            throw Exception('This email is already registered. Please use a different email or try logging in.');
+          }
+          throw Exception('Registration error: ${authError.message}');
+        }
 
         if (authResponse.user == null) {
-          throw Exception('Failed to create auth user - no user returned');
+          // Check if it's a duplicate case (Supabase sometimes returns null user without exception)
+          throw Exception('Failed to create account. This email may already be registered.');
         }
+        
+        debugPrint('📧 Auth response session: ${authResponse.session != null ? "exists" : "null"}');
+        debugPrint('📧 User email confirmed: ${authResponse.user!.emailConfirmedAt}');
 
         final newUserId = authResponse.user!.id;
         debugPrint('✅ Auth user created with ID: $newUserId');
@@ -281,6 +387,7 @@ class AuthService {
           'created_by': '', // Empty for registration
           'admin_id': assignedAdminId,
           'is_active': true,
+          'email_verified': false, // Email not verified yet
           'profile_image_url': profileImageUrl,
           'created_at': DateTime.now().toIso8601String(),
           'updated_at': DateTime.now().toIso8601String(),
@@ -292,6 +399,11 @@ class AuthService {
 
         final profile = UserProfile.fromJson(insertResponse[0]);
         debugPrint('✅ Registration complete: ${profile.email}, role: ${profile.role}');
+        
+        // Sign out immediately - user must verify email before logging in
+        debugPrint('🔐 Signing out after registration - email verification required');
+        await signOut();
+        
         return profile;
         
       } else {

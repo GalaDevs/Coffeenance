@@ -217,7 +217,7 @@ class PayrollModal extends StatelessWidget {
                                                   ),
                                                 ),
                                                 Text(
-                                                  '₱${NumberFormat('#,###').format(item['value'])}',
+                                                  '₱${NumberFormat('#,##0.00').format(item['value'])}',
                                                   style: theme
                                                       .textTheme.bodySmall
                                                       ?.copyWith(
@@ -323,7 +323,7 @@ class PayrollModal extends StatelessWidget {
                                         ),
                                       ),
                                       Text(
-                                        '₱${NumberFormat('#,###').format(staff['salary'])}',
+                                        '₱${NumberFormat('#,##0.00').format(staff['salary'])}',
                                         style:
                                             theme.textTheme.bodyMedium?.copyWith(
                                           fontSize: 14,

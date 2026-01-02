@@ -137,7 +137,7 @@ class _RevenueBreakdownState extends State<RevenueBreakdown> {
                     const SizedBox(height: 3), // mb-1 reduced
                     // Amount
                     Text(
-                      '₱${NumberFormat('#,###').format(amount)}',
+                      '₱${NumberFormat('#,##0.00').format(amount)}',
                       style: theme.textTheme.titleLarge?.copyWith(
                         fontSize: 16, // text-lg reduced
                         fontWeight: FontWeight.bold,
@@ -218,7 +218,7 @@ class _RevenueBreakdownState extends State<RevenueBreakdown> {
                   Row(
                     children: [
                       Text(
-                        '₱${NumberFormat('#,###').format(widget.totalRevenue)}',
+                        '₱${NumberFormat('#,##0.00').format(widget.totalRevenue)}',
                         style: theme.textTheme.headlineSmall?.copyWith(
                           fontSize: 20, // text-xl
                           fontWeight: FontWeight.bold,

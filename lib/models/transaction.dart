@@ -25,6 +25,10 @@ class Transaction {
   final String supplierName;
   @JsonKey(name: 'supplier_address')
   final String supplierAddress;
+  @JsonKey(name: 'sub_category')
+  final String subCategory;
+  @JsonKey(name: 'invoice_number')
+  final String invoiceNumber;
 
   Transaction({
     required this.id,
@@ -40,6 +44,8 @@ class Transaction {
     this.vat = 0,
     this.supplierName = '',
     this.supplierAddress = '',
+    this.subCategory = '',
+    this.invoiceNumber = '',
   });
 
   factory Transaction.fromJson(Map<String, dynamic> json) =>
@@ -61,6 +67,8 @@ class Transaction {
     int? vat,
     String? supplierName,
     String? supplierAddress,
+    String? subCategory,
+    String? invoiceNumber,
   }) {
     return Transaction(
       id: id ?? this.id,
@@ -76,6 +84,8 @@ class Transaction {
       vat: vat ?? this.vat,
       supplierName: supplierName ?? this.supplierName,
       supplierAddress: supplierAddress ?? this.supplierAddress,
+      subCategory: subCategory ?? this.subCategory,
+      invoiceNumber: invoiceNumber ?? this.invoiceNumber,
     );
   }
 }
@@ -113,7 +123,14 @@ class TransactionCategories {
   static const String utilities = 'Utilities';
   static const String manpower = 'Manpower';
   static const String marketing = 'Marketing';
-  static const String others = 'Others';
+  static const String transpoAndDeliveries = 'Transpo and Deliveries';
+  static const String rm = 'R&M';
+  static const String mandatories = 'MANDATORIES';
+  static const String pestControl = 'Pest control';
+  static const String misc = 'MISC';
+  static const String commissions = 'COMMISIONS';
+  static const String taxes = 'TAXES';
+  static const String others = 'OTHERS';
 
   static const List<String> all = [
     supplies,
@@ -122,6 +139,13 @@ class TransactionCategories {
     utilities,
     manpower,
     marketing,
+    transpoAndDeliveries,
+    rm,
+    mandatories,
+    pestControl,
+    misc,
+    commissions,
+    taxes,
     others,
   ];
 }

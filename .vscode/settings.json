@@ -1,0 +1,14 @@
+{
+  "dart.flutterRunLogFile": "${workspaceFolder}/flutter_run.log",
+  "dart.debugConsoleLogging": "all",
+  "dart.debugExternalLibraries": true,
+  "dart.debugSdkLibraries": false,
+  "dart.flutterShowWebServerDevice": false,
+  "dart.verboseLogging": true,
+  "dart.allowAnalytics": false,
+  "dart.flutterAdditionalArgs": [
+    "--verbose"
+  ],
+  "terminal.integrated.scrollback": 10000,
+  "terminal.integrated.enablePersistentSessions": true
+}

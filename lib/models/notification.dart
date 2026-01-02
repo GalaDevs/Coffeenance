@@ -91,7 +91,8 @@ enum NotificationType {
   transactionDeleted('transaction_deleted'),
   editRequest('edit_request'),
   editApproved('edit_approved'),
-  editRejected('edit_rejected');
+  editRejected('edit_rejected'),
+  announcement('announcement');
 
   final String value;
   const NotificationType(this.value);

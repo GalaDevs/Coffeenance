@@ -92,6 +92,15 @@ class _RevenueScreenState extends State<RevenueScreen> {
     });
   }
 
+  void _setYearly() {
+    final now = DateTime.now();
+    setState(() {
+      _selectedSingleDate = null; // Clear single date
+      _startDate = DateTime(now.year, 1, 1); // January 1 of current year
+      _endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    });
+  }
+
   bool _isToday() {
     if (_startDate == null || _endDate == null) return false;
     final now = DateTime.now();
@@ -122,6 +131,16 @@ class _RevenueScreenState extends State<RevenueScreen> {
     return startDay == firstOfMonth && endDay == today;
   }
 
+  bool _isYearly() {
+    if (_startDate == null || _endDate == null) return false;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final firstOfYear = DateTime(now.year, 1, 1);
+    final startDay = DateTime(_startDate!.year, _startDate!.month, _startDate!.day);
+    final endDay = DateTime(_endDate!.year, _endDate!.month, _endDate!.day);
+    return startDay == firstOfYear && endDay == today;
+  }
+
   String _getFilterLabel() {
     if (_startDate == null || _endDate == null) return 'Select Date Range';
 
@@ -137,12 +156,17 @@ class _RevenueScreenState extends State<RevenueScreen> {
     final sevenDaysAgo = now.subtract(const Duration(days: 6));
     final sevenDaysAgoDay = DateTime(sevenDaysAgo.year, sevenDaysAgo.month, sevenDaysAgo.day);
     if (startDay == sevenDaysAgoDay && endDay == today) {
-      return 'This Week';
+      return 'Past 7 Days';
     }
 
     final firstOfMonth = DateTime(now.year, now.month, 1);
     if (startDay == firstOfMonth && endDay == today) {
-      return 'This Month';
+      return 'Month to Date';
+    }
+
+    final firstOfYear = DateTime(now.year, 1, 1);
+    if (startDay == firstOfYear && endDay == today) {
+      return 'Yearly';
     }
 
     return '${DateFormat('MMM d').format(_startDate!)} - ${DateFormat('MMM d, y').format(_endDate!)}';
@@ -188,9 +212,16 @@ class _RevenueScreenState extends State<RevenueScreen> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        'Track all your revenue sources',
-                        style: theme.textTheme.bodySmall,
+                      Consumer<AuthProvider>(
+                        builder: (context, authProvider, _) {
+                          final userName = authProvider.currentUser?.fullName ?? 'User';
+                          return Text(
+                            userName,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -275,7 +306,7 @@ class _RevenueScreenState extends State<RevenueScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: _QuickFilterButton(
-                            label: 'This Week',
+                            label: 'Past 7 Days',
                             onPressed: _setThisWeek,
                             isSelected: _isThisWeek(),
                           ),
@@ -283,9 +314,17 @@ class _RevenueScreenState extends State<RevenueScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: _QuickFilterButton(
-                            label: 'This Month',
+                            label: 'Month to Date',
                             onPressed: _setThisMonth,
                             isSelected: _isThisMonth(),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _QuickFilterButton(
+                            label: 'Yearly',
+                            onPressed: _setYearly,
+                            isSelected: _isYearly(),
                           ),
                         ),
                       ],
@@ -681,7 +720,7 @@ class _QuickFilterButton extends StatelessWidget {
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
         backgroundColor: isSelected 
             ? theme.colorScheme.primary.withValues(alpha: 0.15)
             : Colors.transparent,
@@ -692,8 +731,11 @@ class _QuickFilterButton extends StatelessWidget {
       ),
       child: Text(
         label,
+        textAlign: TextAlign.center,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          fontSize: 12,
+          fontSize: 10,
           fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
           color: theme.colorScheme.primary,
         ),

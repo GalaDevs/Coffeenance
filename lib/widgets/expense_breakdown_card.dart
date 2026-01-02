@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
 import '../theme/app_theme.dart';
 
 /// Expense Breakdown Card - Matches expense-breakdown.tsx
@@ -67,7 +68,7 @@ class _ExpenseBreakdownCardState extends State<ExpenseBreakdownCard> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Distribution of transactions across categories',
+              'Distribution of expenses across categories',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.6),
               ),
@@ -129,7 +130,7 @@ class _ExpenseBreakdownCardState extends State<ExpenseBreakdownCard> {
                                     ],
                                   ),
                                   child: Text(
-                                    '₱${(data['value'] as double).toStringAsFixed(0)}',
+                                    '₱${NumberFormat('#,##0.00').format(data['value'] as double)}',
                                     style: TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
@@ -227,7 +228,7 @@ class _ExpenseBreakdownCardState extends State<ExpenseBreakdownCard> {
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                              '₱${value.toStringAsFixed(0)}',
+                              '₱${NumberFormat('#,##0.00').format(value)}',
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 fontWeight: isTouched ? FontWeight.bold : FontWeight.w600,
                               ),
@@ -256,13 +257,13 @@ class _ExpenseBreakdownCardState extends State<ExpenseBreakdownCard> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Total Transactions',
+                    'Total Expenses',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   Text(
-                    '-₱${widget.totalExpenses.toStringAsFixed(0)}',
+                    '-₱${NumberFormat('#,##0.00').format(widget.totalExpenses)}',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: theme.colorScheme.error,

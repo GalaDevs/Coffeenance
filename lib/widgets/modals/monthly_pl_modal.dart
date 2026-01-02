@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
 import '../../providers/transaction_provider.dart';
 import '../../models/transaction.dart';
 
@@ -8,6 +9,12 @@ import '../../models/transaction.dart';
 /// Shows profit & loss analysis with charts and tables
 class MonthlyPLModal extends StatelessWidget {
   const MonthlyPLModal({super.key});
+
+  // Format number with commas and 2 decimal places
+  String _formatCurrency(double amount) {
+    final formatter = NumberFormat('#,##0.00');
+    return '₱${formatter.format(amount)}';
+  }
 
   // Generate monthly P&L data from transactions
   List<Map<String, dynamic>> _generateMonthlyData(TransactionProvider provider) {
@@ -138,39 +145,41 @@ class MonthlyPLModal extends StatelessWidget {
     final revenueGrowth = '+12.5%'; // Sample data
     final expenseGrowth = '+8.3%'; // Sample data
 
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(
-          flex: 2,
-          child: _buildSummaryCard(
-            theme,
-            'Total Revenue',
-            '₱${(totalRevenue / 1000).toStringAsFixed(0)}K',
-            Colors.green,
-            subtitle: revenueGrowth,
-          ),
+        // First row: Revenue and Expenses
+        Row(
+          children: [
+            Expanded(
+              child: _buildSummaryCard(
+                theme,
+                'Total Revenue',
+                _formatCurrency(totalRevenue),
+                Colors.green,
+                subtitle: revenueGrowth,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildSummaryCard(
+                theme,
+                'Total Expenses',
+                _formatCurrency(totalExpenses),
+                Colors.red,
+                subtitle: expenseGrowth,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          flex: 2,
-          child: _buildSummaryCard(
-            theme,
-            'Total Expenses',
-            '₱${(totalExpenses / 1000).toStringAsFixed(0)}K',
-            Colors.red,
-            subtitle: expenseGrowth,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          flex: 2,
-          child: _buildSummaryCard(
-            theme,
-            'Total Profit',
-            '₱${(totalProfit / 1000).toStringAsFixed(0)}K',
-            Colors.blue,
-            subtitle: '$profitMargin%',
-          ),
+        const SizedBox(height: 12),
+        // Second row: Profit full width
+        _buildSummaryCard(
+          theme,
+          'Total Profit',
+          _formatCurrency(totalProfit),
+          Colors.blue,
+          subtitle: '$profitMargin%',
         ),
       ],
     );
@@ -204,8 +213,10 @@ class MonthlyPLModal extends StatelessWidget {
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: color,
-                fontSize: 18,
+                fontSize: 12.6, // 18 * 0.7 = 12.6 (30% reduction)
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             if (subtitle != null) ...[
               const SizedBox(height: 2),
@@ -484,8 +495,9 @@ class MonthlyPLModal extends StatelessWidget {
                       getTooltipItems: (touchedSpots) {
                         return touchedSpots.map((spot) {
                           final month = monthlyData[spot.x.toInt()]['month'] as String;
-                          return LineTooltipItem(
-                            '$month\nProfit: ₱${spot.y.toInt().toStringAsFixed(0)}',
+                            final formatter = NumberFormat('#,##0.00');
+                            return LineTooltipItem(
+                              '$month\nProfit: ₱${formatter.format(spot.y)}',
                             const TextStyle(color: Colors.white),
                           );
                         }).toList();
@@ -599,13 +611,14 @@ class MonthlyPLModal extends StatelessWidget {
 
                       return DataRow(
                         cells: [
-                          DataCell(Text(month, style: theme.textTheme.bodyMedium)),
+                          DataCell(Text(month, style: theme.textTheme.bodyMedium?.copyWith(fontSize: 9.8))), // 14 * 0.7
                           DataCell(
                             Text(
-                              '₱${(revenue / 1000).toStringAsFixed(1)}K',
+                              _formatCurrency(revenue),
                               style: TextStyle(
                                 color: Colors.green.shade700,
                                 fontWeight: FontWeight.w600,
+                                fontSize: 9.8, // 14 * 0.7
                               ),
                             ),
                           ),
@@ -630,10 +643,11 @@ class MonthlyPLModal extends StatelessWidget {
                           ),
                           DataCell(
                             Text(
-                              '₱${(expenses / 1000).toStringAsFixed(1)}K',
+                              _formatCurrency(expenses),
                               style: TextStyle(
                                 color: Colors.red.shade700,
                                 fontWeight: FontWeight.w600,
+                                fontSize: 9.8, // 14 * 0.7
                               ),
                             ),
                           ),
@@ -658,9 +672,10 @@ class MonthlyPLModal extends StatelessWidget {
                           ),
                           DataCell(
                             Text(
-                              '₱${(profit / 1000).toStringAsFixed(1)}K',
+                              _formatCurrency(profit),
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
+                                fontSize: 9.8, // 14 * 0.7
                                 color: profit >= 0 ? Colors.blue.shade700 : Colors.red.shade700,
                               ),
                             ),

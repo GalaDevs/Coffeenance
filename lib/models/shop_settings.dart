@@ -7,6 +7,7 @@ class ShopSettings {
   final String? locationAddress;
   final double? locationLatitude;
   final double? locationLongitude;
+  final bool isVatRegistered;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -17,6 +18,7 @@ class ShopSettings {
     this.locationAddress,
     this.locationLatitude,
     this.locationLongitude,
+    this.isVatRegistered = false,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -46,6 +48,7 @@ class ShopSettings {
       locationLongitude: json['location_longitude'] != null
           ? (json['location_longitude'] as num).toDouble()
           : null,
+      isVatRegistered: json['is_vat_registered'] as bool? ?? false,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );
@@ -59,6 +62,7 @@ class ShopSettings {
       'location_address': locationAddress,
       'location_latitude': locationLatitude,
       'location_longitude': locationLongitude,
+      'is_vat_registered': isVatRegistered,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -71,6 +75,7 @@ class ShopSettings {
     String? locationAddress,
     double? locationLatitude,
     double? locationLongitude,
+    bool? isVatRegistered,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -81,6 +86,7 @@ class ShopSettings {
       locationAddress: locationAddress ?? this.locationAddress,
       locationLatitude: locationLatitude ?? this.locationLatitude,
       locationLongitude: locationLongitude ?? this.locationLongitude,
+      isVatRegistered: isVatRegistered ?? this.isVatRegistered,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

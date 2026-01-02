@@ -2,10 +2,27 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Flutter iOS Simulator (Debug + Verbose)",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "flutterMode": "debug",
+      "deviceId": "ios",
+      "args": [
+        "--verbose",
+        "--debug"
+      ],
+      "console": "debugConsole",
+      "preLaunchTask": null
+    },
+    {
       "name": "Flutter (Debug)",
       "type": "dart",
       "request": "launch",
-      "program": "lib/main.dart"
+      "program": "lib/main.dart",
+      "args": [
+        "--verbose"
+      ]
     },
     {
       "name": "Flutter (Profile)",

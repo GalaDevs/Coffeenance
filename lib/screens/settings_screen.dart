@@ -12,7 +12,11 @@ import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/user_profile.dart';
 import '../models/shop_settings.dart';
+import '../models/announcement.dart';
+import '../models/activity_log.dart';
 import '../services/shop_settings_service.dart';
+import '../services/announcement_service.dart';
+import '../services/activity_log_service.dart';
 import '../theme/app_theme.dart';
 import 'supabase_test_screen.dart';
 import 'connection_debug_screen.dart';
@@ -33,12 +37,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
   ShopSettings? _shopSettings;
   bool _loadingSettings = true;
   late ShopSettingsService _shopSettingsService;
+  late AnnouncementService _announcementService;
+  List<Announcement> _announcements = [];
 
   @override
   void initState() {
     super.initState();
     _shopSettingsService = ShopSettingsService(Supabase.instance.client);
+    _announcementService = AnnouncementService(Supabase.instance.client);
     _loadShopSettings();
+    _loadAnnouncements();
+  }
+
+  Future<void> _loadAnnouncements() async {
+    final authProvider = context.read<AuthProvider>();
+    final currentUser = authProvider.currentUser;
+    if (currentUser?.role == UserRole.developer) {
+      final announcements = await _announcementService.getAllAnnouncements();
+      setState(() => _announcements = announcements);
+    }
   }
 
   Future<void> _loadShopSettings() async {
@@ -158,6 +175,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const Divider(height: 1),
                   ],
+                  // Activity Log (Admin only)
+                  if (currentUser.role == UserRole.admin || currentUser.role == UserRole.developer) ...[
+                    ListTile(
+                      leading: Icon(
+                        Icons.history,
+                        color: theme.colorScheme.primary,
+                      ),
+                      title: const Text('Activity Log'),
+                      subtitle: const Text('View revenue and expense activity'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => _showActivityLogDialog(context),
+                    ),
+                    const Divider(height: 1),
+                  ],
                   ListTile(
                     leading: Icon(
                       Icons.logout,
@@ -193,6 +224,126 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 24),
+
+          // Developer-only: Announcements Section
+          if (currentUser?.role == UserRole.developer) ...[
+            _buildSectionTitle('Announcements', theme),
+            Card(
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: Icon(
+                      Icons.campaign_rounded,
+                      color: theme.colorScheme.primary,
+                    ),
+                    title: const Text('Create Announcement'),
+                    subtitle: const Text('Broadcast message to all users'),
+                    trailing: const Icon(Icons.add_circle_outline),
+                    onTap: () => _showCreateAnnouncementDialog(context),
+                  ),
+                  if (_announcements.isNotEmpty) ...[
+                    const Divider(height: 1),
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _announcements.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final announcement = _announcements[index];
+                        return ListTile(
+                          leading: Icon(
+                            announcement.isActive 
+                                ? Icons.notifications_active 
+                                : Icons.notifications_off,
+                            color: announcement.isActive 
+                                ? Colors.green 
+                                : Colors.grey,
+                            size: 20,
+                          ),
+                          title: Text(
+                            announcement.title,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: announcement.isActive 
+                                  ? null 
+                                  : Colors.grey,
+                            ),
+                          ),
+                          subtitle: Text(
+                            announcement.description,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: announcement.isActive 
+                                  ? null 
+                                  : Colors.grey,
+                            ),
+                          ),
+                          trailing: PopupMenuButton<String>(
+                            itemBuilder: (context) => [
+                              if (announcement.announcedAt == null)
+                                PopupMenuItem(
+                                  value: 'announce',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.send, size: 18, color: Colors.blue),
+                                      const SizedBox(width: 8),
+                                      const Text('Announce Now', style: TextStyle(color: Colors.blue)),
+                                    ],
+                                  ),
+                                ),
+                              PopupMenuItem(
+                                value: 'toggle',
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      announcement.isActive 
+                                          ? Icons.visibility_off 
+                                          : Icons.visibility,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(announcement.isActive ? 'Deactivate' : 'Activate'),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: 'edit',
+                                child: const Row(
+                                  children: [
+                                    Icon(Icons.edit, size: 18),
+                                    SizedBox(width: 8),
+                                    Text('Edit'),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: 'delete',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.delete, size: 18, color: Colors.red),
+                                    const SizedBox(width: 8),
+                                    const Text('Delete', style: TextStyle(color: Colors.red)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            onSelected: (value) => _handleAnnouncementAction(
+                              value, 
+                              announcement,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
 
           // Data Management Section
           _buildSectionTitle('Data Management', theme),
@@ -404,12 +555,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const Divider(height: 1),
                 ListTile(
-                  leading: Icon(
-                    Icons.code_rounded,
-                    color: theme.colorScheme.primary,
+                  leading: Container(
+                    width: 40,
+                    height: 40,
+                    padding: const EdgeInsets.all(6),
+                    child: Image.asset(
+                      'assets/images/GalaDevs Corp Logo navy.png',
+                      fit: BoxFit.contain,
+                    ),
                   ),
                   title: const Text('Technology'),
-                  subtitle: const Text('Built with Flutter'),
+                  subtitle: const Text('Crafted by GalaDevs Technology Corp'),
+                  trailing: Icon(Icons.open_in_new, size: 18, color: theme.colorScheme.primary),
+                  onTap: () async {
+                    final url = Uri.parse('https://www.galadevs.com/');
+                    if (await canLaunchUrl(url)) {
+                      await launchUrl(url, mode: LaunchMode.externalApplication);
+                    }
+                  },
                 ),
                 const Divider(height: 1),
 
@@ -1083,39 +1246,663 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showClearDataDialog(BuildContext context) {
+    final passwordController = TextEditingController();
+    bool obscurePassword = true;
+    
     showDialog(
       context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Clear All Data'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Are you sure you want to delete all transactions? This action cannot be undone.',
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Enter your password to confirm:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: passwordController,
+                obscureText: obscurePassword,
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  border: const OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      obscurePassword ? Icons.visibility : Icons.visibility_off,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        obscurePassword = !obscurePassword;
+                      });
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final password = passwordController.text.trim();
+                if (password.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please enter your password'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                // Verify password with Supabase
+                try {
+                  final user = Supabase.instance.client.auth.currentUser;
+                  if (user == null || user.email == null) {
+                    throw Exception('User not logged in');
+                  }
+
+                  // Re-authenticate user
+                  await Supabase.instance.client.auth.signInWithPassword(
+                    email: user.email!,
+                    password: password,
+                  );
+
+                  // Password is correct, proceed with clearing data
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    await context.read<TransactionProvider>().clearAll();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('All data cleared successfully'),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Incorrect password. Please try again.'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Clear All'),
+            ),
+          ],
+        ),
+      ),
+    ).then((_) => passwordController.dispose());
+  }
+
+  // Announcement Management Methods
+  Future<void> _showCreateAnnouncementDialog(BuildContext context) async {
+    final titleController = TextEditingController();
+    final descriptionController = TextEditingController();
+    final linkController = TextEditingController();
+    final theme = Theme.of(context);
+    bool announceNow = false;
+
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.campaign_rounded, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              const Text('Create Announcement'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Title',
+                    hintText: 'Enter announcement title',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLength: 100,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: descriptionController,
+                  decoration: const InputDecoration(
+                    labelText: 'Description',
+                    hintText: 'Enter announcement details',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 4,
+                  maxLength: 500,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: linkController,
+                  decoration: const InputDecoration(
+                    labelText: 'Download Link (Optional)',
+                    hintText: 'Enter download URL',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.link),
+                  ),
+                  keyboardType: TextInputType.url,
+                ),
+                const SizedBox(height: 16),
+                CheckboxListTile(
+                  title: const Text('Announce Now'),
+                  subtitle: const Text('Send to all users immediately'),
+                  value: announceNow,
+                  onChanged: (value) {
+                    setState(() => announceNow = value ?? false);
+                  },
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                if (titleController.text.trim().isEmpty ||
+                    descriptionController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please fill in both title and description'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                print('📝 Creating announcement...');
+                print('📝 Title: ${titleController.text.trim()}');
+                print('📝 Announce Now: $announceNow');
+                
+                final authProvider = context.read<AuthProvider>();
+                print('📝 Creator ID: ${authProvider.currentUser!.id}');
+                
+                final result = await _announcementService.createAnnouncement(
+                  title: titleController.text.trim(),
+                  description: descriptionController.text.trim(),
+                  downloadLink: linkController.text.trim().isEmpty ? null : linkController.text.trim(),
+                  createdBy: authProvider.currentUser!.id,
+                );
+                
+                print('📝 Announcement created: ${result != null}');
+
+                if (!context.mounted) return;
+                
+                Navigator.pop(context);
+                
+                if (result != null) {
+                  // If announce now is checked, send to all users
+                  if (announceNow) {
+                    print('🔔 Announcing to all users...');
+                    final success = await _announcementService.announceToAllUsers(
+                      announcementId: result.id,
+                      title: result.title,
+                      description: result.description,
+                      downloadLink: result.downloadLink,
+                      adminId: authProvider.currentUser!.id,
+                    );
+                    print('🔔 Announce result: $success');
+
+                    if (context.mounted) {
+                      if (success) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Announcement sent to all users!'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Announcement created but failed to send'),
+                            backgroundColor: Colors.orange,
+                          ),
+                        );
+                      }
+                    }
+                  } else {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Announcement created successfully!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  }
+                  _loadAnnouncements();
+                } else {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Failed to create announcement'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Create'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleAnnouncementAction(String action, Announcement announcement) async {
+    switch (action) {
+      case 'announce':
+        await _announceToAllUsers(announcement);
+        break;
+      case 'toggle':
+        final success = await _announcementService.toggleAnnouncementStatus(
+          announcement.id,
+          !announcement.isActive,
+        );
+        if (success) {
+          _loadAnnouncements();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  announcement.isActive 
+                      ? 'Announcement deactivated' 
+                      : 'Announcement activated',
+                ),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        }
+        break;
+      case 'edit':
+        _showEditAnnouncementDialog(announcement);
+        break;
+      case 'delete':
+        _showDeleteAnnouncementConfirmation(announcement);
+        break;
+    }
+  }
+
+  Future<void> _announceToAllUsers(Announcement announcement) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Clear All Data'),
-        content: const Text(
-          'Are you sure you want to delete all transactions? This action cannot be undone.',
+        title: const Text('Announce to All Users'),
+        content: Text(
+          'Send this announcement to all users?\n\n'
+          'Title: ${announcement.title}\n\n'
+          'This will create notifications and send emails to all team members.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Send Now'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final authProvider = context.read<AuthProvider>();
+      final success = await _announcementService.announceToAllUsers(
+        announcementId: announcement.id,
+        title: announcement.title,
+        description: announcement.description,
+        adminId: authProvider.currentUser!.id,
+      );
+
+      if (mounted) {
+        if (success) {
+          _loadAnnouncements();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Announcement sent to all users!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to send announcement'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _showEditAnnouncementDialog(Announcement announcement) async {
+    final titleController = TextEditingController(text: announcement.title);
+    final descriptionController = TextEditingController(text: announcement.description);
+    final theme = Theme.of(context);
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.edit, color: theme.colorScheme.primary),
+            const SizedBox(width: 8),
+            const Text('Edit Announcement'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(
+                  labelText: 'Title',
+                  border: OutlineInputBorder(),
+                ),
+                maxLength: 100,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 4,
+                maxLength: 500,
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
-          ElevatedButton(
+          FilledButton(
             onPressed: () async {
-              await context.read<TransactionProvider>().clearAll();
-              if (context.mounted) {
-                Navigator.pop(context);
+              if (titleController.text.trim().isEmpty ||
+                  descriptionController.text.trim().isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('All data cleared successfully'),
+                    content: Text('Please fill in both title and description'),
+                    backgroundColor: Colors.red,
                   ),
                 );
+                return;
+              }
+
+              final result = await _announcementService.updateAnnouncement(
+                id: announcement.id,
+                title: titleController.text.trim(),
+                description: descriptionController.text.trim(),
+              );
+
+              if (context.mounted) {
+                Navigator.pop(context);
+                if (result != null) {
+                  _loadAnnouncements();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Announcement updated!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
               }
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Clear All'),
+            child: const Text('Save'),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _showDeleteAnnouncementConfirmation(Announcement announcement) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Announcement'),
+        content: Text('Are you sure you want to delete "${announcement.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final success = await _announcementService.deleteAnnouncement(announcement.id);
+      if (success) {
+        _loadAnnouncements();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Announcement deleted'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _showActivityLogDialog(BuildContext context) async {
+    final activityLogService = ActivityLogService(Supabase.instance.client);
+    
+    showDialog(
+      context: context,
+      builder: (context) => FutureBuilder<List<ActivityLog>>(
+        future: activityLogService.getActivityLogs(limit: 100),
+        builder: (context, snapshot) {
+          return Dialog(
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.9,
+              height: MediaQuery.of(context).size.height * 0.8,
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Activity Log',
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Track revenue and expense additions by team members',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const Divider(height: 24),
+                  if (snapshot.connectionState == ConnectionState.waiting)
+                    const Expanded(
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (snapshot.hasError)
+                    Expanded(
+                      child: Center(
+                        child: Text('Error loading activity log: ${snapshot.error}'),
+                      ),
+                    )
+                  else if (!snapshot.hasData || snapshot.data!.isEmpty)
+                    const Expanded(
+                      child: Center(
+                        child: Text('No activity recorded yet'),
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: snapshot.data!.length,
+                        itemBuilder: (context, index) {
+                          final log = snapshot.data![index];
+                          final isRevenue = log.actionType == ActivityAction.addRevenue;
+                          
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: isRevenue 
+                                    ? Colors.green.withAlpha(51)
+                                    : Colors.red.withAlpha(51),
+                                child: Icon(
+                                  isRevenue 
+                                      ? Icons.arrow_upward_rounded 
+                                      : Icons.arrow_downward_rounded,
+                                  color: isRevenue ? Colors.green : Colors.red,
+                                  size: 20,
+                                ),
+                              ),
+                              title: Row(
+                                children: [
+                                  Text(
+                                    log.userName,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: _getRoleColor(UserRole.fromString(log.userRole))
+                                          .withAlpha(51),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      log.roleDisplay,
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                        color: _getRoleColor(UserRole.fromString(log.userRole)),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    log.actionDisplay,
+                                    style: const TextStyle(fontSize: 13),
+                                  ),
+                                  if (log.amount != null)
+                                    Text(
+                                      '₱${log.amount!.toStringAsFixed(2)}',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: isRevenue ? Colors.green : Colors.red,
+                                      ),
+                                    ),
+                                  if (log.category != null)
+                                    Text(
+                                      log.category!,
+                                      style: const TextStyle(fontSize: 11),
+                                    ),
+                                  if (log.description != null)
+                                    Text(
+                                      log.description!,
+                                      style: const TextStyle(fontSize: 11),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  Text(
+                                    _formatActivityTime(log.createdAt),
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              isThreeLine: true,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  String _formatActivityTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inMinutes < 1) {
+      return 'Just now';
+    } else if (difference.inHours < 1) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inDays < 1) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d ago';
+    } else {
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+    }
   }
 }
 

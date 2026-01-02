@@ -34,6 +34,7 @@ class ShopSettingsService {
     String? locationAddress,
     double? locationLatitude,
     double? locationLongitude,
+    bool isVatRegistered = false,
   }) async {
     try {
       final data = {
@@ -42,6 +43,7 @@ class ShopSettingsService {
         'location_address': locationAddress,
         'location_latitude': locationLatitude,
         'location_longitude': locationLongitude,
+        'is_vat_registered': isVatRegistered,
       };
 
       final response = await _supabase
@@ -105,12 +107,32 @@ class ShopSettingsService {
     }
   }
 
+  /// Update VAT registration status
+  Future<ShopSettings> updateVatRegistration({
+    required String adminId,
+    required bool isVatRegistered,
+  }) async {
+    try {
+      final response = await _supabase
+          .from('shop_settings')
+          .update({'is_vat_registered': isVatRegistered})
+          .eq('admin_id', adminId)
+          .select()
+          .single();
+
+      return ShopSettings.fromJson(response);
+    } catch (e) {
+      print('Error updating VAT registration: $e');
+      rethrow;
+    }
+  }
+
   /// Initialize default settings for a new admin
   Future<ShopSettings> initializeSettings(String adminId) async {
     try {
       final data = {
         'admin_id': adminId,
-        'shop_name': 'Cafenance Coffee Shop',
+        'shop_name': '',
       };
 
       final response = await _supabase

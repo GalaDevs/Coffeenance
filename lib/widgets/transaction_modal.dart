@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/transaction.dart';
 import '../providers/transaction_provider.dart';
+import '../providers/auth_provider.dart';
+import '../services/custom_category_service.dart';
 import 'package:intl/intl.dart';
 
 /// Custom formatter for currency input with comma separators
@@ -109,22 +111,28 @@ class _TransactionModalState extends State<TransactionModal>
   bool _isProductDropdownOpen = false;
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
+  final TextEditingController _categoryController = TextEditingController();
   final TextEditingController _paymentMethodController = TextEditingController();
   final TextEditingController _transactionNumberController = TextEditingController();
   final TextEditingController _receiptNumberController = TextEditingController();
   final TextEditingController _tinNumberController = TextEditingController();
   final TextEditingController _supplierNameController = TextEditingController();
   final TextEditingController _supplierAddressController = TextEditingController();
+  final TextEditingController _subCategoryController = TextEditingController();
+  final TextEditingController _invoiceNumberController = TextEditingController();
   final FocusNode _amountFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
   int _vat = 0; // 0 or 12
   DateTime _selectedDate = DateTime.now();
   bool _showSuccessToast = false;
+  List<String> _customCategories = [];
+  final CustomCategoryService _categoryService = CustomCategoryService();
 
   @override
   void initState() {
     super.initState();
     _type = widget.initialType ?? TransactionType.revenue;
+    _loadCustomCategories();
     
     // Add listener to format amount with .00 when focus is lost
     _amountFocusNode.addListener(() {
@@ -158,13 +166,53 @@ class _TransactionModalState extends State<TransactionModal>
     _scrollController.dispose();
     _descriptionController.dispose();
     _amountController.dispose();
+    _categoryController.dispose();
     _paymentMethodController.dispose();
     _transactionNumberController.dispose();
     _receiptNumberController.dispose();
     _tinNumberController.dispose();
     _supplierNameController.dispose();
     _supplierAddressController.dispose();
+    _subCategoryController.dispose();
+    _invoiceNumberController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadCustomCategories() async {
+    final authProvider = context.read<AuthProvider>();
+    final userId = authProvider.currentUser?.id;
+    
+    if (userId == null) return;
+
+    final categories = await _categoryService.getCustomCategories(userId);
+    setState(() {
+      _customCategories = categories;
+    });
+  }
+
+  Future<void> _saveCustomCategory(String categoryName) async {
+    final authProvider = context.read<AuthProvider>();
+    final userId = authProvider.currentUser?.id;
+    
+    if (userId == null || categoryName.trim().isEmpty) return;
+
+    // Check if it's a predefined category
+    if (TransactionCategories.all.contains(categoryName)) {
+      return; // Don't save predefined categories
+    }
+
+    // Check if already in custom categories
+    if (_customCategories.contains(categoryName)) {
+      return; // Already saved
+    }
+
+    final success = await _categoryService.saveCustomCategory(userId, categoryName.trim());
+    
+    if (success) {
+      setState(() {
+        _customCategories.add(categoryName.trim());
+      });
+    }
   }
 
   void _formatAmountWithDecimals() {
@@ -180,10 +228,15 @@ class _TransactionModalState extends State<TransactionModal>
     _amountController.text = formatter.format(amount);
   }
 
-  List<String> get _categories =>
-      _type == TransactionType.revenue
-          ? RevenueCategories.all
-          : TransactionCategories.all;
+  List<String> get _categories {
+    if (_type == TransactionType.revenue) {
+      return RevenueCategories.all;
+    } else {
+      // Combine predefined categories with custom categories for expenses
+      final combined = [...TransactionCategories.all, ..._customCategories];
+      return combined.toSet().toList(); // Remove duplicates
+    }
+  }
 
   // Mock data for product types
   List<Map<String, dynamic>> get _productTypes => [
@@ -233,7 +286,21 @@ class _TransactionModalState extends State<TransactionModal>
           return Icons.people_rounded;
         case 'Marketing':
           return Icons.campaign_rounded;
-        case 'Others':
+        case 'Transpo and Deliveries':
+          return Icons.local_shipping_rounded;
+        case 'R&M':
+          return Icons.build_rounded;
+        case 'MANDATORIES':
+          return Icons.assignment_rounded;
+        case 'Pest control':
+          return Icons.pest_control_rounded;
+        case 'MISC':
+          return Icons.category_rounded;
+        case 'COMMISIONS':
+          return Icons.money_rounded;
+        case 'TAXES':
+          return Icons.receipt_rounded;
+        case 'OTHERS':
           return Icons.more_horiz_rounded;
         default:
           return Icons.receipt_long_rounded;
@@ -295,13 +362,29 @@ class _TransactionModalState extends State<TransactionModal>
     }
   }
 
-  void _handleSubmit() {
+  void _handleSubmit() async {
     // Validation: category and amount required
-    if (_category == null ||
+    final categoryValue = _type == TransactionType.transaction 
+        ? _categoryController.text.trim() 
+        : _category;
+    
+    if (categoryValue == null ||
+        categoryValue.isEmpty ||
         _amountController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Please fill required fields'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+      return;
+    }
+
+    // For revenue, description is required
+    if (_type == TransactionType.revenue && _descriptionController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Description is required for revenue'),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
@@ -321,12 +404,23 @@ class _TransactionModalState extends State<TransactionModal>
       return;
     }
 
+    // Save custom category if it's an expense and not a predefined category
+    if (_type == TransactionType.transaction) {
+      final customCategory = _categoryController.text.trim();
+      if (customCategory.isNotEmpty && 
+          !TransactionCategories.all.contains(customCategory)) {
+        await _saveCustomCategory(customCategory);
+      }
+    }
+
     // Match Next.js logic: create transaction with all fields
     final transaction = Transaction(
       id: 0, // Will be assigned by provider
       date: _selectedDate.toIso8601String().split('T')[0],
       type: _type,
-      category: _category!,
+      category: _type == TransactionType.transaction 
+          ? _categoryController.text.trim() 
+          : _category!,
       description: _descriptionController.text,
       amount: amount,
       paymentMethod: _paymentMethodController.text.isEmpty 
@@ -342,6 +436,8 @@ class _TransactionModalState extends State<TransactionModal>
       vat: _vat,
       supplierName: _supplierNameController.text,
       supplierAddress: _supplierAddressController.text,
+      subCategory: _subCategoryController.text,
+      invoiceNumber: _invoiceNumberController.text,
     );
 
     context.read<TransactionProvider>().addTransaction(transaction);
@@ -352,12 +448,15 @@ class _TransactionModalState extends State<TransactionModal>
       _productType = null;
       _descriptionController.clear();
       _amountController.clear();
+      _categoryController.clear();
       _paymentMethodController.clear();
       _transactionNumberController.clear();
       _receiptNumberController.clear();
       _tinNumberController.clear();
       _supplierNameController.clear();
       _supplierAddressController.clear();
+      _subCategoryController.clear();
+      _invoiceNumberController.clear();
       _vat = 0;
       _selectedDate = DateTime.now();
       _isCategoryDropdownOpen = false;
@@ -731,7 +830,7 @@ class _TransactionModalState extends State<TransactionModal>
                         },
                       )
                     else
-                      // For Transaction: Show dropdown with grid inside
+                      // For Transaction: Editable dropdown field
                       Container(
                         decoration: BoxDecoration(
                           color: theme.colorScheme.secondary,
@@ -744,51 +843,49 @@ class _TransactionModalState extends State<TransactionModal>
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            // Dropdown Header
-                            GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _isCategoryDropdownOpen = !_isCategoryDropdownOpen;
-                                });
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
+                            // Editable Category Field
+                            TextField(
+                              controller: _categoryController,
+                              textInputAction: TextInputAction.done,
+                              decoration: InputDecoration(
+                                hintText: 'Type category name',
+                                hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                                ),
+                                prefixIcon: _categoryController.text.isNotEmpty
+                                    ? Icon(
+                                        _getCategoryIcon(_categoryController.text),
+                                        size: 18,
+                                        color: theme.colorScheme.onSurface,
+                                      )
+                                    : null,
+                                suffixIcon: GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      _isCategoryDropdownOpen = !_isCategoryDropdownOpen;
+                                    });
+                                  },
+                                  child: Icon(
+                                    _isCategoryDropdownOpen
+                                        ? Icons.keyboard_arrow_up
+                                        : Icons.keyboard_arrow_down,
+                                    color: theme.colorScheme.onSurface,
+                                  ),
+                                ),
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(
                                   horizontal: 16,
                                   vertical: 12,
                                 ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        if (_category != null) ...[
-                                          Icon(
-                                            _getCategoryIcon(_category!),
-                                            size: 18,
-                                            color: theme.colorScheme.onSurface,
-                                          ),
-                                          const SizedBox(width: 8),
-                                        ],
-                                        Text(
-                                          _category ?? 'Select a category',
-                                          style: theme.textTheme.bodyMedium?.copyWith(
-                                            fontWeight: FontWeight.w500,
-                                            color: _category != null
-                                                ? theme.colorScheme.onSurface
-                                                : theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    Icon(
-                                      _isCategoryDropdownOpen
-                                          ? Icons.keyboard_arrow_up
-                                          : Icons.keyboard_arrow_down,
-                                      color: theme.colorScheme.onSurface,
-                                    ),
-                                  ],
-                                ),
                               ),
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w500,
+                              ),
+                              onChanged: (value) {
+                                setState(() {
+                                  _category = value.isNotEmpty ? value : null;
+                                });
+                              },
                             ),
                             // Dropdown Content - Grid in 2 columns inside tile
                             if (_isCategoryDropdownOpen) ...[
@@ -812,6 +909,7 @@ class _TransactionModalState extends State<TransactionModal>
                                       onTap: () {
                                         setState(() {
                                           _category = category;
+                                          _categoryController.text = category;
                                           _isCategoryDropdownOpen = false;
                                         });
                                       },
@@ -976,12 +1074,33 @@ class _TransactionModalState extends State<TransactionModal>
 
                     // Description
                     _buildTextField(
-                      label: 'Description',
+                      label: 'Description${_type == TransactionType.revenue ? " *" : ""}',
                       controller: _descriptionController,
                       hint: 'e.g., Morning sales',
                       theme: theme,
                     ),
                     const SizedBox(height: 16),
+
+                    // Revenue-only fields
+                    if (_type == TransactionType.revenue) ...[
+                      // Sub Category
+                      _buildTextField(
+                        label: 'Sub Category (Optional)',
+                        controller: _subCategoryController,
+                        hint: 'e.g., Beverages, Food',
+                        theme: theme,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Invoice Number
+                      _buildTextField(
+                        label: 'Invoice # (Optional)',
+                        controller: _invoiceNumberController,
+                        hint: 'e.g., INV-001',
+                        theme: theme,
+                      ),
+                      const SizedBox(height: 16),
+                    ],
 
                     // Expense-only fields
                     if (_type == TransactionType.transaction) ...[

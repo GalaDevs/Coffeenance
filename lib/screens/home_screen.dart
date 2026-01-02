@@ -7,6 +7,7 @@ import '../screens/settings_screen.dart';
 import '../widgets/transaction_modal.dart';
 import '../models/transaction.dart';
 import '../providers/auth_provider.dart';
+import '../providers/notification_provider.dart';
 import '../models/user_profile.dart';
 
 /// Home Screen with Bottom Navigation
@@ -37,11 +38,69 @@ class _HomeScreenState extends State<HomeScreen>
         curve: Curves.easeInOut,
       ),
     );
+    
+    // Initialize NotificationProvider to start listening for realtime updates
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      print('🏠 HomeScreen: Initializing notification provider...');
+      final notificationProvider = context.read<NotificationProvider>();
+      await notificationProvider.initialize();
+      print('🏠 HomeScreen: Notification provider initialized');
+      
+      // Show announcement popups if any
+      if (mounted) {
+        print('🏠 HomeScreen: Checking for announcements to show...');
+        await notificationProvider.showAnnouncementPopups(context);
+        print('🏠 HomeScreen: Announcement check complete');
+        
+        // Set callback for new announcements
+        print('🏠 HomeScreen: Setting up realtime announcement callback');
+        notificationProvider.setAnnouncementCallback((announcement) async {
+          print('🔥 REALTIME: New announcement received: ${announcement.title}');
+          if (mounted) {
+            await showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => AlertDialog(
+                title: Row(
+                  children: [
+                    Icon(Icons.campaign_rounded, color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        announcement.title,
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+                content: SingleChildScrollView(
+                  child: Text(
+                    announcement.message,
+                    style: const TextStyle(fontSize: 15),
+                  ),
+                ),
+                actions: [
+                  FilledButton(
+                    onPressed: () async {
+                      await notificationProvider.markAsRead(announcement.id);
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                      }
+                    },
+                    child: const Text('Got it'),
+                  ),
+                ],
+              ),
+            );
+          }
+        });
+      }
+    });
   }
 
   List<Widget> _getScreensForRole(UserRole? role) {
     if (role == UserRole.staff) {
-      // Staff sees Dashboard, Revenue, and Transactions (no Settings)
+      // Staff sees Dashboard, Revenue, and Expenses (no Settings)
       return const [
         DashboardScreen(),
         RevenueScreen(),
@@ -66,19 +125,19 @@ class _HomeScreenState extends State<HomeScreen>
 
   List<_NavItem> _getNavItemsForRole(UserRole? role) {
     if (role == UserRole.staff) {
-      // Staff has Dashboard, Revenue, Transactions, and Logout
+      // Staff has Dashboard, Revenue, Expenses, and Logout
       return const [
         _NavItem(icon: Icons.dashboard_customize_rounded, label: 'Dashboard'),
         _NavItem(icon: Icons.account_balance_wallet_rounded, label: 'Revenue'),
-        _NavItem(icon: Icons.swap_horiz_rounded, label: 'Transactions'),
+        _NavItem(icon: Icons.swap_horiz_rounded, label: 'Expenses'),
         _NavItem(icon: Icons.logout_rounded, label: 'Logout', isLogout: true),
       ];
     } else if (role == UserRole.manager) {
-      // Manager has Dashboard, Revenue, Transactions, and Logout
+      // Manager has Dashboard, Revenue, Expenses, and Logout
       return const [
         _NavItem(icon: Icons.dashboard_customize_rounded, label: 'Dashboard'),
         _NavItem(icon: Icons.account_balance_wallet_rounded, label: 'Revenue'),
-        _NavItem(icon: Icons.swap_horiz_rounded, label: 'Transactions'),
+        _NavItem(icon: Icons.swap_horiz_rounded, label: 'Expenses'),
         _NavItem(icon: Icons.logout_rounded, label: 'Logout', isLogout: true),
       ];
     }
@@ -86,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen>
     return const [
       _NavItem(icon: Icons.dashboard_customize_rounded, label: 'Dashboard'),
       _NavItem(icon: Icons.account_balance_wallet_rounded, label: 'Revenue'),
-      _NavItem(icon: Icons.swap_horiz_rounded, label: 'Transactions'),
+      _NavItem(icon: Icons.swap_horiz_rounded, label: 'Expenses'),
       _NavItem(icon: Icons.tune_rounded, label: 'Settings'),
     ];
   }
@@ -146,7 +205,7 @@ class _HomeScreenState extends State<HomeScreen>
       // Revenue screen
       initialType = TransactionType.revenue;
     } else if (_currentIndex == 2) {
-      // Transactions screen
+      // Expenses screen
       initialType = TransactionType.transaction;
     }
     
