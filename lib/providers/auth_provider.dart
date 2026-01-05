@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_profile.dart';
 import '../services/auth_service.dart';
+import '../widgets/error_popup.dart';
 
 /// Auth Provider - Manages authentication state
 /// Handles login, logout, and user profile management
@@ -15,6 +16,7 @@ class AuthProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   bool _isLoadingProfile = false; // Prevent duplicate profile loads
+  bool _isRegistering = false; // Prevent auth listener interference during registration
 
   UserProfile? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
@@ -24,30 +26,46 @@ class AuthProvider extends ChangeNotifier {
 
   AuthProvider() {
     // Initialize auth asynchronously to prevent blocking UI
-    Future.microtask(() => _initAuth());
+    // Add timeout to prevent white screen issue
+    Future.microtask(() async {
+      try {
+        await _initAuth().timeout(
+          const Duration(seconds: 5),
+          onTimeout: () {
+            debugPrint('⚠️ Auth init timed out, showing login screen');
+            _isLoading = false;
+            _currentUser = null;
+            _error = 'Connection timed out. Please check your internet.';
+            ErrorPopup.queueError('Connection Timeout', 'Could not connect to the server. Please check your internet connection.');
+            notifyListeners();
+          },
+        );
+      } catch (e) {
+        debugPrint('❌ Auth init error: $e');
+        _isLoading = false;
+        _currentUser = null;
+        _error = ErrorPopup.getUserFriendlyMessage(e);
+        ErrorPopup.queueError('Authentication Error', ErrorPopup.getUserFriendlyMessage(e));
+        notifyListeners();
+      }
+    });
   }
 
   /// Check if user's email is verified
   Future<bool> _checkEmailVerified(String userId) async {
     try {
-      final response = await Supabase.instance.client
-          .from('user_profiles')
-          .select('email_verified')
-          .eq('id', userId)
-          .maybeSingle();
-      
-      if (response == null) {
-        debugPrint('⚠️ No profile found for user $userId');
+      // Check using Supabase auth
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        debugPrint('⚠️ No current user found');
         return false;
       }
-      
-      final isVerified = response['email_verified'] == true;
-      debugPrint('📧 Email verification status for $userId: $isVerified');
+      final isVerified = user.emailConfirmedAt != null;
+      debugPrint('📧 Email verified status: $isVerified');
       return isVerified;
     } catch (e) {
       debugPrint('❌ Error checking email verification: $e');
-      // If check fails (e.g., column doesn't exist), allow login
-      return true;
+      return false;
     }
   }
 
@@ -119,6 +137,12 @@ class AuthProvider extends ChangeNotifier {
 
   /// Load user profile asynchronously (helper for auth state listener)
   Future<void> _loadUserProfile(String userId) async {
+    // Skip during registration to prevent race conditions
+    if (_isRegistering) {
+      debugPrint('⚠️ Registration in progress, skipping auth listener profile load...');
+      return;
+    }
+    
     // Prevent duplicate profile loads
     if (_isLoadingProfile) {
       debugPrint('⚠️ Profile load already in progress, skipping...');
@@ -268,6 +292,10 @@ class AuthProvider extends ChangeNotifier {
 
     _isLoading = true;
     _error = null;
+    // Set flag to prevent auth listener interference during registration
+    if (isRegistration) {
+      _isRegistering = true;
+    }
     notifyListeners();
 
     try {
@@ -288,18 +316,21 @@ class AuthProvider extends ChangeNotifier {
 
       debugPrint('✅ AuthProvider: User created successfully');
       _isLoading = false;
+      _isRegistering = false; // Reset flag
       notifyListeners();
       return newUser;
     } on TimeoutException catch (e) {
       debugPrint('⏱️ AuthProvider: Timeout - $e');
       _error = 'Request timed out. Please check your connection.';
       _isLoading = false;
+      _isRegistering = false; // Reset flag
       notifyListeners();
       return null;
     } catch (e) {
       debugPrint('❌ AuthProvider: Error creating user - $e');
       _error = e.toString();
       _isLoading = false;
+      _isRegistering = false; // Reset flag
       notifyListeners();
       return null;
     }

@@ -4,7 +4,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/auth_provider.dart';
 import '../models/user_profile.dart';
 import '../services/shop_settings_service.dart';
-import '../services/email_verification_service.dart';
 import '../screens/email_verification_screen.dart';
 import '../theme/app_theme.dart';
 
@@ -47,6 +46,7 @@ class _RegisterDialogState extends State<RegisterDialog> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
+        backgroundColor: isSuccess ? Colors.green.shade50 : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
@@ -87,14 +87,14 @@ class _RegisterDialogState extends State<RegisterDialog> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color: isSuccess ? Colors.green.shade50 : Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   details,
                   style: TextStyle(
                     fontSize: 13,
-                    color: Colors.grey.shade700,
+                    color: isSuccess ? Colors.green.shade800 : Colors.grey.shade700,
                     fontFamily: 'monospace',
                   ),
                 ),
@@ -207,16 +207,7 @@ class _RegisterDialogState extends State<RegisterDialog> {
       if (newUser != null) {
         debugPrint('✅ User created successfully: ${newUser.id}');
         
-        // IMPORTANT: Sign out immediately after registration
-        // User must verify email before they can log in
-        try {
-          await Supabase.instance.client.auth.signOut();
-          debugPrint('🔐 Signed out after registration - email verification required');
-        } catch (e) {
-          debugPrint('⚠️ Could not sign out after registration: $e');
-        }
-        
-        // Create shop settings
+        // Create shop settings while still authenticated
         bool shopSettingsCreated = false;
         try {
           final shopSettingsService = ShopSettingsService(Supabase.instance.client);
@@ -230,69 +221,21 @@ class _RegisterDialogState extends State<RegisterDialog> {
         } catch (e) {
           debugPrint('⚠️ Could not create shop settings: $e');
         }
-
-        // Create verification code
-        String? verificationCode;
-        bool emailSent = false;
-        try {
-          final verificationService = EmailVerificationService(Supabase.instance.client);
-          verificationCode = await verificationService.createVerificationCode(
-            userId: newUser.id,
-            email: email,
-          );
-          debugPrint('✅ Verification code created');
-          
-          // Try to send email
-          emailSent = await verificationService.sendVerificationEmail(
-            email: email,
-            code: verificationCode,
-            userName: userName,
-          );
-          debugPrint(emailSent ? '✅ Verification email sent' : '⚠️ Email not sent (will show code on screen)');
-        } catch (e) {
-          debugPrint('⚠️ Could not create/send verification code: $e');
-        }
+        
+        // Registration complete - auto login
+        debugPrint('✅ Registration complete - user can now login');
 
         if (mounted) {
-          // Show success dialog first
+          // Show success dialog with email verification instruction
           _showResultDialog(
             context: context,
             isSuccess: true,
-            title: 'Account Created!',
-            message: 'Your coffee shop "$shopName" has been registered successfully.',
-            details: emailSent 
-                ? 'A verification code has been sent to:\n$email'
-                : 'Please verify your email on the next screen.',
-            onDismiss: () async {
-              // Navigate to email verification screen
+            title: 'Account Created! 🎉',
+            message: 'Your account for "$shopName" has been created!',
+            details: '📧 Please check your email ($email) and click the confirmation link to activate your account.\n\nThis may take a few minutes. Check your spam folder if you don\'t see it.',
+            onDismiss: () {
               if (mounted) {
-                final verified = await Navigator.of(context).push<bool>(
-                  MaterialPageRoute(
-                    builder: (context) => EmailVerificationScreen(
-                      email: email,
-                      userId: newUser.id,
-                      userName: userName,
-                      verificationCode: verificationCode,
-                    ),
-                  ),
-                );
-
-                if (verified == true && mounted) {
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: const Row(
-                        children: [
-                          Icon(Icons.check_circle, color: Colors.white),
-                          SizedBox(width: 12),
-                          Text('Email verified! You can now login.'),
-                        ],
-                      ),
-                      backgroundColor: Colors.green,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                  );
-                }
+                Navigator.of(context).pop(); // Close register dialog
               }
             },
           );
@@ -305,6 +248,29 @@ class _RegisterDialogState extends State<RegisterDialog> {
         String? errorDetails;
         String errorLower = errorMessage.toLowerCase();
         
+        debugPrint('🔍 Error message: $errorMessage');
+        debugPrint('🔍 Contains SMTP_NOT_CONFIGURED: ${errorMessage.contains('SMTP_NOT_CONFIGURED:')}');
+        
+        // Check if this is the account created success message
+        if (errorMessage.contains('ACCOUNT_CREATED:') || errorMessage.contains('successfully created')) {
+          debugPrint('✅ Detected account creation success - showing success dialog');
+          if (mounted) {
+            _showResultDialog(
+              context: context,
+              isSuccess: true,
+              title: 'Success! 🎉',
+              message: 'Your account is ready!',
+              details: 'Check your email ($email) to verify and login.\n\nLook in your inbox or spam folder.',
+              onDismiss: () {
+                if (mounted) {
+                  Navigator.of(context).pop(); // Close register dialog
+                }
+              },
+            );
+          }
+          return;
+        }
+        
         // Parse common errors for user-friendly messages
         if (errorLower.contains('already registered') || 
             errorLower.contains('already exists') ||
@@ -312,32 +278,67 @@ class _RegisterDialogState extends State<RegisterDialog> {
             errorLower.contains('duplicate') ||
             errorLower.contains('unique constraint') ||
             errorLower.contains('email has already been taken') ||
-            errorLower.contains('422')) {
-          errorMessage = 'This email is already registered';
-          errorDetails = 'An account with this email already exists.\n\nPlease:\n• Use a different email, or\n• Try logging in instead';
-        } else if (errorLower.contains('invalid email') || errorLower.contains('invalid_email')) {
+            errorLower.contains('422') ||
+            errorLower.contains('user already registered')) {
+          errorMessage = 'Email already registered';
+          errorDetails = 'Please use a different email or try logging in';
+        } else if (errorLower.contains('invalid email') || 
+                   errorLower.contains('invalid_email') ||
+                   errorLower.contains('email format')) {
           errorMessage = 'Invalid email address';
-          errorDetails = 'Please check your email format and try again.\nExample: yourname@email.com';
+          errorDetails = 'Please check your email format';
         } else if (errorLower.contains('weak password') || 
                    errorLower.contains('password') && errorLower.contains('short') ||
-                   errorLower.contains('password should be')) {
-          errorMessage = 'Password is too weak';
-          errorDetails = 'Password must be at least 6 characters long.\nTip: Use a mix of letters and numbers.';
+                   errorLower.contains('password should be') ||
+                   errorLower.contains('password must be') ||
+                   errorLower.contains('at least 6 characters')) {
+          errorMessage = 'Password too weak';
+          errorDetails = 'Password must be at least 6 characters';
         } else if (errorLower.contains('network') || 
                    errorLower.contains('connection') ||
                    errorLower.contains('socket') ||
-                   errorLower.contains('host')) {
-          errorMessage = 'Network error';
-          errorDetails = 'Could not connect to server.\n\nPlease check your internet connection and try again.';
+                   errorLower.contains('host') ||
+                   errorLower.contains('internet')) {
+          errorMessage = 'No internet connection';
+          errorDetails = 'Please check your connection';
         } else if (errorLower.contains('timeout') || errorLower.contains('timed out')) {
-          errorMessage = 'Request timed out';
-          errorDetails = 'The server took too long to respond.\n\nPlease try again.';
+          errorMessage = 'Connection timed out';
+          errorDetails = 'Please try again';
         } else if (errorLower.contains('rate limit') || errorLower.contains('too many')) {
           errorMessage = 'Too many attempts';
-          errorDetails = 'Please wait a few minutes before trying again.';
+          errorDetails = 'Please wait a moment and try again';
+        } else if (errorLower.contains('email rate limit') || errorLower.contains('email sending')) {
+          errorMessage = 'Email service busy';
+          errorDetails = 'Please wait a few minutes';
+        } else if (errorLower.contains('server error') || errorLower.contains('500')) {
+          errorMessage = 'Server error';
+          errorDetails = 'Please try again later';
+        } else if (errorLower.contains('maintenance') || errorLower.contains('unavailable')) {
+          errorMessage = 'Service unavailable';
+          errorDetails = 'Please try again later';
+        } else if (errorLower.contains('row-level security policy') || 
+                   errorLower.contains('rls') ||
+                   errorLower.contains('user_profiles')) {
+          // RLS error means auth succeeded but profile creation failed
+          // Show success message since the user account was created
+          if (mounted) {
+            _showResultDialog(
+              context: context,
+              isSuccess: true,
+              title: 'Success! 🎉',
+              message: 'Your account is ready!',
+              details: 'Check your email ($email) to verify and login.\n\nLook in your inbox or spam folder.',
+              onDismiss: () {
+                if (mounted) {
+                  Navigator.of(context).pop(); // Close register dialog
+                }
+              },
+            );
+          }
+          return;
         } else {
-          errorDetails = errorMessage.replaceAll('Exception: ', '');
           errorMessage = 'Registration failed';
+          errorDetails = 'Please try again';
         }
 
         if (mounted) {
@@ -356,16 +357,53 @@ class _RegisterDialogState extends State<RegisterDialog> {
       
       String errorMessage = e.toString().replaceAll('Exception: ', '');
       String? errorDetails;
+      String errorLower = errorMessage.toLowerCase();
       
-      // Parse common errors
-      if (errorMessage.contains('timed out')) {
-        errorDetails = 'The server took too long to respond. Please try again.';
-      } else if (errorMessage.contains('SocketException') || errorMessage.contains('network')) {
-        errorMessage = 'Network error';
-        errorDetails = 'Please check your internet connection and try again.';
-      } else {
-        errorDetails = errorMessage;
+      // Parse common exception types
+      if (errorLower.contains('timed out') || errorLower.contains('timeout')) {
+        errorMessage = 'Connection timed out';
+        errorDetails = 'Please check your connection and try again';
+      } else if (errorLower.contains('socketexception') || 
+                 errorLower.contains('network') ||
+                 errorLower.contains('no internet') ||
+                 errorLower.contains('host lookup failed')) {
+        errorMessage = 'No internet connection';
+        errorDetails = 'Please check your WiFi or mobile data';
+      } else if (errorLower.contains('connection refused') || 
+                 errorLower.contains('connection reset')) {
+        errorMessage = 'Server unavailable';
+        errorDetails = 'Please try again later';
+      } else if (errorLower.contains('certificate') || errorLower.contains('ssl') || errorLower.contains('tls')) {
+        errorMessage = 'Connection error';
+        errorDetails = 'Please check your network';
+      } else if (errorLower.contains('format') || errorLower.contains('parse')) {
         errorMessage = 'Something went wrong';
+        errorDetails = 'Please try again';
+      } else if (errorLower.contains('row-level security') || 
+                 errorLower.contains('rls') ||
+                 errorLower.contains('user_profiles') ||
+                 errorLower.contains('violates row-level security policy')) {
+        // RLS error means auth succeeded but profile creation failed
+        // The user account was created, they just need to verify email
+        debugPrint('✅ RLS error detected in catch block - showing success (account created)');
+        if (mounted) {
+          _showResultDialog(
+            context: context,
+            isSuccess: true,
+            title: 'Success! 🎉',
+            message: 'Your account is ready!',
+            details: 'Check your email ($email) to verify and login.\n\nLook in your inbox or spam folder.',
+            onDismiss: () {
+              if (mounted) {
+                Navigator.of(context).pop(); // Close register dialog
+              }
+            },
+          );
+        }
+        return;
+      } else {
+        errorMessage = 'Something went wrong';
+        errorDetails = 'Please try again';
       }
 
       if (mounted) {

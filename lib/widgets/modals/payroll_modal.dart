@@ -425,7 +425,10 @@ class PayrollModal extends StatelessWidget {
               onPressed: () {
                 if (nameController.text.isEmpty || positionController.text.isEmpty || salaryController.text.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please fill all fields')),
+                    const SnackBar(
+                      content: Text('Please fill in all the fields'),
+                      duration: Duration(seconds: 3),
+                    ),
                   );
                   return;
                 }
@@ -443,7 +446,11 @@ class PayrollModal extends StatelessWidget {
                 
                 Navigator.pop(dialogContext);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Staff member added')),
+                  const SnackBar(
+                    content: Text('✅ Staff member added!'),
+                    backgroundColor: Colors.green,
+                    duration: Duration(seconds: 3),
+                  ),
                 );
               },
               child: const Text('Add'),
@@ -536,7 +543,11 @@ class PayrollModal extends StatelessWidget {
                 
                 Navigator.pop(dialogContext);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Staff member updated')),
+                  const SnackBar(
+                    content: Text('✅ Staff member updated!'),
+                    backgroundColor: Colors.green,
+                    duration: Duration(seconds: 3),
+                  ),
                 );
               },
               child: const Text('Save'),

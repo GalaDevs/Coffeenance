@@ -22,12 +22,112 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
+  String? _errorMessage;
+  OverlayEntry? _overlayEntry;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _removeOverlay();
     super.dispose();
+  }
+
+  void _removeOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  void _showErrorOverlay(String message, {IconData? icon, Color? color}) {
+    debugPrint('🔴 _showErrorOverlay called with: $message');
+    _removeOverlay();
+    
+    if (!mounted) {
+      debugPrint('🔴 Widget not mounted, cannot show overlay');
+      return;
+    }
+    
+    final errorIcon = icon ?? _getErrorIcon(message);
+    final errorColor = color ?? _getErrorColor(message);
+    
+    try {
+      _overlayEntry = OverlayEntry(
+        builder: (context) => Positioned(
+          top: MediaQuery.of(context).padding.top + 16,
+          left: 16,
+          right: 16,
+          child: Material(
+            elevation: 10,
+            borderRadius: BorderRadius.circular(12),
+            color: Colors.transparent,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: errorColor.withOpacity(0.8),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: errorColor.withOpacity(0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Icon(errorIcon, color: Colors.white, size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      message,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: _removeOverlay,
+                    child: const Icon(Icons.close, color: Colors.white70, size: 20),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      
+      Overlay.of(context).insert(_overlayEntry!);
+      debugPrint('🔴 Overlay inserted successfully');
+      
+      // Auto-dismiss after 5 seconds
+      Future.delayed(const Duration(seconds: 5), () {
+        if (_overlayEntry != null && mounted) {
+          _removeOverlay();
+        }
+      });
+    } catch (e) {
+      debugPrint('🔴 Error showing overlay: $e');
+      // Fallback to ScaffoldMessenger if overlay fails
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(errorIcon, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(child: Text(message)),
+              ],
+            ),
+            backgroundColor: errorColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _handleLogin() async {
@@ -53,136 +153,200 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               const Icon(Icons.check_circle, color: Colors.white),
               const SizedBox(width: 12),
-              const Expanded(child: Text('Welcome back! Signing you in...')),
+              const Expanded(child: Text('Welcome back! Loading your dashboard...')),
             ],
           ),
           backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          duration: const Duration(seconds: 2),
+          duration: const Duration(seconds: 3),
         ),
       );
     } else if (!success && mounted && authProvider.error != null) {
-      // Check if error is due to unverified email (custom verification)
+      // Check if error is due to unverified email
       if (authProvider.error!.contains('EMAIL_NOT_VERIFIED:')) {
         final parts = authProvider.error!.split(':');
         final email = parts.length > 1 ? parts[1] : _emailController.text.trim();
-        final userId = parts.length > 2 ? parts[2] : '';
         
-        if (userId.isNotEmpty) {
-          // Create new verification code
-          String? verificationCode;
-          try {
-            final verificationService = EmailVerificationService(Supabase.instance.client);
-            verificationCode = await verificationService.createVerificationCode(
-              userId: userId,
+        // Resend verification email via Supabase
+        try {
+          final verificationService = EmailVerificationService(Supabase.instance.client);
+          await verificationService.resendVerificationCode(email: email);
+          debugPrint('📧 Verification email resent to: $email');
+        } catch (e) {
+          debugPrint('⚠️ Could not resend verification: $e');
+        }
+        
+        // Navigate to verification screen
+        final verified = await Navigator.of(context).push<bool>(
+          MaterialPageRoute(
+            builder: (context) => EmailVerificationScreen(
               email: email,
-            );
-            await verificationService.sendVerificationEmail(
-              email: email,
-              code: verificationCode,
-              userName: email.split('@')[0],
-            );
-          } catch (e) {
-            debugPrint('⚠️ Could not resend verification: $e');
-          }
-          
-          // Navigate to verification screen
-          final verified = await Navigator.of(context).push<bool>(
-            MaterialPageRoute(
-              builder: (context) => EmailVerificationScreen(
-                email: email,
-                userId: userId,
-                userName: email.split('@')[0],
-                verificationCode: verificationCode,
-              ),
             ),
-          );
-          
-          if (verified == true) {
-            // Retry login
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Row(
-                  children: [
-                    const Icon(Icons.check_circle, color: Colors.white),
-                    const SizedBox(width: 12),
-                    const Expanded(child: Text('Email verified! Please login again.')),
-                  ],
-                ),
-                backgroundColor: Colors.green,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                duration: const Duration(seconds: 3),
-              ),
-            );
-          }
-        } else {
+          ),
+        );
+        
+        if (verified == true) {
+          // Retry login
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Row(
                 children: [
-                  const Icon(Icons.email_outlined, color: Colors.white),
+                  const Icon(Icons.check_circle, color: Colors.white),
                   const SizedBox(width: 12),
-                  const Expanded(child: Text('Please verify your email before logging in')),
+                  const Expanded(child: Text('Great! Your email is verified. Please enter your password to log in.')),
                 ],
               ),
-              backgroundColor: Colors.orange,
+              backgroundColor: Colors.green,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              duration: const Duration(seconds: 4),
+              duration: const Duration(seconds: 5),
             ),
           );
         }
       } else if (authProvider.error!.contains('EMAIL_NOT_CONFIRMED:')) {
-        // Legacy Supabase Auth email confirmation (keeping for backwards compatibility)
+        // Supabase Auth email confirmation
         final email = authProvider.error!.split(':')[1];
-        Navigator.of(context).pushNamed(
-          '/email-verification',
-          arguments: email,
+        
+        // Navigate to verification screen
+        final verified = await Navigator.of(context).push<bool>(
+          MaterialPageRoute(
+            builder: (context) => EmailVerificationScreen(
+              email: email,
+            ),
+          ),
         );
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.email_outlined, color: Colors.white),
-                const SizedBox(width: 12),
-                const Expanded(child: Text('Please verify your email before logging in')),
-              ],
+        if (verified == true && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 12),
+                  const Expanded(child: Text('Great! Your email is verified. Please enter your password to log in.')),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              duration: const Duration(seconds: 5),
             ),
-            backgroundColor: Colors.orange,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            duration: const Duration(seconds: 4),
-          ),
-        );
+          );
+        }
       } else {
-        // Show error toast
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white),
-                const SizedBox(width: 12),
-                Expanded(child: Text(authProvider.error!.replaceAll('Exception: ', ''))),
-              ],
-            ),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            duration: const Duration(seconds: 4),
-            action: SnackBarAction(
-              label: 'Details',
-              textColor: Colors.white,
-              onPressed: () => _showErrorDialog(authProvider.error!),
-            ),
-          ),
-        );
+        // Show error with user-friendly message as top overlay
+        debugPrint('🔴 Error detected, showing overlay: ${authProvider.error}');
+        final errorMessage = _parseLoginError(authProvider.error!);
+        debugPrint('🔴 Parsed error message: $errorMessage');
+        _showErrorOverlay(errorMessage);
       }
     }
     // Navigation is handled automatically by main.dart based on auth state
     // No need to manually navigate - the app will rebuild with HomeScreen
+  }
+
+  /// Parse error message to user-friendly format
+  String _parseLoginError(String error) {
+    final lowerError = error.toLowerCase();
+    
+    // Account not registered - check this FIRST
+    if (lowerError.contains('account is not registered') ||
+        lowerError.contains('no account found') ||
+        lowerError.contains('user not found') ||
+        lowerError.contains('user_not_found') ||
+        lowerError.contains('no user')) {
+      return 'Account is not registered';
+    }
+    // Wrong password (email exists but wrong password)
+    if (lowerError.contains('invalid email or password') ||
+        lowerError.contains('invalid login credentials') ||
+        lowerError.contains('invalid_credentials') ||
+        lowerError.contains('wrong password') ||
+        lowerError.contains('incorrect password')) {
+      return 'Wrong password';
+    }
+    // Email not verified
+    if (lowerError.contains('email not confirmed') ||
+        lowerError.contains('verify your email') ||
+        lowerError.contains('email_not_confirmed')) {
+      return 'Please verify your email first';
+    }
+    // Too many attempts
+    if (lowerError.contains('too many') ||
+        lowerError.contains('rate limit') ||
+        lowerError.contains('too_many_requests')) {
+      return 'Too many attempts. Please try again later';
+    }
+    // No internet
+    if (lowerError.contains('network') ||
+        lowerError.contains('connection') ||
+        lowerError.contains('internet') ||
+        lowerError.contains('socket')) {
+      return 'No internet connection';
+    }
+    // Timeout
+    if (lowerError.contains('timeout')) {
+      return 'Connection timed out. Please try again';
+    }
+    // Account disabled
+    if (lowerError.contains('disabled') ||
+        lowerError.contains('banned') ||
+        lowerError.contains('suspended')) {
+      return 'Account has been disabled';
+    }
+    // Account does not exist (RLS/profile errors)
+    if (lowerError.contains('row-level security') ||
+        lowerError.contains('rls') ||
+        lowerError.contains('42501') ||
+        lowerError.contains('unauthorized') ||
+        lowerError.contains('failed to fetch user profile') ||
+        lowerError.contains('failed to load user profile')) {
+      return 'Account is not registered';
+    }
+    if (lowerError.contains('profile') && (lowerError.contains('fetch') || lowerError.contains('load'))) {
+      return 'Account is not registered';
+    }
+    
+    // Generic fallback
+    return 'Wrong password';
+  }
+
+  /// Get appropriate icon for error type
+  IconData _getErrorIcon(String error) {
+    final lowerError = error.toLowerCase();
+    
+    if (lowerError.contains('password') || lowerError.contains('wrong')) {
+      return Icons.lock_outline;
+    }
+    if (lowerError.contains('email') || lowerError.contains('verify')) {
+      return Icons.email_outlined;
+    }
+    if (lowerError.contains('network') || lowerError.contains('internet') || lowerError.contains('connection')) {
+      return Icons.wifi_off;
+    }
+    if (lowerError.contains('not registered') || lowerError.contains('account')) {
+      return Icons.person_off;
+    }
+    if (lowerError.contains('too many') || lowerError.contains('attempts') || lowerError.contains('disabled')) {
+      return Icons.timer_off;
+    }
+    
+    return Icons.error_outline;
+  }
+
+  /// Get appropriate color for error type
+  Color _getErrorColor(String error) {
+    final lowerError = error.toLowerCase();
+    
+    if (lowerError.contains('verify') || lowerError.contains('email')) {
+      return Colors.orange;
+    }
+    if (lowerError.contains('network') || lowerError.contains('internet') || lowerError.contains('timeout') || lowerError.contains('connection')) {
+      return Colors.blueGrey;
+    }
+    
+    return Colors.red;
   }
 
   void _showErrorDialog(String message) {
@@ -401,9 +565,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   if (mounted) {
                     scaffoldMessenger.showSnackBar(
                       SnackBar(
-                        content: Text('✅ Coffee shop registered! Please login with ${emailController.text}'),
+                        content: Text('🎉 Account created! Please check your email (${emailController.text}) to verify, then log in.'),
                         backgroundColor: Colors.green,
-                        duration: const Duration(seconds: 5),
+                        duration: const Duration(seconds: 10),
                       ),
                     );
                   }
@@ -411,7 +575,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   if (mounted) {
                     scaffoldMessenger.showSnackBar(
                       SnackBar(
-                        content: Text('❌ Error: ${authProvider.error ?? "Unknown error"}'),
+                        content: Text('❌ Something went wrong. Please try again.'),
                         backgroundColor: Colors.red,
                         duration: const Duration(seconds: 5),
                       ),
@@ -431,7 +595,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 if (mounted) {
                   scaffoldMessenger.showSnackBar(
                     SnackBar(
-                      content: Text('❌ Error: ${e.toString().replaceAll('Exception: ', '')}'),
+                      content: const Text('❌ Something went wrong. Please check your connection and try again.'),
                       backgroundColor: Colors.red,
                       duration: const Duration(seconds: 5),
                     ),

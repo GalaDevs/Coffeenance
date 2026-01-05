@@ -247,16 +247,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       prefixIcon: Icon(Icons.badge_outlined),
                     ),
                     items: [
-                      DropdownMenuItem(
-                        value: UserRole.admin,
-                        child: Row(
-                          children: [
-                            Icon(Icons.admin_panel_settings, size: 20, color: AppColors.lightPrimary),
-                            const SizedBox(width: 8),
-                            const Text('Admin (unlimited)'),
-                          ],
-                        ),
-                      ),
+                      // Admin option hidden - only Manager and Staff can be created
                       DropdownMenuItem(
                         value: UserRole.manager,
                         child: Row(
@@ -274,16 +265,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                             Icon(Icons.person, size: 20, color: AppColors.chart3),
                             const SizedBox(width: 8),
                             const Text('Staff (max 2)'),
-                          ],
-                        ),
-                      ),
-                      DropdownMenuItem(
-                        value: UserRole.developer,
-                        child: Row(
-                          children: [
-                            Icon(Icons.code, size: 20, color: AppColors.chart4),
-                            const SizedBox(width: 8),
-                            const Text('Developer (full access)'),
                           ],
                         ),
                       ),

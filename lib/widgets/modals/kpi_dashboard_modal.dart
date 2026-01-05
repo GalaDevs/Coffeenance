@@ -170,7 +170,11 @@ class _KPIDashboardModalState extends State<KPIDashboardModal> {
                 if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('$label target updated to ₱${_formatNumber(newValue)}')),
+                    SnackBar(
+                      content: Text('✅ $label target set to ₱${_formatNumber(newValue)}'),
+                      backgroundColor: Colors.green,
+                      duration: const Duration(seconds: 3),
+                    ),
                   );
                 }
               }

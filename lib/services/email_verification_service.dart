@@ -1,325 +1,205 @@
-import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 
-/// Custom Email Verification Service
-/// Handles email verification without using Supabase Auth's built-in email confirmation
+/// Email Verification Service using Supabase Auth
+/// Uses Supabase's built-in email verification (no external email provider needed)
 class EmailVerificationService {
   final SupabaseClient _supabase;
 
-  // Resend API Configuration (Free tier: 100 emails/day)
-  // Sign up at https://resend.com to get your API key
-  // IMPORTANT: Replace with your actual Resend API key
-  static const String _resendApiKey = 're_123456789'; // Replace with your Resend API key
-  static const String _resendApiUrl = 'https://api.resend.com/emails';
-  static const String _fromEmail = 'onboarding@resend.dev'; // Use this for testing, or your verified domain
-
   EmailVerificationService(this._supabase);
 
-  /// Generate a 6-digit verification code
-  String _generateCode() {
-    final random = Random.secure();
-    return List.generate(6, (_) => random.nextInt(10)).join();
-  }
-
-  /// Create verification code and store in database
-  Future<String> createVerificationCode({
-    required String userId,
-    required String email,
-  }) async {
-    try {
-      debugPrint('📧 Creating verification code for: $email');
-
-      // Try using the database function first
-      try {
-        final result = await _supabase.rpc(
-          'generate_verification_code',
-          params: {
-            'p_user_id': userId,
-            'p_email': email,
-          },
-        );
-        
-        if (result != null) {
-          debugPrint('✅ Verification code created via RPC');
-          return result.toString();
-        }
-      } catch (rpcError) {
-        debugPrint('⚠️ RPC not available, using direct insert: $rpcError');
-      }
-
-      // Fallback: Direct insert
-      final code = _generateCode();
-      final expiresAt = DateTime.now().add(const Duration(minutes: 10));
-
-      // Delete existing codes for this user
-      await _supabase
-          .from('verification_codes')
-          .delete()
-          .eq('user_id', userId);
-
-      // Insert new code
-      await _supabase.from('verification_codes').insert({
-        'user_id': userId,
-        'email': email,
-        'code': code,
-        'expires_at': expiresAt.toIso8601String(),
-        'verified': false,
-        'attempts': 0,
-      });
-
-      debugPrint('✅ Verification code created: ${code.substring(0, 2)}****');
-      return code;
-    } catch (e) {
-      debugPrint('❌ Error creating verification code: $e');
-      rethrow;
-    }
-  }
-
-  /// Send verification email using Resend API
+  /// Send verification email using Supabase Auth
+  /// This uses Supabase's built-in email templates
   Future<bool> sendVerificationEmail({
     required String email,
-    required String code,
-    required String userName,
   }) async {
     try {
-      debugPrint('📧 Sending verification email to: $email');
+      debugPrint('📧 Sending Supabase verification email to: $email');
 
-      // Check if Resend is configured
-      if (_resendApiKey == 're_123456789' || _resendApiKey.isEmpty) {
-        debugPrint('⚠️ Resend API not configured - showing code on screen');
-        debugPrint('🔑 VERIFICATION CODE FOR $email: $code');
-        // Return true so flow continues - user will see code on verification screen
-        return true;
-      }
-
-      final response = await http.post(
-        Uri.parse(_resendApiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $_resendApiKey',
-        },
-        body: jsonEncode({
-          'from': 'Coffeenance <$_fromEmail>',
-          'to': [email],
-          'subject': 'Verify your Coffeenance account',
-          'html': '''
-<!DOCTYPE html>
-<html>
-<head>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-    .container { max-width: 500px; margin: 0 auto; padding: 20px; }
-    .header { background: linear-gradient(135deg, #6B4423 0%, #8B5A2B 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0; }
-    .header h1 { color: white; margin: 0; font-size: 24px; }
-    .header p { color: rgba(255,255,255,0.9); margin: 10px 0 0; }
-    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 12px 12px; }
-    .code-box { background: white; border: 2px solid #6B4423; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0; }
-    .code { font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #6B4423; }
-    .footer { text-align: center; color: #888; font-size: 12px; margin-top: 20px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>☕ Coffeenance</h1>
-      <p>Your Coffee Shop Finance Manager</p>
-    </div>
-    <div class="content">
-      <p>Hi <strong>$userName</strong>,</p>
-      <p>Welcome to Coffeenance! Please verify your email address by entering this code:</p>
-      <div class="code-box">
-        <div class="code">$code</div>
-      </div>
-      <p style="color: #666; font-size: 14px;">This code expires in <strong>10 minutes</strong>.</p>
-      <p style="color: #666; font-size: 14px;">If you didn't create an account, you can safely ignore this email.</p>
-    </div>
-    <div class="footer">
-      <p>© ${DateTime.now().year} Coffeenance. All rights reserved.</p>
-    </div>
-  </div>
-</body>
-</html>
-''',
-        }),
+      // Use Supabase's resend method to send OTP email
+      await _supabase.auth.resend(
+        type: OtpType.signup,
+        email: email,
       );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        debugPrint('✅ Verification email sent successfully via Resend');
-        return true;
-      } else {
-        debugPrint('❌ Failed to send email: ${response.statusCode} - ${response.body}');
-        return false;
-      }
+      debugPrint('✅ Verification email sent via Supabase');
+      return true;
     } catch (e) {
       debugPrint('❌ Error sending verification email: $e');
-      // Don't throw - allow the process to continue
-      // User can still verify manually with the code shown on screen
+      // Don't throw - the email might have already been sent during signup
       return false;
     }
   }
 
-  /// Verify the code entered by user
+  /// Verify the OTP code entered by user using Supabase Auth
   Future<bool> verifyCode({
-    required String userId,
+    required String email,
     required String code,
   }) async {
     try {
-      debugPrint('🔐 Verifying code for user: $userId');
+      debugPrint('🔐 Verifying Supabase OTP for: $email');
 
-      // Try using the database function first
-      try {
-        final result = await _supabase.rpc(
-          'verify_email_code',
-          params: {
-            'p_user_id': userId,
-            'p_code': code,
-          },
-        );
+      final response = await _supabase.auth.verifyOTP(
+        email: email,
+        token: code,
+        type: OtpType.signup,
+      );
 
-        if (result == true) {
-          debugPrint('✅ Email verified via RPC');
-          return true;
-        } else if (result == false) {
-          debugPrint('❌ Invalid or expired code');
-          return false;
+      if (response.user != null) {
+        debugPrint('✅ Email verified successfully via Supabase');
+        
+        // Also update user_profiles if it exists
+        try {
+          await _supabase
+              .from('user_profiles')
+              .update({'email_verified': true})
+              .eq('id', response.user!.id);
+          debugPrint('✅ User profile updated with email_verified = true');
+        } catch (e) {
+          debugPrint('⚠️ Could not update user profile: $e');
         }
-      } catch (rpcError) {
-        debugPrint('⚠️ RPC not available, using direct query: $rpcError');
-      }
-
-      // Fallback: Direct verification
-      final verification = await _supabase
-          .from('verification_codes')
-          .select()
-          .eq('user_id', userId)
-          .single();
-
-      if (verification == null) {
-        throw Exception('No verification code found');
-      }
-
-      final storedCode = verification['code'] as String;
-      final expiresAt = DateTime.parse(verification['expires_at']);
-      final verified = verification['verified'] as bool;
-      final attempts = verification['attempts'] as int;
-
-      // Check if already verified
-      if (verified) {
+        
         return true;
+      } else {
+        debugPrint('❌ Verification failed - no user returned');
+        return false;
       }
-
-      // Check max attempts
-      if (attempts >= 5) {
-        throw Exception('Too many attempts. Please request a new code.');
-      }
-
-      // Increment attempts
-      await _supabase
-          .from('verification_codes')
-          .update({'attempts': attempts + 1})
-          .eq('user_id', userId);
-
-      // Check expiration
-      if (DateTime.now().isAfter(expiresAt)) {
-        throw Exception('Verification code has expired');
-      }
-
-      // Check code
-      if (storedCode != code) {
-        throw Exception('Invalid verification code');
-      }
-
-      // Mark as verified
-      await _supabase
-          .from('verification_codes')
-          .update({'verified': true})
-          .eq('user_id', userId);
-
-      // Update user profile
-      await _supabase
-          .from('user_profiles')
-          .update({'email_verified': true})
-          .eq('id', userId);
-
-      debugPrint('✅ Email verified successfully');
-      return true;
+    } on AuthException catch (e) {
+      debugPrint('❌ Auth error verifying OTP: ${e.message}');
+      throw Exception(e.message);
     } catch (e) {
       debugPrint('❌ Error verifying code: $e');
       rethrow;
     }
   }
 
-  /// Check if user's email is verified
+  /// Check if user's email is verified (by checking Supabase Auth and user_profiles)
   Future<bool> isEmailVerified(String userId) async {
     try {
-      // Try RPC first
-      try {
-        final result = await _supabase.rpc(
-          'is_email_verified',
-          params: {'p_user_id': userId},
-        );
-        return result == true;
-      } catch (rpcError) {
-        debugPrint('⚠️ RPC not available: $rpcError');
+      // Check Supabase Auth first
+      final user = _supabase.auth.currentUser;
+      if (user != null && user.emailConfirmedAt != null) {
+        return true;
       }
 
-      // Fallback: Direct query
-      final profile = await _supabase
-          .from('user_profiles')
-          .select('email_verified')
-          .eq('id', userId)
-          .single();
+      // Fallback: Check user_profiles table
+      try {
+        final profile = await _supabase
+            .from('user_profiles')
+            .select('email_verified')
+            .eq('id', userId)
+            .maybeSingle();
 
-      return profile?['email_verified'] == true;
+        return profile?['email_verified'] == true;
+      } catch (e) {
+        debugPrint('⚠️ Could not check user_profiles: $e');
+      }
+
+      return false;
     } catch (e) {
       debugPrint('❌ Error checking email verification: $e');
       return false;
     }
   }
 
-  /// Resend verification code
-  Future<String> resendVerificationCode({
-    required String userId,
+  /// Check if email is verified and update user_profiles
+  /// This is called when user clicks "Confirm" button after clicking email link
+  Future<bool> checkAndConfirmVerification({
     required String email,
-    required String userName,
   }) async {
     try {
-      // Generate new code
-      final code = await createVerificationCode(
-        userId: userId,
-        email: email,
-      );
+      debugPrint('🔐 Checking verification status for: $email');
 
-      // Send email
-      await sendVerificationEmail(
-        email: email,
-        code: code,
-        userName: userName,
-      );
+      // First, get the user profile by email
+      final profileResponse = await _supabase
+          .from('user_profiles')
+          .select('id, email_verified')
+          .eq('email', email.toLowerCase().trim())
+          .maybeSingle();
 
-      return code;
+      if (profileResponse == null) {
+        debugPrint('❌ No profile found for email: $email');
+        return false;
+      }
+
+      final userId = profileResponse['id'] as String;
+      final alreadyVerified = profileResponse['email_verified'] == true;
+
+      if (alreadyVerified) {
+        debugPrint('✅ Email already verified in user_profiles');
+        return true;
+      }
+
+      // Check if Supabase Auth has confirmed the email
+      // Try to get fresh user data by checking auth.users table via RPC or session refresh
+      try {
+        // Refresh the session to get latest auth state
+        await _supabase.auth.refreshSession();
+        
+        final currentUser = _supabase.auth.currentUser;
+        if (currentUser != null && currentUser.emailConfirmedAt != null) {
+          debugPrint('✅ Supabase Auth confirms email is verified');
+          
+          // Update user_profiles to mark as verified
+          await _supabase
+              .from('user_profiles')
+              .update({'email_verified': true})
+              .eq('id', userId);
+          
+          debugPrint('✅ Updated user_profiles with email_verified = true');
+          return true;
+        }
+      } catch (e) {
+        debugPrint('⚠️ Could not refresh session: $e');
+      }
+
+      // Alternative: Check auth.users directly using admin-safe query
+      try {
+        final authCheck = await _supabase
+            .rpc('check_email_confirmed', params: {'user_email': email.toLowerCase().trim()});
+        
+        if (authCheck == true) {
+          debugPrint('✅ RPC confirms email is verified');
+          
+          // Update user_profiles
+          await _supabase
+              .from('user_profiles')
+              .update({'email_verified': true})
+              .eq('id', userId);
+          
+          return true;
+        }
+      } catch (e) {
+        debugPrint('⚠️ RPC check_email_confirmed not available: $e');
+      }
+
+      debugPrint('❌ Email not yet verified');
+      return false;
     } catch (e) {
-      debugPrint('❌ Error resending verification code: $e');
-      rethrow;
+      debugPrint('❌ Error checking verification: $e');
+      return false;
     }
   }
 
-  /// Get verification status
-  Future<Map<String, dynamic>?> getVerificationStatus(String userId) async {
+  /// Resend verification code using Supabase
+  Future<void> resendVerificationCode({
+    required String email,
+  }) async {
     try {
-      final result = await _supabase
-          .from('verification_codes')
-          .select()
-          .eq('user_id', userId)
-          .maybeSingle();
+      debugPrint('📧 Resending Supabase verification email to: $email');
+      
+      await _supabase.auth.resend(
+        type: OtpType.signup,
+        email: email,
+      );
 
-      return result;
+      debugPrint('✅ Verification email resent');
+    } on AuthException catch (e) {
+      debugPrint('❌ Auth error resending: ${e.message}');
+      throw Exception(e.message);
     } catch (e) {
-      debugPrint('❌ Error getting verification status: $e');
-      return null;
+      debugPrint('❌ Error resending verification code: $e');
+      rethrow;
     }
   }
 }

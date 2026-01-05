@@ -56,9 +56,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('✅ Your email has been verified! You can now log in.'),
+        content: Text('✅ Email verified successfully!'),
         backgroundColor: Colors.green,
-        duration: Duration(seconds: 5),
       ),
     );
 
@@ -80,9 +79,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('📧 We sent you a new email! Please check your inbox (and spam folder).'),
+            content: Text('📧 Verification email sent! Check your inbox.'),
             backgroundColor: Colors.blue,
-            duration: Duration(seconds: 5),
           ),
         );
 
@@ -119,12 +117,60 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
       });
     });
   }
+        setState(() {
+          _successMessage = 'Email verified successfully!';
+        });
 
-  @override
-  void dispose() {
-    _authSubscription?.cancel();
-    _cooldownTimer?.cancel();
-    super.dispose();
+        // Wait a moment to show success message
+        await Future.delayed(const Duration(seconds: 1));
+
+        if (!mounted) return;
+
+        // Navigate back to login
+        Navigator.of(context).pop(true); // Return true to indicate success
+      } else {
+        setState(() {
+          _errorMessage = 'Email not yet verified. Please click the link in your email first.';
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _resendEmail() async {
+    setState(() {
+      _isResending = true;
+      _errorMessage = null;
+      _successMessage = null;
+    });
+
+    try {
+      await _verificationService.resendVerificationCode(
+        email: widget.email,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _successMessage = 'Verification email sent to ${widget.email}';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isResending = false);
+      }
+    }
   }
 
   @override
@@ -134,6 +180,10 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.lightPrimary,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         title: const Text(
           'Verify Email',
           style: TextStyle(
@@ -158,7 +208,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                   ),
                   child: const Icon(
                     Icons.email_outlined,
-                    size: 80,
+                    size: 64,
                     color: AppColors.lightPrimary,
                   ),
                 ),
@@ -195,117 +245,173 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                   textAlign: TextAlign.center,
                 ),
                 
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
                 
                 // Info about verification
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
+                    color: Colors.blue.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.blue.shade200),
+                    border: Border.all(color: Colors.blue.withOpacity(0.3)),
                   ),
                   child: Column(
                     children: [
-                      Row(
-                        children: [
-                          Icon(Icons.info_outline, color: Colors.blue.shade700),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Click the verification link in your email to complete registration.',
-                              style: TextStyle(
-                                color: Colors.blue.shade900,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                      const Icon(Icons.info_outline, color: Colors.blue, size: 28),
                       const SizedBox(height: 12),
+                      const Text(
+                        'Steps to verify:',
+                        style: TextStyle(
+                          color: Colors.blue,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
                       Text(
-                        'The link will automatically verify your email and you can then log in.',
+                        '1. Open your email inbox\n2. Click the verification link\n3. Come back here and tap "Confirm"',
                         style: TextStyle(
                           color: Colors.blue.shade700,
-                          fontSize: 13,
+                          fontSize: 14,
                         ),
+                        textAlign: TextAlign.center,
                       ),
                     ],
                   ),
                 ),
                 
-                if (_errorMessage != null) ...[
-                  const SizedBox(height: 16),
+                const SizedBox(height: 32),
+
+                // Error Message
+                if (_errorMessage != null)
                   Container(
                     padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
-                      color: Colors.red.shade50,
+                      color: AppColors.lightDestructive.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.red.shade200),
+                      border: Border.all(color: AppColors.lightDestructive.withOpacity(0.3)),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.error_outline, color: Colors.red.shade700),
-                        const SizedBox(width: 12),
+                        const Icon(Icons.error_outline, color: AppColors.lightDestructive, size: 20),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             _errorMessage!,
-                            style: TextStyle(color: Colors.red.shade900),
+                            style: const TextStyle(color: AppColors.lightDestructive),
                           ),
                         ),
                       ],
                     ),
                   ),
-                ],
-                
-                const SizedBox(height: 48),
 
-                // Resend button
+                // Success Message
+                if (_successMessage != null)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.check_circle_outline, color: Colors.green, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _successMessage!,
+                            style: const TextStyle(color: Colors.green),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // Confirm Button
                 SizedBox(
                   width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _cooldownSeconds > 0 || _isResending ? null : _resendEmail,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.lightPrimary,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      side: BorderSide(
-                        color: _cooldownSeconds > 0 || _isResending
-                            ? Colors.grey.shade300
-                            : AppColors.lightPrimary,
-                      ),
+                  height: 56,
+                  child: ElevatedButton.icon(
+                    onPressed: _isLoading ? null : _confirmVerification,
+                    icon: _isLoading 
+                        ? const SizedBox.shrink()
+                        : const Icon(Icons.check_circle, size: 24),
+                    label: _isLoading
+                        ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            'Confirm',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.lightPrimary,
+                      foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                    ),
-                    icon: _isResending
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.refresh),
-                    label: Text(
-                      _cooldownSeconds > 0
-                          ? 'Resend in $_cooldownSeconds seconds'
-                          : 'Resend Email',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      elevation: 2,
                     ),
                   ),
                 ),
-                
+
+                const SizedBox(height: 24),
+
+                // Resend Email
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      "Didn't receive the email?",
+                      style: TextStyle(
+                        color: AppColors.lightMutedForeground,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: _isResending ? null : _resendEmail,
+                      child: _isResending
+                          ? const SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text(
+                              'Resend',
+                              style: TextStyle(
+                                color: AppColors.chart1,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+
                 const SizedBox(height: 16),
-                
-                // Back to login
+
+                // Back to Login
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => Navigator.of(context).pop(),
                   child: const Text(
                     'Back to Login',
                     style: TextStyle(
-                      fontSize: 16,
                       color: AppColors.lightMutedForeground,
+                      fontSize: 14,
                     ),
                   ),
                 ),

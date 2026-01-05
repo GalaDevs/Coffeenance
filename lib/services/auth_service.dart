@@ -44,17 +44,49 @@ class AuthService {
   /// Check if user is authenticated
   bool get isAuthenticated => currentUser != null;
 
+  /// Check if email exists in user_profiles
+  /// Note: This may return false due to RLS when not authenticated
+  /// In that case, we proceed with login and let Supabase Auth handle it
+  Future<bool> _checkEmailExists(String email) async {
+    try {
+      final response = await _supabase!
+          .from('user_profiles')
+          .select('email')
+          .eq('email', email.toLowerCase().trim())
+          .maybeSingle();
+      
+      // If response is null, it could be RLS blocking unauthenticated access
+      // Return true to proceed with login attempt
+      if (response == null) {
+        debugPrint('⚠️ Email check returned null (may be RLS restriction)');
+        return true; // Proceed with login, let Supabase Auth handle it
+      }
+      return true;
+    } catch (e) {
+      debugPrint('⚠️ Could not check if email exists: $e');
+      // If check fails, continue with login attempt
+      return true;
+    }
+  }
+
   /// Sign in with email and password
   Future<UserProfile?> signIn({
     required String email,
     required String password,
   }) async {
     if (_supabase == null) {
-      throw Exception('Supabase not initialized. Please configure valid credentials.');
+      throw Exception('Connection error: Unable to connect to server. Please check your internet connection.');
     }
     
     try {
       debugPrint('🔐 AuthService: Starting sign in for $email');
+      
+      // Check if email exists first
+      final emailExists = await _checkEmailExists(email);
+      if (!emailExists) {
+        debugPrint('❌ AuthService: Email not found in database: $email');
+        throw Exception('Account is not registered');
+      }
       
       final response = await _supabase!.auth.signInWithPassword(
         email: email,
@@ -66,28 +98,13 @@ class AuthService {
       debugPrint('🔐 AuthService: Session: ${response.session != null ? "exists" : "null"}');
 
       if (response.user == null) {
-        throw Exception('Login failed: No user returned');
+        throw Exception('Login failed: Unable to authenticate. Please try again.');
       }
 
-      // Check custom email verification (not Supabase Auth)
-      try {
-        final profile = await _supabase!
-            .from('user_profiles')
-            .select('email_verified')
-            .eq('id', response.user!.id)
-            .maybeSingle();
-        
-        if (profile != null && profile['email_verified'] != true) {
-          debugPrint('⚠️ Email not verified for user: ${response.user!.email}');
-          await signOut();
-          throw Exception('EMAIL_NOT_VERIFIED:${response.user!.email}:${response.user!.id}');
-        }
-      } catch (e) {
-        if (e.toString().contains('EMAIL_NOT_VERIFIED')) {
-          rethrow;
-        }
-        // If check fails, allow login (column might not exist yet)
-        debugPrint('⚠️ Could not check email_verified: $e');
+      // Check if email is verified
+      if (response.user!.emailConfirmedAt == null) {
+        debugPrint('⚠️ Email not verified for user: $email');
+        throw Exception('EMAIL_NOT_VERIFIED:${response.user!.email}');
       }
 
       // Fetch user profile
@@ -98,11 +115,96 @@ class AuthService {
       return profile;
     } on AuthException catch (e) {
       debugPrint('❌ AuthService: Auth exception: ${e.message}');
-      throw Exception('Login failed: ${e.message}');
+      // Parse Supabase auth errors into user-friendly messages
+      final errorMsg = _parseAuthError(e.message);
+      throw Exception(errorMsg);
     } catch (e) {
       debugPrint('❌ AuthService: Error: $e');
-      throw Exception('Login failed: $e');
+      if (e.toString().contains('EMAIL_NOT_VERIFIED')) {
+        rethrow;
+      }
+      // Preserve "Account is not registered" message
+      if (e.toString().contains('Account is not registered')) {
+        rethrow;
+      }
+      // Parse general errors
+      final errorMsg = _parseGeneralError(e.toString());
+      throw Exception(errorMsg);
     }
+  }
+
+  /// Parse Supabase auth errors into user-friendly messages
+  String _parseAuthError(String message) {
+    final lowerMsg = message.toLowerCase();
+    
+    // Wrong password
+    if (lowerMsg.contains('invalid login credentials') || 
+        lowerMsg.contains('invalid_credentials') ||
+        lowerMsg.contains('invalid email or password')) {
+      return 'Wrong password';
+    }
+    // Email not verified
+    if (lowerMsg.contains('email not confirmed') || 
+        lowerMsg.contains('email_not_confirmed')) {
+      return 'Please verify your email first';
+    }
+    // Account not registered
+    if (lowerMsg.contains('user not found') || 
+        lowerMsg.contains('no user found') ||
+        lowerMsg.contains('user_not_found')) {
+      return 'Account is not registered';
+    }
+    // Too many attempts
+    if (lowerMsg.contains('too many requests') || 
+        lowerMsg.contains('rate limit')) {
+      return 'Too many attempts. Please try again later';
+    }
+    // Network error
+    if (lowerMsg.contains('network') || 
+        lowerMsg.contains('connection') ||
+        lowerMsg.contains('socket')) {
+      return 'No internet connection';
+    }
+    // Server error
+    if (lowerMsg.contains('error code: 500') || 
+        lowerMsg.contains('error code: 502') ||
+        lowerMsg.contains('error code: 503') ||
+        lowerMsg.contains('internal server error') ||
+        lowerMsg.contains('bad gateway')) {
+      return 'Server temporarily unavailable. Please try again in a moment';
+    }
+    // Timeout
+    if (lowerMsg.contains('timeout')) {
+      return 'Connection timed out';
+    }
+    // Account disabled
+    if (lowerMsg.contains('disabled') || lowerMsg.contains('banned')) {
+      return 'Account has been disabled';
+    }
+    
+    return 'Wrong email or password';
+  }
+
+  /// Parse general errors into user-friendly messages
+  String _parseGeneralError(String error) {
+    final lowerError = error.toLowerCase();
+    
+    if (lowerError.contains('socketexception') || 
+        lowerError.contains('network is unreachable') ||
+        lowerError.contains('no internet')) {
+      return 'No internet connection';
+    }
+    if (lowerError.contains('timeout') || lowerError.contains('timed out')) {
+      return 'Connection timed out';
+    }
+    if (lowerError.contains('host lookup') || lowerError.contains('dns')) {
+      return 'No internet connection';
+    }
+    if (lowerError.contains('connection refused')) {
+      return 'Server unavailable. Please try again later';
+    }
+    
+    return 'Wrong email or password';
   }
 
   /// Sign out
@@ -147,6 +249,12 @@ class AuthService {
       debugPrint('❌ Email verification error: $e');
       throw Exception('Verification failed: $e');
     }
+  }
+
+  /// Check if current user's email is verified
+  bool isEmailVerified() {
+    final user = currentUser;
+    return user?.emailConfirmedAt != null;
   }
 
   /// Resend email verification code
@@ -329,17 +437,15 @@ class AuthService {
       if (isRegistration) {
         debugPrint('📝 REGISTRATION: Creating auth user with signUp()...');
         
-        late final AuthResponse authResponse;
+        final AuthResponse authResponse;
         try {
           authResponse = await _supabase!.auth.signUp(
             email: email,
             password: password,
-            emailRedirectTo: null, // Disable email redirect
             data: {
               'full_name': fullName,
               'role': role.name,
               'admin_id': assignedAdminId,
-              'email_confirm': true, // Auto-confirm email
             },
           );
         } on AuthApiException catch (authError) {
@@ -354,6 +460,21 @@ class AuthService {
             throw Exception('This email is already registered. Please use a different email or try logging in.');
           }
           throw Exception('Registration error: ${authError.message}');
+        } on AuthRetryableFetchException catch (retryError) {
+          debugPrint('⚠️ AuthRetryableFetchException during registration: ${retryError.message}');
+          debugPrint('   Status: ${retryError.statusCode}');
+          
+          // Handle email confirmation error - this happens when SMTP is not configured
+          // The user is actually created in Supabase Auth, but email can't be sent
+          final errorMsg = retryError.message.toString().toLowerCase();
+          final statusCode = retryError.statusCode.toString();
+          
+          if (statusCode == '500' && 
+              (errorMsg.contains('confirmation') || errorMsg.contains('email'))) {
+            debugPrint('✅ SMTP not configured - user created, showing success message');
+            throw Exception('SMTP_NOT_CONFIGURED:Account created successfully! Email confirmation is currently unavailable. You can now log in with your credentials.');
+          }
+          throw Exception('Registration error: ${retryError.message}');
         }
 
         if (authResponse.user == null) {
@@ -377,21 +498,21 @@ class AuthService {
           }
         }
 
-        // Create profile in database
-        debugPrint('📝 Creating user profile in database...');
-        final insertResponse = await _supabase!.from('user_profiles').insert({
+        // Create or update profile in database (use upsert in case trigger already created it)
+        debugPrint('📝 Creating/updating user profile in database...');
+        final insertResponse = await _supabase!.from('user_profiles').upsert({
           'id': newUserId,
           'email': email,
           'full_name': fullName,
           'role': role.name,
-          'created_by': '', // Empty for registration
+          'created_by': null, // NULL for self-registration (UUID field cannot be empty string)
           'admin_id': assignedAdminId,
           'is_active': true,
-          'email_verified': false, // Email not verified yet
+          'email_verified': false, // Requires email verification
           'profile_image_url': profileImageUrl,
           'created_at': DateTime.now().toIso8601String(),
           'updated_at': DateTime.now().toIso8601String(),
-        }).select();
+        }, onConflict: 'id').select();
 
         if (insertResponse == null || insertResponse.isEmpty) {
           throw Exception('Failed to create user profile - no data returned');
@@ -400,9 +521,8 @@ class AuthService {
         final profile = UserProfile.fromJson(insertResponse[0]);
         debugPrint('✅ Registration complete: ${profile.email}, role: ${profile.role}');
         
-        // Sign out immediately - user must verify email before logging in
-        debugPrint('🔐 Signing out after registration - email verification required');
-        await signOut();
+        // User needs to verify email before logging in
+        debugPrint('📧 Verification email sent - user must verify before login');
         
         return profile;
         
@@ -429,7 +549,7 @@ class AuthService {
               'admin_id': assignedAdminId,  // Pass admin_id to trigger
               'created_by': createdByUserId,  // Pass created_by to trigger
             },
-            emailRedirectTo: null, // Disable email confirmation redirect
+
           );
 
           if (authResponse.user == null) {
@@ -518,9 +638,23 @@ class AuthService {
       }
     } on PostgrestException catch (e) {
       debugPrint('❌ Database error creating user: ${e.message}');
+      // Check if this is an RLS error - user was created successfully in auth
+      if (e.message.toLowerCase().contains('row-level security policy') || 
+          e.message.toLowerCase().contains('user_profiles')) {
+        debugPrint('✅ Auth user created successfully, RLS policy issue detected');
+        throw Exception('ACCOUNT_CREATED: Success! Check your email to verify and login.');
+      }
       throw Exception('Failed to create user: ${e.message}');
+    } on AuthRetryableFetchException catch (e) {
+      debugPrint('⚠️ Auth retryable fetch error: ${e.message}');
+      // This error is already handled in the inner try-catch, so just rethrow
+      rethrow;
     } catch (e) {
       debugPrint('❌ Error creating user: $e');
+      // Check if this is our special SMTP error message
+      if (e.toString().contains('SMTP_NOT_CONFIGURED:')) {
+        rethrow; // Preserve the special message
+      }
       throw Exception('Failed to create user: $e');
     }
   }

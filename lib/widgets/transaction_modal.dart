@@ -373,8 +373,9 @@ class _TransactionModalState extends State<TransactionModal>
         _amountController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Please fill required fields'),
+          content: const Text('Please fill in all the required fields'),
           backgroundColor: Theme.of(context).colorScheme.error,
+          duration: const Duration(seconds: 3),
         ),
       );
       return;
@@ -384,8 +385,9 @@ class _TransactionModalState extends State<TransactionModal>
     if (_type == TransactionType.revenue && _descriptionController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Description is required for revenue'),
+          content: const Text('Please add a description for this revenue'),
           backgroundColor: Theme.of(context).colorScheme.error,
+          duration: const Duration(seconds: 3),
         ),
       );
       return;
@@ -397,8 +399,9 @@ class _TransactionModalState extends State<TransactionModal>
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Please enter a valid amount'),
+          content: const Text('Please enter a valid amount (must be greater than 0)'),
           backgroundColor: Theme.of(context).colorScheme.error,
+          duration: const Duration(seconds: 3),
         ),
       );
       return;

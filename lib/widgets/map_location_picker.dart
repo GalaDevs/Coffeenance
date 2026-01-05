@@ -85,7 +85,11 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
+          const SnackBar(
+            content: Text('Could not get your location. Please try again.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
         );
       }
     } finally {

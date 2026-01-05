@@ -22,8 +22,9 @@ class DataMigrationHelper {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ Data synced with Supabase successfully!'),
+            content: Text('✅ Your data has been synced successfully!'),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
           ),
         );
       }
@@ -32,9 +33,10 @@ class DataMigrationHelper {
       
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Sync failed: ${e.toString()}'),
+          const SnackBar(
+            content: Text('❌ Sync failed. Please check your internet connection and try again.'),
             backgroundColor: Colors.red,
+            duration: Duration(seconds: 4),
           ),
         );
       }
@@ -84,8 +86,9 @@ class DataMigrationHelper {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ Data reset to Supabase successfully!'),
+            content: Text('✅ Your data has been reset successfully!'),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
           ),
         );
       }
@@ -94,9 +97,10 @@ class DataMigrationHelper {
       
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Reset failed: ${e.toString()}'),
+          const SnackBar(
+            content: Text('❌ Reset failed. Please check your internet connection and try again.'),
             backgroundColor: Colors.red,
+            duration: Duration(seconds: 4),
           ),
         );
       }

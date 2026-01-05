@@ -251,7 +251,7 @@ class _TargetSettingsModalState extends State<TargetSettingsModal> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(savedCount > 0 
-                    ? 'Saved $savedCount targets for ${DateFormat('MMMM yyyy').format(_selectedDate)}!'
+                    ? '✅ Targets saved for ${DateFormat('MMMM yyyy').format(_selectedDate)}!'
                     : 'No changes to save'),
                 ),
               ],
@@ -264,9 +264,10 @@ class _TargetSettingsModalState extends State<TargetSettingsModal> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error updating targets: $e'),
+          const SnackBar(
+            content: Text('Could not save targets. Please try again.'),
             backgroundColor: Colors.red,
+            duration: Duration(seconds: 4),
           ),
         );
       }
@@ -320,7 +321,7 @@ class _TargetSettingsModalState extends State<TargetSettingsModal> {
                         Icon(Icons.check_circle_rounded, color: Colors.white),
                         SizedBox(width: 12),
                         Expanded(
-                          child: Text('Targets applied to all dashboards successfully!'),
+                          child: Text('✅ Targets applied to all dashboards!'),
                         ),
                       ],
                     ),
@@ -1027,12 +1028,13 @@ class _TargetSettingsModalState extends State<TargetSettingsModal> {
               children: [
                 Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
                 SizedBox(width: 8),
-                Text('All targets cleared successfully'),
+                Text('✅ All targets cleared!'),
               ],
             ),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -1041,16 +1043,17 @@ class _TargetSettingsModalState extends State<TargetSettingsModal> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Row(
+            content: const Row(
               children: [
-                const Icon(Icons.error_rounded, color: Colors.white, size: 20),
-                const SizedBox(width: 8),
-                Text('Error clearing targets: $e'),
+                Icon(Icons.error_rounded, color: Colors.white, size: 20),
+                SizedBox(width: 8),
+                Text('Could not clear targets. Please try again.'),
               ],
             ),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -1280,7 +1283,7 @@ class _TargetSettingsModalState extends State<TargetSettingsModal> {
                             
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Debug info printed to console'),
+                                content: Text('Debug info printed'),
                                 duration: Duration(seconds: 2),
                               ),
                             );
@@ -1299,7 +1302,8 @@ class _TargetSettingsModalState extends State<TargetSettingsModal> {
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Refreshed KPI targets from cloud'),
+                                  content: Text('✅ Targets refreshed!'),
+                                  backgroundColor: Colors.green,
                                   duration: Duration(seconds: 2),
                                 ),
                               );

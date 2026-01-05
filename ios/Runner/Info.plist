@@ -58,5 +58,18 @@
 	<string>We need access to your photo library to upload your profile picture.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>We need access to your camera to take your profile picture.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>coffeenance</string>
+			</array>
+			<key>CFBundleURLName</key>
+			<string>com.example.coffeeflow</string>
+		</dict>
+	</array>
 </dict>
 </plist>

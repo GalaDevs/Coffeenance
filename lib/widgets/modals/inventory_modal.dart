@@ -400,7 +400,10 @@ class InventoryModal extends StatelessWidget {
             onPressed: () {
               if (itemController.text.isEmpty || stockController.text.isEmpty || reorderController.text.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please fill all fields')),
+                  const SnackBar(
+                    content: Text('Please fill in all the fields'),
+                    duration: Duration(seconds: 3),
+                  ),
                 );
                 return;
               }
@@ -425,7 +428,11 @@ class InventoryModal extends StatelessWidget {
               
               Navigator.pop(dialogContext);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Item added to inventory')),
+                const SnackBar(
+                  content: Text('✅ Item added successfully!'),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 3),
+                ),
               );
             },
             child: const Text('Add'),
@@ -494,7 +501,11 @@ class InventoryModal extends StatelessWidget {
               
               Navigator.pop(dialogContext);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Inventory updated')),
+                const SnackBar(
+                  content: Text('✅ Inventory updated!'),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 3),
+                ),
               );
             },
             child: const Text('Save'),
