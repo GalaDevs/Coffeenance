@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your Email - Coffeenance</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f5f5;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 40px auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #6B4423 0%, #8B5A3C 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            color: #ffffff;
+            font-size: 28px;
+            font-weight: 600;
+        }
+        .coffee-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .greeting {
+            font-size: 18px;
+            color: #333333;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+        .staff-name {
+            font-size: 22px;
+            color: #6B4423;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        .message {
+            color: #666666;
+            line-height: 1.6;
+            margin-bottom: 25px;
+            font-size: 15px;
+        }
+        .button-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .verify-button {
+            display: inline-block;
+            padding: 16px 40px;
+            background: linear-gradient(135deg, #6B4423 0%, #8B5A3C 100%);
+            color: #ffffff !important;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            text-align: center;
+            transition: transform 0.2s;
+            margin: 10px 5px;
+        }
+        .verify-button:hover {
+            transform: translateY(-2px);
+        }
+        .download-button {
+            display: inline-block;
+            padding: 16px 40px;
+            background: linear-gradient(135deg, #2c7a3e 0%, #3a9d51 100%);
+            color: #ffffff !important;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            text-align: center;
+            transition: transform 0.2s;
+            margin: 10px 5px;
+        }
+        .download-button:hover {
+            transform: translateY(-2px);
+        }
+        .button-icon {
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .alternative-link {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 1px solid #e0e0e0;
+        }
+        .alternative-link p {
+            color: #999999;
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
+        .alternative-link a {
+            color: #6B4423;
+            word-break: break-all;
+            font-size: 12px;
+        }
+        .footer {
+            background-color: #f9f9f9;
+            padding: 30px;
+            text-align: center;
+            color: #999999;
+            font-size: 13px;
+        }
+        .footer p {
+            margin: 5px 0;
+        }
+        .expiry-notice {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .expiry-notice p {
+            margin: 0;
+            color: #856404;
+            font-size: 14px;
+        }
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                margin: 20px;
+            }
+            .header {
+                padding: 30px 20px;
+            }
+            .content {
+                padding: 30px 20px;
+            }
+            .verify-button, .download-button {
+                display: block;
+                padding: 14px 20px;
+                margin: 10px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="coffee-icon">☕</div>
+            <h1>Coffeenance</h1>
+        </div>
+
+        <!-- Content -->
+        <div class="content">
+            <p class="greeting">Welcome to {{ .ShopName }}!</p>
+            <p class="staff-name">{{ .StaffName }}</p>
+            
+            <p class="message">
+                Your account has been created by your shop administrator. To get started and access your dashboard, please verify your email address by clicking the button below:
+            </p>
+
+            <!-- Buttons -->
+            <div class="button-container">
+                <a href="{{ .ConfirmationURL }}" class="verify-button">
+                    <span class="button-icon">✓</span> Verify Email
+                </a>
+                <a href="https://galadevs.com/cafenance" class="download-button">
+                    <span class="button-icon">📱</span> Download App
+                </a>
+            </div>
+
+            <!-- Expiry Notice -->
+            <div class="expiry-notice">
+                <p>⏰ This verification link will expire in 24 hours.</p>
+            </div>
+
+            <!-- Alternative Link -->
+            <div class="alternative-link">
+                <p>If the verify button doesn't work, copy and paste this link into your browser:</p>
+                <a href="{{ .ConfirmationURL }}">{{ .ConfirmationURL }}</a>
+            </div>
+
+            <p class="message" style="margin-top: 30px; font-size: 14px; color: #999999;">
+                After verifying your email, download the Coffeenance app to manage your shop on the go!
+            </p>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>Coffeenance</strong></p>
+            <p>Your Coffee Shop Management Solution</p>
+            <p style="margin-top: 15px; color: #cccccc;">
+                © 2026 Coffeenance. All rights reserved.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
