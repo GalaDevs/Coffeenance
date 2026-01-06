@@ -10,6 +10,7 @@ import 'providers/notification_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/email_verification_screen.dart';
+import 'screens/reset_password_screen.dart';
 import 'theme/app_theme.dart';
 import 'widgets/error_popup.dart';
 
@@ -155,6 +156,7 @@ class CafenanceApp extends StatelessWidget {
             routes: {
               '/login': (context) => const LoginScreen(),
               '/home': (context) => const HomeScreen(),
+              '/reset-password': (context) => const ResetPasswordScreen(),
             },
             onGenerateRoute: (settings) {
               if (settings.name == '/email-verification') {
@@ -246,6 +248,9 @@ class _InitialScreenState extends State<_InitialScreen> {
   void initState() {
     super.initState();
     
+    // Listen for auth changes and trigger rebuild
+    widget.authProvider.addListener(_onAuthChanged);
+    
     // Show initialization error after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showInitializationErrorIfNeeded();
@@ -253,6 +258,21 @@ class _InitialScreenState extends State<_InitialScreen> {
     
     // Set up deep link handling
     _handleDeepLinks();
+  }
+  
+  @override
+  void dispose() {
+    widget.authProvider.removeListener(_onAuthChanged);
+    super.dispose();
+  }
+  
+  void _onAuthChanged() {
+    debugPrint('🔄 Auth state changed in _InitialScreen, rebuilding...');
+    debugPrint('   isAuthenticated: ${widget.authProvider.isAuthenticated}');
+    debugPrint('   currentUser: ${widget.authProvider.currentUser?.email}');
+    if (mounted) {
+      setState(() {});
+    }
   }
   
   /// Handle deep links for email verification
@@ -278,6 +298,27 @@ class _InitialScreenState extends State<_InitialScreen> {
   
   /// Process deep link URLs
   void _processDeepLink(Uri uri) {
+    debugPrint('🔗 Processing deep link: $uri');
+    debugPrint('   Host: ${uri.host}');
+    debugPrint('   Path: ${uri.path}');
+    debugPrint('   Fragment: ${uri.fragment}');
+    
+    // Check if it's a password reset link
+    if (uri.host == 'reset-password' || 
+        uri.path.contains('reset-password') ||
+        uri.fragment.contains('type=recovery')) {
+      debugPrint('🔐 Password reset deep link detected');
+      
+      // Navigate to reset password screen
+      // Supabase has already exchanged the token for a session
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          Navigator.of(context).pushNamedAndRemoveUntil('/reset-password', (route) => false);
+        }
+      });
+      return;
+    }
+    
     // Check if it's an email verification link
     if (uri.host == 'verify-email' || 
         uri.path.contains('verify-email') ||

@@ -44,6 +44,48 @@ class AuthService {
   /// Check if user is authenticated
   bool get isAuthenticated => currentUser != null;
 
+  /// Send password reset email
+  Future<bool> sendPasswordResetEmail(String email) async {
+    if (_supabase == null) {
+      throw Exception('Connection error: Unable to connect to server.');
+    }
+    
+    try {
+      debugPrint('🔐 AuthService: Sending password reset email to $email');
+      
+      await _supabase!.auth.resetPasswordForEmail(
+        email.trim().toLowerCase(),
+        redirectTo: 'coffeenance://reset-password',
+      );
+      
+      debugPrint('✅ AuthService: Password reset email sent successfully');
+      return true;
+    } on AuthException catch (e) {
+      debugPrint('❌ AuthService: Auth exception during password reset: ${e.message}');
+      throw Exception(_parsePasswordResetError(e.message));
+    } catch (e) {
+      debugPrint('❌ AuthService: Error sending password reset email: $e');
+      throw Exception('Failed to send reset email. Please try again.');
+    }
+  }
+
+  /// Parse password reset errors
+  String _parsePasswordResetError(String message) {
+    final lowerMsg = message.toLowerCase();
+    
+    if (lowerMsg.contains('rate limit') || lowerMsg.contains('too many')) {
+      return 'Too many requests. Please wait a moment before trying again.';
+    }
+    if (lowerMsg.contains('user not found') || lowerMsg.contains('no user')) {
+      return 'No account found with this email address.';
+    }
+    if (lowerMsg.contains('network') || lowerMsg.contains('connection')) {
+      return 'No internet connection.';
+    }
+    
+    return 'Failed to send reset email. Please try again.';
+  }
+
   /// Check if email exists in user_profiles
   /// Note: This may return false due to RLS when not authenticated
   /// In that case, we proceed with login and let Supabase Auth handle it

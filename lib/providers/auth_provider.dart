@@ -256,6 +256,27 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Send password reset email
+  Future<bool> sendPasswordResetEmail(String email) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      debugPrint('🔐 AuthProvider: Sending password reset email to: $email');
+      final result = await _authService.sendPasswordResetEmail(email);
+      _isLoading = false;
+      notifyListeners();
+      return result;
+    } catch (e) {
+      debugPrint('❌ AuthProvider: Password reset error: $e');
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
   /// Clear all local storage (SharedPreferences)
   Future<void> _clearAllLocalStorage() async {
     try {

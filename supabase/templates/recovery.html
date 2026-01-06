@@ -1,85 +1,191 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reset Your Password - Coffeenance</title>
+    <style>
+        /* Base Styles */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #FDFCFB;
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        /* Container */
+        .wrapper {
+            width: 100%;
+            table-layout: fixed;
+            background-color: #FDFCFB;
+            padding-bottom: 60px;
+        }
+
+        .main {
+            background-color: #ffffff;
+            margin: 0 auto;
+            width: 100%;
+            max-width: 600px;
+            border-spacing: 0;
+            color: #1A1A1A;
+            border: 1px solid #F0EBE6;
+            border-radius: 16px;
+            overflow: hidden;
+            margin-top: 40px;
+        }
+
+        /* Header & Hero */
+        .hero {
+            background-color: #6B4423;
+            text-align: center;
+            padding: 60px 40px;
+        }
+
+        .logo-text {
+            color: #ffffff;
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin: 0;
+            text-transform: uppercase;
+        }
+
+        .hero-title {
+            color: #ffffff;
+            font-size: 36px;
+            line-height: 1.1;
+            font-weight: 800;
+            margin-top: 24px;
+            margin-bottom: 0;
+            letter-spacing: -0.04em;
+        }
+
+        /* Content Area */
+        .content {
+            padding: 48px 40px;
+        }
+
+        .body-text {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #4A4A4A;
+            margin-bottom: 32px;
+        }
+
+        /* Action Buttons */
+        .button-group {
+            margin: 40px 0;
+            text-align: center;
+        }
+
+        .btn-primary {
+            display: inline-block;
+            padding: 18px 48px;
+            border-radius: 100px;
+            font-weight: 600;
+            font-size: 16px;
+            text-decoration: none;
+            text-align: center;
+            background-color: #6B4423;
+            color: #ffffff !important;
+        }
+
+        /* Utility Box */
+        .notice-card {
+            background-color: #FFF8F0;
+            border-radius: 12px;
+            padding: 20px 24px;
+            margin-bottom: 32px;
+            border: 1px solid #F0E6D9;
+        }
+
+        .notice-text {
+            font-size: 14px;
+            color: #6B4423;
+            margin: 0;
+            font-weight: 500;
+        }
+
+        /* Final Footer */
+        .footer {
+            text-align: center;
+            padding: 40px;
+            background-color: #F8F8F8;
+        }
+
+        /* Responsive */
+        @media screen and (max-width: 600px) {
+            .hero-title { font-size: 28px; }
+            .content { padding: 32px 24px; }
+            .btn-primary { display: block; width: auto; }
+        }
+    </style>
 </head>
-<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;background-color:#ffffff;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#ffffff;">
-    <tr>
-      <td align="center" style="padding:20px 10px;">
-        <table width="520" cellpadding="0" cellspacing="0" style="background-color:#ffffff;">
-          
-          <!-- Logo -->
-          <tr>
-            <td style="padding:20px 16px 12px;text-align:center;">
-              <img src="https://tpejvjznleoinsanrgut.supabase.co/storage/v1/object/public/profiles/coffeenance-logo.png" alt="Coffeenance" style="width:200px;height:auto;max-height:200px;object-fit:contain;">
-            </td>
-          </tr>
-          
-          <!-- Title -->
-          <tr>
-            <td style="padding:0 16px 12px;text-align:center;">
-              <h1 style="color:#1a1a2e;margin:0 0 8px;font-size:28px;font-weight:700;letter-spacing:-0.5px;">Reset Your Password</h1>
-              <p style="color:#d4a574;margin:0;font-size:14px;font-weight:600;letter-spacing:2px;text-transform:uppercase;">Coffeenance Account Recovery</p>
-            </td>
-          </tr>
-          
-          <!-- Divider -->
-          <tr>
-            <td style="padding:8px 24px;">
-              <div style="height:2px;background:linear-gradient(90deg,transparent 0%,#d4a574 50%,transparent 100%);"></div>
-            </td>
-          </tr>
-          
-          <!-- Message -->
-          <tr>
-            <td style="padding:12px 16px;">
-              <p style="color:#333333;font-size:16px;line-height:1.7;margin:0 0 16px;text-align:center;">We received a request to reset your password. Click the button below to create a new password.</p>
-              <p style="color:#666666;font-size:14px;line-height:1.6;margin:0;text-align:center;">If you didn't request this, you can safely ignore this email.</p>
-            </td>
-          </tr>
-          
-          <!-- Button -->
-          <tr>
-            <td style="padding:20px 16px;text-align:center;">
-              <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:linear-gradient(135deg,#8b5a2b 0%,#6b4423 100%);color:#ffffff;text-decoration:none;padding:18px 50px;border-radius:14px;font-size:16px;font-weight:700;letter-spacing:0.5px;">Reset Password</a>
-            </td>
-          </tr>
-          
-          <!-- Security Notice -->
-          <tr>
-            <td style="padding:0 16px 20px;text-align:center;">
-              <p style="color:#666666;font-size:11px;margin:0;background:#fff8f0;padding:12px;border-radius:8px;border:1px solid #f0e6d9;">🔒 This link expires in 1 hour for your security</p>
-            </td>
-          </tr>
-          
-          <!-- Footer Divider -->
-          <tr>
-            <td style="padding:0 16px;">
-              <div style="height:1px;background:#eeeeee;"></div>
-            </td>
-          </tr>
-          
-          <!-- Footer -->
-          <tr>
-            <td style="padding:20px 16px;text-align:center;background:#f8f8f8;border-radius:0 0 16px 16px;">
-              <p style="color:#666666;font-size:11px;margin:0 0 12px;letter-spacing:1px;text-transform:uppercase;font-weight:600;">Developed by</p>
-              <img src="https://tpejvjznleoinsanrgut.supabase.co/storage/v1/object/public/profiles/galadevs-logo.png" alt="GalaDevs" style="width:80px;height:80px;border-radius:12px;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;">
-              <p style="color:#1a1a2e;font-size:16px;font-weight:700;margin:0 0 8px;">GalaDevs Technology Corporation</p>
-              <p style="color:#666666;font-size:12px;margin:0 0 12px;">© 2026 All rights reserved</p>
-              <div style="border-top:1px solid #e0e0e0;padding-top:12px;margin-top:8px;">
-                <p style="color:#8b5a2b;font-size:12px;font-weight:600;margin:0 0 8px;">Want to inquire? Contact us:</p>
-                <p style="color:#666666;font-size:12px;margin:0 0 4px;">🌐 <a href="https://www.galadevs.com" style="color:#8b5a2b;text-decoration:none;">www.galadevs.com</a></p>
-                <p style="color:#666666;font-size:12px;margin:0 0 4px;">📧 <a href="mailto:info@galadevs.com" style="color:#8b5a2b;text-decoration:none;">info@galadevs.com</a></p>
-                <p style="color:#666666;font-size:12px;margin:0;">📱 09625472396</p>
-              </div>
-            </td>
-          </tr>
-          
+<body>
+    <center class="wrapper">
+        <table class="main" width="100%">
+            <!-- Hero Section -->
+            <tr>
+                <td class="hero">
+                    <p class="logo-text">Coffeenance</p>
+                    <h1 class="hero-title">Reset Your<br/>Password</h1>
+                </td>
+            </tr>
+
+            <!-- Main Content -->
+            <tr>
+                <td class="content">
+                    <p class="body-text">
+                        We received a request to reset your password for your Coffeenance account. 
+                        Click the button below to create a new password.
+                    </p>
+                    
+                    <p class="body-text" style="color: #666666;">
+                        If you didn't request this password reset, you can safely ignore this email. 
+                        Your password will remain unchanged.
+                    </p>
+
+                    <!-- Button -->
+                    <div class="button-group">
+                        <!--[if mso]>
+                        <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{{ .ConfirmationURL }}" style="height:52px;v-text-anchor:middle;width:220px;" arcsize="100%" stroke="f" fillcolor="#6B4423">
+                            <w:anchorlock/>
+                            <center>
+                        <![endif]-->
+                        <a href="{{ .ConfirmationURL }}" class="btn-primary">Reset Password</a>
+                        <!--[if mso]>
+                            </center>
+                        </v:roundrect>
+                        <![endif]-->
+                    </div>
+
+                    <!-- Security Notice -->
+                    <div class="notice-card">
+                        <p class="notice-text">
+                            🔒 <strong>Security Notice:</strong> This link expires in 1 hour for your protection.
+                        </p>
+                    </div>
+                </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+                <td class="footer">
+                    <p style="font-size: 11px; color: #999999; margin-top: 0; line-height: 1.6;">
+                        <strong style="color: #888888;">Need help? Contact us:</strong><br/><br/>
+                        🌐 <a href="https://www.galadevs.com" style="color: #6B4423; text-decoration: none;">www.galadevs.com</a><br/>
+                        📧 <a href="mailto:info@galadevs.com" style="color: #6B4423; text-decoration: none;">info@galadevs.com</a><br/>
+                        📱 09625472396
+                    </p>
+                </td>
+            </tr>
         </table>
-      </td>
-    </tr>
-  </table>
+    </center>
 </body>
 </html>
