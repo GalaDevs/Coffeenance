@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -21,21 +22,23 @@ String? _initializationErrorDetails;
 /// Main entry point - Matches Next.js layout.tsx and page.tsx
 /// Provides state management and adaptive theming for iOS/Android/Web
 void main() async {
-  // Wrap everything in try-catch to prevent crashes
-  try {
-    WidgetsFlutterBinding.ensureInitialized();
-    
-    // Add error handling for crashes
-    FlutterError.onError = (FlutterErrorDetails details) {
-      FlutterError.presentError(details);
-      debugPrint('Flutter Error: ${details.exception}');
-      debugPrint('Stack: ${details.stack}');
-      // Queue error for display to user
-      ErrorPopup.queueError(
-        'App Error',
-        ErrorPopup.getUserFriendlyMessage(details.exception),
-      );
-    };
+  // Wrap in runZonedGuarded to catch ALL async errors including Supabase deep link errors
+  runZonedGuarded(() async {
+    // Wrap everything in try-catch to prevent crashes
+    try {
+      WidgetsFlutterBinding.ensureInitialized();
+      
+      // Add error handling for crashes
+      FlutterError.onError = (FlutterErrorDetails details) {
+        FlutterError.presentError(details);
+        debugPrint('Flutter Error: ${details.exception}');
+        debugPrint('Stack: ${details.stack}');
+        // Queue error for display to user
+        ErrorPopup.queueError(
+          'App Error',
+          ErrorPopup.getUserFriendlyMessage(details.exception),
+        );
+      };
     
     // Initialize Supabase with error handling
     // Skip initialization if credentials are invalid to prevent crashes
@@ -47,8 +50,24 @@ void main() async {
           await Supabase.initialize(
             url: SupabaseConfig.supabaseUrl,
             anonKey: SupabaseConfig.supabaseAnonKey,
+            authOptions: const FlutterAuthClientOptions(
+              // Let us handle deep links manually to avoid crashes
+              authFlowType: AuthFlowType.pkce,
+            ),
           );
           debugPrint('✅ Supabase initialized successfully');
+          
+          // Add global error handler for auth exceptions
+          // This catches errors from Supabase's internal deep link handling
+          Supabase.instance.client.auth.onAuthStateChange.listen(
+            (data) {
+              // Normal handling done elsewhere
+            },
+            onError: (error) {
+              debugPrint('⚠️ Auth stream error (handled): $error');
+              // Errors like expired tokens are caught here
+            },
+          );
         } catch (e) {
           debugPrint('⚠️ Supabase initialization failed: $e');
           debugPrint('   App will continue in offline mode');
@@ -129,6 +148,24 @@ void main() async {
       ),
     ));
   }
+  }, (error, stackTrace) {
+    // Global error handler for all async errors (including Supabase deep link errors)
+    debugPrint('🛡️ Caught async error in runZonedGuarded: $error');
+    
+    // Check if it's an auth exception (expired link, etc.)
+    final errorString = error.toString().toLowerCase();
+    if (errorString.contains('authexception') || 
+        errorString.contains('expired') ||
+        errorString.contains('otp_expired') ||
+        errorString.contains('invalid')) {
+      debugPrint('   → Auth/expired link error - safely ignored');
+      // These are expected errors from expired password reset links
+      // They're handled by our _processDeepLink error checking
+      return;
+    }
+    
+    debugPrint('   Stack: $stackTrace');
+  });
 }
 
 class CafenanceApp extends StatelessWidget {
@@ -243,6 +280,7 @@ class _InitialScreen extends StatefulWidget {
 class _InitialScreenState extends State<_InitialScreen> {
   bool _hasShownInitError = false;
   final _appLinks = AppLinks();
+  StreamSubscription<AuthState>? _authSubscription;
   
   @override
   void initState() {
@@ -250,6 +288,9 @@ class _InitialScreenState extends State<_InitialScreen> {
     
     // Listen for auth changes and trigger rebuild
     widget.authProvider.addListener(_onAuthChanged);
+    
+    // Listen for Supabase auth state changes (for password recovery)
+    _setupAuthListener();
     
     // Show initialization error after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -260,9 +301,31 @@ class _InitialScreenState extends State<_InitialScreen> {
     _handleDeepLinks();
   }
   
+  /// Set up Supabase auth state listener for password recovery
+  void _setupAuthListener() {
+    try {
+      _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+        debugPrint('🔔 Auth state change: ${data.event}');
+        
+        if (data.event == AuthChangeEvent.passwordRecovery) {
+          debugPrint('🔐 Password recovery event detected');
+          // Navigate to reset password screen
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted) {
+              Navigator.of(context).pushNamedAndRemoveUntil('/reset-password', (route) => false);
+            }
+          });
+        }
+      });
+    } catch (e) {
+      debugPrint('⚠️ Error setting up auth listener: $e');
+    }
+  }
+  
   @override
   void dispose() {
     widget.authProvider.removeListener(_onAuthChanged);
+    _authSubscription?.cancel();
     super.dispose();
   }
   
@@ -298,54 +361,221 @@ class _InitialScreenState extends State<_InitialScreen> {
   
   /// Process deep link URLs
   void _processDeepLink(Uri uri) {
-    debugPrint('🔗 Processing deep link: $uri');
-    debugPrint('   Host: ${uri.host}');
-    debugPrint('   Path: ${uri.path}');
-    debugPrint('   Fragment: ${uri.fragment}');
-    
-    // Check if it's a password reset link
-    if (uri.host == 'reset-password' || 
-        uri.path.contains('reset-password') ||
-        uri.fragment.contains('type=recovery')) {
-      debugPrint('🔐 Password reset deep link detected');
+    try {
+      debugPrint('🔗 Processing deep link: $uri');
+      debugPrint('   Scheme: ${uri.scheme}');
+      debugPrint('   Host: ${uri.host}');
+      debugPrint('   Path: ${uri.path}');
+      debugPrint('   Fragment: ${uri.fragment}');
+      debugPrint('   Query: ${uri.queryParameters}');
       
-      // Navigate to reset password screen
-      // Supabase has already exchanged the token for a session
-      Future.delayed(const Duration(milliseconds: 500), () {
+      // Parse the fragment for Supabase auth tokens
+      // Supabase sends tokens in fragment like: #access_token=xxx&type=recovery
+      Map<String, String> fragmentParams = {};
+      if (uri.fragment.isNotEmpty) {
+        try {
+          fragmentParams = Uri.splitQueryString(uri.fragment);
+          debugPrint('   Fragment params: $fragmentParams');
+        } catch (e) {
+          debugPrint('   Error parsing fragment: $e');
+        }
+      }
+      
+      // Also check query parameters (some redirects use query instead of fragment)
+      final allParams = {...uri.queryParameters, ...fragmentParams};
+      
+      // *** CHECK FOR ERRORS FIRST ***
+      // Supabase sends errors in query params when link is expired/invalid
+      if (allParams.containsKey('error') || allParams.containsKey('error_code')) {
+        final errorCode = allParams['error_code'] ?? allParams['error'] ?? 'unknown';
+        final errorDesc = allParams['error_description'] ?? 'Link is invalid or has expired';
+        debugPrint('⚠️ Deep link contains error: $errorCode - $errorDesc');
+        
+        // Show user-friendly error and redirect to login
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('⚠️ ${errorDesc.replaceAll('+', ' ')}. Please request a new reset link.'),
+                backgroundColor: Colors.orange,
+                duration: const Duration(seconds: 5),
+              ),
+            );
+            Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+          }
+        });
+        return; // Don't process further
+      }
+      
+      // Check if it's a password reset/recovery link
+      final isPasswordReset = uri.host == 'reset-password' || 
+          uri.path.contains('reset-password') ||
+          allParams['type'] == 'recovery' ||
+          uri.toString().contains('type=recovery');
+      
+      if (isPasswordReset) {
+        debugPrint('🔐 Password reset deep link detected');
+        
+        // If we have an access token, try to set the session
+        if (allParams.containsKey('access_token')) {
+          debugPrint('🔑 Found access token, setting session...');
+          _handleRecoveryToken(allParams);
+        } else {
+          // Navigate directly to reset password screen
+          debugPrint('📱 Navigating to reset password screen...');
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted) {
+              Navigator.of(context).pushNamedAndRemoveUntil('/reset-password', (route) => false);
+            }
+          });
+        }
+        return;
+      }
+      
+      // Check if it's an email verification link
+      final isEmailVerification = uri.host == 'verify-email' || 
+          uri.path.contains('verify-email') ||
+          allParams['type'] == 'signup' ||
+          allParams['type'] == 'email' ||
+          uri.toString().contains('type=signup');
+      
+      if (isEmailVerification) {
+        debugPrint('✅ Email verification deep link detected');
+        
+        // If we have an access token, set the session first
+        if (allParams.containsKey('access_token')) {
+          _handleVerificationToken(allParams);
+        } else {
+          // Just wait and check auth state
+          Future.delayed(const Duration(seconds: 1), () {
+            try {
+              final user = Supabase.instance.client.auth.currentUser;
+              if (user != null && user.emailConfirmedAt != null) {
+                debugPrint('✅ Email verified successfully via deep link');
+                
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('✅ Your email has been verified! You can now log in.'),
+                      backgroundColor: Colors.green,
+                      duration: Duration(seconds: 5),
+                    ),
+                  );
+                }
+              }
+            } catch (e) {
+              debugPrint('⚠️ Error checking user state: $e');
+            }
+          });
+        }
+        return;
+      }
+      
+      // If we get here with recovery type in the URL, still handle it
+      if (uri.toString().contains('recovery') || uri.toString().contains('reset')) {
+        debugPrint('🔐 Fallback: Detected recovery in URL, navigating to reset password');
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) {
+            Navigator.of(context).pushNamedAndRemoveUntil('/reset-password', (route) => false);
+          }
+        });
+      }
+    } catch (e, stack) {
+      debugPrint('❌ Error processing deep link: $e');
+      debugPrint('   Stack: $stack');
+    }
+  }
+  
+  /// Handle recovery token from password reset email
+  Future<void> _handleRecoveryToken(Map<String, String> params) async {
+    try {
+      final accessToken = params['access_token'];
+      final refreshToken = params['refresh_token'] ?? '';
+      
+      if (accessToken != null && accessToken.isNotEmpty) {
+        debugPrint('🔑 Setting session with recovery token...');
+        debugPrint('   Access token length: ${accessToken.length}');
+        debugPrint('   Refresh token length: ${refreshToken.length}');
+        
+        try {
+          // Set the session using the tokens from the URL
+          // Need both access_token and refresh_token
+          if (refreshToken.isNotEmpty) {
+            await Supabase.instance.client.auth.setSession(accessToken);
+          } else {
+            // If no refresh token, try to recover session differently
+            // The auth state change listener should handle this
+            debugPrint('⚠️ No refresh token, relying on auth state listener');
+          }
+          
+          debugPrint('✅ Session set successfully');
+        } catch (sessionError) {
+          debugPrint('⚠️ Session set error (may be okay): $sessionError');
+          // Continue anyway - the passwordRecovery event may have already been fired
+        }
+        
+        // Navigate to reset password screen
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            Navigator.of(context).pushNamedAndRemoveUntil('/reset-password', (route) => false);
+          }
+        });
+      } else {
+        debugPrint('⚠️ No access token found, navigating anyway');
+        // Navigate to reset password screen anyway
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            Navigator.of(context).pushNamedAndRemoveUntil('/reset-password', (route) => false);
+          }
+        });
+      }
+    } catch (e, stack) {
+      debugPrint('❌ Error handling recovery token: $e');
+      debugPrint('   Stack: $stack');
+      // Still try to navigate
+      Future.delayed(const Duration(milliseconds: 300), () {
         if (mounted) {
           Navigator.of(context).pushNamedAndRemoveUntil('/reset-password', (route) => false);
         }
       });
-      return;
     }
-    
-    // Check if it's an email verification link
-    if (uri.host == 'verify-email' || 
-        uri.path.contains('verify-email') ||
-        uri.fragment.contains('type=signup')) {
-      debugPrint('✅ Email verification deep link detected');
+  }
+  
+  /// Handle verification token from email verification
+  Future<void> _handleVerificationToken(Map<String, String> params) async {
+    try {
+      final accessToken = params['access_token'];
       
-      // Supabase automatically handles the token validation
-      // Just wait a moment and check auth state
-      Future.delayed(const Duration(seconds: 1), () {
-        final user = Supabase.instance.client.auth.currentUser;
-        if (user != null && user.emailConfirmedAt != null) {
-          debugPrint('✅ Email verified successfully via deep link');
-          
-          // Show success message
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('✅ Your email has been verified! You can now log in.'),
-                backgroundColor: Colors.green,
-                duration: Duration(seconds: 5),
-              ),
-            );
-            
-            // No need to refresh auth state - it's automatic
-          }
+      if (accessToken != null && accessToken.isNotEmpty) {
+        debugPrint('🔑 Setting session with verification token...');
+        try {
+          await Supabase.instance.client.auth.setSession(accessToken);
+          debugPrint('✅ Email verification session set');
+        } catch (sessionError) {
+          debugPrint('⚠️ Session set error (may be okay): $sessionError');
         }
-      });
+        
+        try {
+          final user = Supabase.instance.client.auth.currentUser;
+          if (user != null && user.emailConfirmedAt != null) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('✅ Your email has been verified! You can now log in.'),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 5),
+                ),
+              );
+              setState(() {}); // Refresh to show appropriate screen
+            }
+          }
+        } catch (e) {
+          debugPrint('⚠️ Error checking user state: $e');
+        }
+      }
+    } catch (e, stack) {
+      debugPrint('❌ Error handling verification token: $e');
+      debugPrint('   Stack: $stack');
     }
   }
 

@@ -71,5 +71,7 @@
 			<string>com.example.coffeeflow</string>
 		</dict>
 	</array>
+	<key>FlutterDeepLinkingEnabled</key>
+	<true/>
 </dict>
 </plist>

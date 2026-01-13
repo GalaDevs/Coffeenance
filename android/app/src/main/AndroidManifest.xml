@@ -50,14 +50,33 @@
                     android:host="verify-email" />
             </intent-filter>
             
-            <!-- HTTPS deep link for Supabase email verification -->
+            <!-- Deep link for password reset -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="coffeenance"
+                    android:host="reset-password" />
+            </intent-filter>
+            
+            <!-- Catch-all deep link for coffeenance:// scheme -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="coffeenance" />
+            </intent-filter>
+            
+            <!-- HTTPS deep link for Supabase email verification and password reset -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
                     android:scheme="https"
-                    android:host="tpejvjznleoinsanrgut.supabase.co" />
+                    android:host="tpejvjznleoinsanrgut.supabase.co"
+                    android:pathPrefix="/auth/v1/verify" />
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:excel/excel.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -1064,28 +1066,383 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Export Data'),
-        content: const Text(
-          'This will export all your transaction data to a CSV file that you can open in Excel or any spreadsheet application.',
+        title: const Row(
+          children: [
+            Icon(Icons.file_download, color: Colors.green),
+            SizedBox(width: 8),
+            Text('Export Data'),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Export your transaction data to Excel format (.xlsx)',
+              style: TextStyle(fontSize: 14),
+            ),
+            SizedBox(height: 12),
+            Text(
+              '✓ Works on phones, tablets & computers\n'
+              '✓ Opens in Excel, Google Sheets, Numbers\n'
+              '✓ Includes summary & formatted data',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+          ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
-          ElevatedButton(
+          ElevatedButton.icon(
             onPressed: () async {
               Navigator.pop(context);
-              await _exportData(context);
+              await _exportToExcel(context);
             },
-            child: const Text('Export to CSV'),
+            icon: const Icon(Icons.table_chart, size: 18),
+            label: const Text('Export Excel'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _exportData(BuildContext context) async {
+  Future<void> _exportToExcel(BuildContext context) async {
+    // Helper function to format currency as ₱xxx,xxx.xx
+    String formatPeso(double amount) {
+      final parts = amount.toStringAsFixed(2).split('.');
+      final integerPart = parts[0];
+      final decimalPart = parts[1];
+      
+      // Add thousand separators
+      final buffer = StringBuffer();
+      final chars = integerPart.replaceAll('-', '').split('').reversed.toList();
+      for (var i = 0; i < chars.length; i++) {
+        if (i > 0 && i % 3 == 0) {
+          buffer.write(',');
+        }
+        buffer.write(chars[i]);
+      }
+      final formatted = buffer.toString().split('').reversed.join();
+      final sign = amount < 0 ? '-' : '';
+      return '₱$sign$formatted.$decimalPart';
+    }
+    
+    try {
+      // Show loading indicator
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              ),
+              SizedBox(width: 12),
+              Text('Creating Excel file...'),
+            ],
+          ),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      // Get transaction data
+      final transactionProvider = context.read<TransactionProvider>();
+      final transactions = transactionProvider.transactions;
+
+      // Create Excel workbook
+      final excel = Excel.createExcel();
+      
+      // Remove default sheet and create our sheets
+      excel.delete('Sheet1');
+      
+      // ========== SUMMARY SHEET ==========
+      final summarySheet = excel['Summary'];
+      
+      // Style for headers
+      final headerStyle = CellStyle(
+        bold: true,
+        backgroundColorHex: ExcelColor.fromHexString('#4472C4'),
+        fontColorHex: ExcelColor.white,
+        horizontalAlign: HorizontalAlign.Center,
+        fontSize: 12,
+      );
+      
+      final titleStyle = CellStyle(
+        bold: true,
+        fontSize: 16,
+        fontColorHex: ExcelColor.fromHexString('#1F4E79'),
+      );
+      
+      final currencyStyle = CellStyle(
+        numberFormat: NumFormat.standard_2,
+        horizontalAlign: HorizontalAlign.Right,
+      );
+      
+      // Title
+      summarySheet.cell(CellIndex.indexByString('A1')).value = TextCellValue('CAFENANCE - Transaction Report');
+      summarySheet.cell(CellIndex.indexByString('A1')).cellStyle = titleStyle;
+      summarySheet.merge(CellIndex.indexByString('A1'), CellIndex.indexByString('D1'));
+      
+      // Export info
+      summarySheet.cell(CellIndex.indexByString('A3')).value = TextCellValue('Export Date:');
+      summarySheet.cell(CellIndex.indexByString('B3')).value = TextCellValue(DateTime.now().toString().split('.')[0]);
+      
+      summarySheet.cell(CellIndex.indexByString('A4')).value = TextCellValue('Total Transactions:');
+      summarySheet.cell(CellIndex.indexByString('B4')).value = IntCellValue(transactions.length);
+      
+      // Financial Summary
+      summarySheet.cell(CellIndex.indexByString('A6')).value = TextCellValue('FINANCIAL SUMMARY');
+      summarySheet.cell(CellIndex.indexByString('A6')).cellStyle = CellStyle(bold: true, fontSize: 14);
+      summarySheet.merge(CellIndex.indexByString('A6'), CellIndex.indexByString('B6'));
+      
+      summarySheet.cell(CellIndex.indexByString('A7')).value = TextCellValue('Total Revenue:');
+      summarySheet.cell(CellIndex.indexByString('B7')).value = TextCellValue(formatPeso(transactionProvider.totalRevenue));
+      summarySheet.cell(CellIndex.indexByString('B7')).cellStyle = CellStyle(
+        fontColorHex: ExcelColor.fromHexString('#28A745'),
+        bold: true,
+      );
+      
+      summarySheet.cell(CellIndex.indexByString('A8')).value = TextCellValue('Total Expenses:');
+      summarySheet.cell(CellIndex.indexByString('B8')).value = TextCellValue(formatPeso(transactionProvider.totalExpense));
+      summarySheet.cell(CellIndex.indexByString('B8')).cellStyle = CellStyle(
+        fontColorHex: ExcelColor.fromHexString('#DC3545'),
+        bold: true,
+      );
+      
+      summarySheet.cell(CellIndex.indexByString('A9')).value = TextCellValue('Net Balance:');
+      summarySheet.cell(CellIndex.indexByString('B9')).value = TextCellValue(formatPeso(transactionProvider.balance));
+      summarySheet.cell(CellIndex.indexByString('B9')).cellStyle = CellStyle(
+        fontColorHex: transactionProvider.balance >= 0 
+            ? ExcelColor.fromHexString('#28A745')
+            : ExcelColor.fromHexString('#DC3545'),
+        bold: true,
+      );
+      
+      // Set column widths for summary
+      summarySheet.setColumnWidth(0, 25);
+      summarySheet.setColumnWidth(1, 20);
+      
+      // ========== TRANSACTIONS SHEET ==========
+      final transactionsSheet = excel['Transactions'];
+      
+      // Headers
+      final headers = [
+        'No.',
+        'Date',
+        'Time',
+        'Type',
+        'Category',
+        'Description',
+        'Amount',
+        'Payment Method',
+        'Transaction #',
+        'Receipt #',
+        'TIN',
+        'VAT',
+        'Supplier Name',
+        'Supplier Address',
+      ];
+      
+      for (var i = 0; i < headers.length; i++) {
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0)).value = TextCellValue(headers[i]);
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0)).cellStyle = headerStyle;
+      }
+      
+      // Data rows
+      for (var i = 0; i < transactions.length; i++) {
+        final t = transactions[i];
+        final rowIndex = i + 1;
+        final dateTime = DateTime.tryParse(t.date) ?? DateTime.now();
+        final type = t.type.toString().split('.').last;
+        
+        // Alternate row colors
+        final rowStyle = CellStyle(
+          backgroundColorHex: i % 2 == 0 ? ExcelColor.none : ExcelColor.fromHexString('#F2F2F2'),
+        );
+        
+        final amountStyle = CellStyle(
+          backgroundColorHex: i % 2 == 0 ? ExcelColor.none : ExcelColor.fromHexString('#F2F2F2'),
+          fontColorHex: type == 'income' 
+              ? ExcelColor.fromHexString('#28A745')
+              : ExcelColor.fromHexString('#DC3545'),
+          bold: true,
+        );
+        
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = IntCellValue(i + 1);
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).cellStyle = rowStyle;
+        
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = TextCellValue(
+          '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}'
+        );
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).cellStyle = rowStyle;
+        
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex)).value = TextCellValue(
+          '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}'
+        );
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex)).cellStyle = rowStyle;
+        
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex)).value = TextCellValue(type.toUpperCase());
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex)).cellStyle = rowStyle;
+        
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex)).value = TextCellValue(t.category);
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex)).cellStyle = rowStyle;
+        
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: rowIndex)).value = TextCellValue(t.description);
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: rowIndex)).cellStyle = rowStyle;
+        
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: rowIndex)).value = TextCellValue(formatPeso(t.amount));
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: rowIndex)).cellStyle = amountStyle;
+        
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: rowIndex)).value = TextCellValue(t.paymentMethod);
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: rowIndex)).cellStyle = rowStyle;
+        
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: rowIndex)).value = TextCellValue(t.transactionNumber);
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: rowIndex)).cellStyle = rowStyle;
+        
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: rowIndex)).value = TextCellValue(t.receiptNumber);
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: rowIndex)).cellStyle = rowStyle;
+        
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 10, rowIndex: rowIndex)).value = TextCellValue(t.tinNumber);
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 10, rowIndex: rowIndex)).cellStyle = rowStyle;
+        
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 11, rowIndex: rowIndex)).value = TextCellValue(formatPeso(t.vat.toDouble()));
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 11, rowIndex: rowIndex)).cellStyle = rowStyle;
+        
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: rowIndex)).value = TextCellValue(t.supplierName);
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: rowIndex)).cellStyle = rowStyle;
+        
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 13, rowIndex: rowIndex)).value = TextCellValue(t.supplierAddress);
+        transactionsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 13, rowIndex: rowIndex)).cellStyle = rowStyle;
+      }
+      
+      // Set column widths for transactions
+      final columnWidths = [6.0, 12.0, 8.0, 10.0, 15.0, 30.0, 15.0, 15.0, 15.0, 15.0, 15.0, 10.0, 20.0, 25.0];
+      for (var i = 0; i < columnWidths.length; i++) {
+        transactionsSheet.setColumnWidth(i, columnWidths[i]);
+      }
+      
+      // Set Summary as the default sheet
+      excel.setDefaultSheet('Summary');
+
+      // Create file name with timestamp
+      final now = DateTime.now();
+      final fileName = 'Cafenance_Report_${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}.xlsx';
+      
+      // Get directory
+      Directory? directory;
+      if (Platform.isIOS) {
+        directory = await getApplicationDocumentsDirectory();
+      } else if (Platform.isAndroid) {
+        directory = Directory('/storage/emulated/0/Download');
+        if (!await directory.exists()) {
+          directory = await getExternalStorageDirectory();
+        }
+      } else {
+        directory = await getDownloadsDirectory();
+      }
+      
+      if (directory == null) {
+        throw Exception('Could not access downloads directory');
+      }
+
+      final filePath = '${directory.path}/$fileName';
+      final file = File(filePath);
+      
+      // Encode and save Excel file
+      final fileBytes = excel.encode();
+      if (fileBytes == null) {
+        throw Exception('Failed to create Excel file');
+      }
+      
+      await file.writeAsBytes(fileBytes);
+      debugPrint('✅ Excel file saved to: $filePath');
+
+      if (!context.mounted) return;
+      
+      // Show success dialog with options
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.green, size: 28),
+              SizedBox(width: 8),
+              Text('Export Successful!'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('File: $fileName', style: const TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text('Location: ${directory!.path}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              const SizedBox(height: 16),
+              const Text('What would you like to do?'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () async {
+                Navigator.pop(context);
+                // Share the file
+                await Share.shareXFiles(
+                  [XFile(filePath)],
+                  subject: 'Cafenance Transaction Report',
+                  text: 'Here is my Cafenance transaction report',
+                );
+              },
+              icon: const Icon(Icons.share, size: 18),
+              label: const Text('Share'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: () async {
+                Navigator.pop(context);
+                await OpenFilex.open(filePath);
+              },
+              icon: const Icon(Icons.open_in_new, size: 18),
+              label: const Text('Open'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      );
+      
+    } catch (e, stack) {
+      debugPrint('❌ Export error: $e');
+      debugPrint('Stack: $stack');
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Export failed: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
+  }
+
+  // Keep the old _exportData for backward compatibility but rename it
+  Future<void> _exportDataCsv(BuildContext context) async {
     try {
       // Show loading indicator
       if (!context.mounted) return;

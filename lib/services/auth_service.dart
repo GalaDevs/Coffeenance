@@ -450,9 +450,10 @@ class AuthService {
       // Validate account limits PER ADMIN (skip for admin role - unlimited OR registration)
       if (role == UserRole.manager) {
         final managers = await _getManagerCount(adminId);
-        debugPrint('👔 Current managers for this admin: $managers');
-        if (managers >= 1) {
-          throw Exception('Maximum 1 manager account allowed per admin');
+        final maxManagers = await _getMaxManagersForAdmin(adminId);
+        debugPrint('👔 Current managers for this admin: $managers (max: $maxManagers)');
+        if (managers >= maxManagers) {
+          throw Exception('Maximum $maxManagers manager account(s) allowed for this admin');
         }
       } else if (role == UserRole.staff) {
         final staff = await _getStaffCount(adminId);
@@ -858,6 +859,39 @@ class AuthService {
       debugPrint('❌ Error deleting user: $e');
       _error = 'Failed to delete user: $e';
       return false;
+    }
+  }
+
+  /// Get maximum allowed managers for a specific admin
+  Future<int> _getMaxManagersForAdmin(String adminId) async {
+    if (_supabase == null) return 1;
+    try {
+      // Get admin's email
+      final adminResponse = await _supabase!
+          .from('user_profiles')
+          .select('email')
+          .eq('id', adminId)
+          .single();
+      
+      final adminEmail = adminResponse['email'] as String?;
+      debugPrint('📧 Admin email: $adminEmail');
+      
+      // Special admins who can have 2 managers
+      const allowedTwoManagers = [
+        'jldongor@superhouse-cafecorp.com',
+        'katecabriel@gmail.com',
+      ];
+      
+      if (adminEmail != null && allowedTwoManagers.contains(adminEmail.toLowerCase())) {
+        debugPrint('✅ Admin can have 2 managers');
+        return 2;
+      }
+      
+      debugPrint('ℹ️ Admin can have 1 manager');
+      return 1;
+    } catch (e) {
+      debugPrint('❌ Error getting max managers: $e');
+      return 1; // Default to 1 on error
     }
   }
 
