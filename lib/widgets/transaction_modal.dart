@@ -443,7 +443,31 @@ class _TransactionModalState extends State<TransactionModal>
       invoiceNumber: _invoiceNumberController.text,
     );
 
-    context.read<TransactionProvider>().addTransaction(transaction);
+    final transactionProvider = context.read<TransactionProvider>();
+    await transactionProvider.addTransaction(transaction);
+    
+    // Check if we're offline and show appropriate message
+    if (!transactionProvider.isOnline && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.cloud_off_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '${_type == TransactionType.revenue ? 'Revenue' : 'Expense'} saved locally (will sync when online)',
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.orange.shade700,
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
     
     // Reset all fields for next entry
     setState(() {

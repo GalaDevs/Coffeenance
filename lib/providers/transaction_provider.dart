@@ -791,7 +791,7 @@ class TransactionProvider with ChangeNotifier {
       debugPrint('✅ SUCCESS: Loaded ${_transactions.length} transactions from CLOUD');
     } catch (e) {
       debugPrint('❌ CLOUD FETCH FAILED: $e');
-      debugPrint('⚠️ Loading from LOCAL storage instead');
+      debugPrint('⚠️ Loading from LOCAL storage instead (OFFLINE MODE)');
       // Fall back to local storage
       try {
         final prefs = await SharedPreferences.getInstance();
@@ -875,10 +875,14 @@ class TransactionProvider with ChangeNotifier {
         debugPrint('⚠️ Failed to log activity: $e');
       }
       
-      // 
-      // Don't add locally here - realtime subscription will handle it to prevent duplicates
+      // ✅ ADD TO LOCAL STORAGE IMMEDIATELY FOR INSTANT UI UPDATE
+      _transactions.insert(0, savedTransaction);
+      await _saveToStorage();
+      notifyListeners();
+      
       debugPrint('✅ SUCCESS: Transaction saved to CLOUD (Supabase ID: ${savedTransaction.id})');
-      debugPrint('🔔 Waiting for realtime to sync...');
+      debugPrint('✅ INSTANT UPDATE: Added to local storage for immediate display');
+      debugPrint('� Waiting for realtime to sync...');
     } catch (e) {
       debugPrint('❌ CLOUD SAVE FAILED: $e');
       debugPrint('⚠️ Adding to OFFLINE SYNC QUEUE');
@@ -903,9 +907,13 @@ class TransactionProvider with ChangeNotifier {
       notifyListeners();
       
       debugPrint('📤 Transaction added to sync queue (will upload when online)');
+      debugPrint('💾 OFFLINE MODE: Transaction saved locally with temp ID: $tempId');
       
       // Try to sync immediately in case we just went online
       _attemptSync();
+      
+      // Return without error - transaction was saved locally successfully
+      return;
     }
   }
 
@@ -915,9 +923,14 @@ class TransactionProvider with ChangeNotifier {
       // Delete from Supabase first
       await _supabaseService.deleteTransaction(id);
       
-      // Don't remove locally here - realtime subscription will handle it to prevent race conditions
+      // ✅ REMOVE FROM LOCAL STORAGE IMMEDIATELY FOR INSTANT UI UPDATE
+      _transactions.removeWhere((t) => t.id == id);
+      await _saveToStorage();
+      notifyListeners();
+      
       debugPrint('✅ Transaction deleted from CLOUD (ID: $id)');
-      debugPrint('🔔 Waiting for realtime to sync...');
+      debugPrint('✅ INSTANT UPDATE: Removed from local storage for immediate display');
+      debugPrint('� Waiting for realtime to sync...');
     } catch (e) {
       debugPrint('⚠️ Failed to delete from Supabase, deleting locally only: $e');
       // Fall back to local-only delete
@@ -934,9 +947,17 @@ class TransactionProvider with ChangeNotifier {
       // Update in Supabase first
       await _supabaseService.updateTransaction(transaction);
       
-      // Don't update locally here - realtime subscription will handle it
+      // ✅ UPDATE LOCAL STORAGE IMMEDIATELY FOR INSTANT UI UPDATE
+      final index = _transactions.indexWhere((t) => t.id == transaction.id);
+      if (index != -1) {
+        _transactions[index] = transaction;
+        await _saveToStorage();
+        notifyListeners();
+      }
+      
       debugPrint('✅ Transaction updated in CLOUD (ID: ${transaction.id})');
-      debugPrint('🔔 Waiting for realtime to sync...');
+      debugPrint('✅ INSTANT UPDATE: Updated in local storage for immediate display');
+      debugPrint('� Waiting for realtime to sync...');
     } catch (e) {
       debugPrint('⚠️ Failed to update in Supabase, updating locally only: $e');
       // Fall back to local-only update
@@ -1623,11 +1644,15 @@ class TransactionProvider with ChangeNotifier {
   /// Check if device is online and attempt sync
   Future<void> _checkConnectivity() async {
     try {
-      // Try a simple Supabase query to check connectivity
+      // Try a simple Supabase query to check connectivity with timeout
       await Supabase.instance.client
           .from('transactions')
           .select('id')
-          .limit(1);
+          .limit(1)
+          .timeout(
+            const Duration(seconds: 5),
+            onTimeout: () => throw Exception('Connection timeout'),
+          );
       
       if (!_isOnline) {
         debugPrint('🌐 Device is now ONLINE');
@@ -1644,7 +1669,7 @@ class TransactionProvider with ChangeNotifier {
       }
     } catch (e) {
       if (_isOnline) {
-        debugPrint('📴 Device is now OFFLINE');
+        debugPrint('📴 Device is now OFFLINE (${e.toString().contains('timeout') ? 'timeout' : 'no connection'})');
         _isOnline = false;
         notifyListeners();
       }

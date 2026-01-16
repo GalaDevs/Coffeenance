@@ -8,6 +8,7 @@ import '../widgets/transaction_modal.dart';
 import '../models/transaction.dart';
 import '../providers/auth_provider.dart';
 import '../providers/notification_provider.dart';
+import '../providers/transaction_provider.dart';
 import '../models/user_profile.dart';
 
 /// Home Screen with Bottom Navigation
@@ -216,6 +217,7 @@ class _HomeScreenState extends State<HomeScreen>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final authProvider = context.watch<AuthProvider>();
+    final transactionProvider = context.watch<TransactionProvider>();
     final userRole = authProvider.userRole;
     
     final screens = _getScreensForRole(userRole);
@@ -223,9 +225,113 @@ class _HomeScreenState extends State<HomeScreen>
 
     return Scaffold(
       body: SafeArea(
-        child: IndexedStack(
-          index: _currentIndex,
-          children: screens,
+        child: Column(
+          children: [
+            // Offline mode banner
+            if (!transactionProvider.isOnline)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade700,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.cloud_off_rounded, color: Colors.white, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        transactionProvider.pendingSyncCount > 0
+                            ? 'Offline - ${transactionProvider.pendingSyncCount} item${transactionProvider.pendingSyncCount > 1 ? 's' : ''} pending'
+                            : 'Offline - Data saved locally',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    if (transactionProvider.isSyncing)
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            // Sync success banner
+            if (transactionProvider.isOnline && transactionProvider.pendingSyncCount > 0)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade700,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.sync_rounded, color: Colors.white, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        transactionProvider.isSyncing
+                            ? 'Syncing ${transactionProvider.pendingSyncCount} item${transactionProvider.pendingSyncCount > 1 ? 's' : ''}...'
+                            : '${transactionProvider.pendingSyncCount} item${transactionProvider.pendingSyncCount > 1 ? 's' : ''} waiting to sync',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    if (transactionProvider.isSyncing)
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    else
+                      TextButton(
+                        onPressed: () => transactionProvider.syncPendingTransactions(),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        ),
+                        child: const Text(
+                          'Sync Now',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            Expanded(
+              child: IndexedStack(
+                index: _currentIndex,
+                children: screens,
+              ),
+            ),
+          ],
         ),
       ),
       floatingActionButton: Padding(
